@@ -1528,6 +1528,8 @@ export type EmprestimoAeronave = {
   emprestador_nome: string | null;
   emprestador_cliente_id: string | null;
   emprestador_socio_id: string | null;
+  tomador_cliente_id?: string | null;
+  tomador_socio_id?: string | null;
 };
 
 export async function buscarVoosEmprestimos(cotistaId: string, tipo: "cliente" | "socio", aeronaveAtualId?: string, inicio?: string, fim?: string, meses?: string[]) {

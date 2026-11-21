@@ -18,7 +18,7 @@ import {
   YAxis,
 } from "recharts";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
-import { formatarCentavos, formatarData } from "@/lib/financeiro-share-api";
+import { formatarCentavos, formatarData, formatarMoeda } from "@/lib/financeiro-share-api";
 import type { DashboardCotista } from "@/lib/financeiro-share-api";
 import {
   documentoDoLancamento,
@@ -38,6 +38,7 @@ import {
   norm,
   participanteDoCotista,
   projetarCustos,
+  voosDoCotistaComFallback,
   type DashboardBalanco,
 } from "@/lib/balanco-cotista";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
@@ -46,6 +47,7 @@ import { BalancoClientePdf } from "./BalancoClientePdf";
 import { calcularAcertoContasCotistas } from "@/lib/acerto-contas-cotistas";
 import { AcertoContasCotistasResumo } from "./AcertoContasCotistasResumo";
 import { CuriosidadesVooCotista } from "./CuriosidadesVooCotista";
+import { CabecalhoRateioCotista, CelulaRateioCotista } from "./RateioCotistaTableCells";
 
 type Props = {
   dashboard: DashboardCotista | null;
@@ -111,6 +113,11 @@ export function FechamentoBalancoReferencia({
   const [cotistasPdfSelecionados, setCotistasPdfSelecionados] = useState<string[]>([]);
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [subMes, setSubMes] = useState<"custos" | "uso">("custos");
+  const [subAbaDiario, setSubAbaDiario] = useState<"voos" | "emprestimos">("voos");
+  const [filtroCotistaEmprestimo, setFiltroCotistaEmprestimo] = useState(cotistaId || "__todos__");
+  useEffect(() => {
+    setFiltroCotistaEmprestimo(cotistaId || "__todos__");
+  }, [cotistaId]);
 
   const d = dashboard as DashboardBalanco | null;
   const b = useMemo(
@@ -151,14 +158,38 @@ export function FechamentoBalancoReferencia({
         return ponto ? { horas: horasMes, ...ponto } : null;
       }).filter((item) => item !== null)
     : [];
-  const voosOperacionais = (participante?.voos ?? b?.voos ?? [])
-    .filter((voo) => b?.meses.includes(voo.data.slice(0, 7)));
   const voosDoParticipante = participante?.voos ?? [];
+  const voosOperacionais = participante
+    ? voosDoCotistaComFallback(
+        voosDoParticipante,
+        b?.voos ?? [],
+        {
+          clienteId: cadastroCotista?.cliente_id ?? null,
+          socioId: cadastroCotista?.socio_id ?? null,
+        },
+        b?.meses ?? [],
+      )
+    : cotistaId
+      ? []
+      : (b?.voos ?? []).filter((voo) => b?.meses.includes(String(voo.data ?? "").slice(0, 7)));
   const voos = voosOperacionais
     .slice()
     .sort((a, z) => a.data.localeCompare(z.data) || (a.numeroSequencial ?? 0) - (z.numeroSequencial ?? 0));
-  const voosParaCuriosidades = participante ? voosDoParticipante : voos;
+  const voosParaCuriosidades = voos;
   const diarioDisponivel = Boolean(b?.fonteVoos || voosOperacionais.length);
+  const cotistaFiltroEmprestimo = cotistas.find((cotista) => cotista.id === filtroCotistaEmprestimo);
+  const emprestimosAeronave = (dashboard?.emprestimos_aeronave ?? [])
+    .filter((voo) => b?.meses.includes(String(voo.data ?? "").slice(0, 7)))
+    .filter((voo) => {
+      if (filtroCotistaEmprestimo === "__todos__") return true;
+      if (!cotistaFiltroEmprestimo) return false;
+      const clienteTomador = Boolean(cotistaFiltroEmprestimo.cliente_id)
+        && voo.tomador_cliente_id === cotistaFiltroEmprestimo.cliente_id;
+      const socioTomador = Boolean(cotistaFiltroEmprestimo.socio_id)
+        && voo.tomador_socio_id === cotistaFiltroEmprestimo.socio_id;
+      return clienteTomador || socioTomador;
+    })
+    .sort((a, z) => (a.data ?? "").localeCompare(z.data ?? "") || a.id.localeCompare(z.id));
   const tooltipEstilo = { background: "var(--fb-card)", color: "var(--fb-text)", border: "1px solid var(--fb-border)", borderRadius: 8, fontSize: 12 };
 
   if (carregando) return <div className="fb" role="status"><style>{CSS}</style><div className="fb-empty">Carregando fechamento…</div></div>;
@@ -383,7 +414,7 @@ export function FechamentoBalancoReferencia({
             <thead><tr>
               <th>Data</th><th>Doc</th><th>Descrição</th><th>Favorecido</th><th>Categoria</th><th>Status</th><th>TIPO RATEIO</th>
               <th className="fb-num">Valor pago</th><th>PAGO POR</th>
-              {cotistas.map((cotista, i) => <th className={`fb-num fb-share-header fb-tone-${i % 2}`} key={cotista.id} title={cotista.nome}><strong title={cotista.nome}>{cotista.nome}</strong><span>Rateio · % / valor</span></th>)}
+              {cotistas.map((cotista, i) => <CabecalhoRateioCotista key={cotista.id} cotista={cotista} indice={i} />)}
             </tr></thead>
             <tbody>{lancamentosFiltrados.map((origem) => <tr key={origem.id}>
               <td>
@@ -400,14 +431,7 @@ export function FechamentoBalancoReferencia({
               <td><span className="fb-tag">{tipoRateioLancamento(origem)}</span></td>
               <td className="fb-num fb-money">{formatarCentavos(valorPagoLancamento(origem))}</td>
               <td>{nomePagadoresDoLancamento(origem, cotistas)}</td>
-              {cotistas.map((cotista, i) => {
-                const rateio = rateioDoCotista(origem, cotista, cotistas);
-                return <td className={`fb-num fb-tone-${i % 2}`} key={cotista.id}>
-                  {rateio
-                    ? <div className="fb-share-cell"><span>{rateio.percentual == null ? "—" : `${fmt(rateio.percentual)}%`}</span><strong>{formatarCentavos(rateio.valorCentavos)}</strong></div>
-                    : <span className="fb-muted-dash">—</span>}
-                </td>;
-              })}
+              {cotistas.map((cotista, i) => <CelulaRateioCotista key={cotista.id} lancamento={origem} cotista={cotista} cotistas={cotistas} indice={i} />)}
             </tr>)}</tbody>
             <tfoot><tr>
               <td colSpan={9}>{lancamentosFiltrados.length} lançamentos · total rateado por cotista</td>
@@ -454,7 +478,12 @@ export function FechamentoBalancoReferencia({
       </section>}
 
       {aba === "diario" && <section id="fb-panel-diario" role="tabpanel" aria-labelledby="fb-tab-diario">
-        <section className="fb-card"><div className="fb-flight-heading"><h2>Registros de Voo</h2><span className="fb-tag">{voos.length} {voos.length === 1 ? "voo" : "voos"}</span></div>
+        <div className="fb-subtabs" role="group" aria-label="Diário de bordo e voos empréstimo">
+          <button type="button" id="fb-subtab-diario" aria-pressed={subAbaDiario === "voos"} onClick={() => setSubAbaDiario("voos")}>Diário de bordo</button>
+          <button type="button" id="fb-subtab-emprestimos" aria-pressed={subAbaDiario === "emprestimos"} onClick={() => setSubAbaDiario("emprestimos")}>Voos empréstimo</button>
+        </div>
+        {subAbaDiario === "voos" ? <section className="fb-card">
+          <div className="fb-flight-heading"><h2>Registros de Voo</h2><span className="fb-tag">{voos.length} {voos.length === 1 ? "voo" : "voos"}</span></div>
           {diarioDisponivel ? voos.length ? <div className="fb-scroll"><table className="fb-flight-table">
             <thead><tr><th aria-label="Referência" /><th>DATA</th><th>TRECHO</th><th>DEP</th><th>POU</th><th className="fb-flight-accent">T VOO</th><th>T TOTAL</th>{participante && <th>HORAS ATRIB.</th>}<th>VOO PARA</th></tr></thead>
             <tbody>{voos.map((voo, index) => <tr key={voo.id}>
@@ -469,7 +498,33 @@ export function FechamentoBalancoReferencia({
             </tr>)}</tbody>
           </table></div> : <Vazio>Nenhum voo registrado nos meses selecionados.</Vazio>
             : <Vazio>O diário de bordo não está disponível para esta consulta.</Vazio>}
-        </section>
+        </section> : <section className="fb-card">
+          <header className="fb-card-head">
+            <div><span className="fb-kicker">DIÁRIO DE BORDO</span><h2>Voos empréstimo</h2></div>
+            <label className="fb-search">
+              <Search size={15} aria-hidden="true" />
+              <select value={filtroCotistaEmprestimo} onChange={(event) => setFiltroCotistaEmprestimo(event.target.value)} aria-label="Filtrar voos empréstimo por cotista">
+                <option value="__todos__">Todos os cotistas</option>
+                {cotistas.map((cotista) => <option key={cotista.id} value={cotista.id}>{cotista.nome}</option>)}
+              </select>
+            </label>
+          </header>
+          <span className="fb-ledger-count">{emprestimosAeronave.length} {emprestimosAeronave.length === 1 ? "registro" : "registros"} no período</span>
+          {emprestimosAeronave.length ? <div className="fb-scroll"><table className="fb-flight-table">
+            <thead><tr><th>DATA</th><th>VOO</th><th>TRECHO / LOCAL</th><th>TOMADOR</th><th>EMPRESTADOR</th><th className="fb-num">LITROS</th><th className="fb-num">VALOR</th><th>STATUS</th></tr></thead>
+            <tbody>{emprestimosAeronave.map((voo) => <tr key={voo.id}>
+              <td>{formatarData(voo.data)}</td>
+              <td>{voo.numero_voo || "—"}</td>
+              <td className="fb-flight-route">{voo.trecho || voo.local_icao || voo.local || "—"}</td>
+              <td>{voo.tomador_nome || "Não identificado"}</td>
+              <td>{voo.emprestador_nome || "Não identificado"}</td>
+              <td className="fb-num">{voo.litros == null ? "—" : fmt(voo.litros, 1)}</td>
+              <td className="fb-num">{voo.valor_total == null ? "—" : formatarMoeda(voo.valor_total)}</td>
+              <td>{voo.status_reembolso || voo.status_lancamento || voo.status_abastecimento || "Não informado"}</td>
+            </tr>)}</tbody>
+          </table></div> : <Vazio>Nenhum voo empréstimo identificado para este cotista e período.</Vazio>}
+          <p className="fb-note">A atribuição individual de voos emprestados usa os IDs do tomador. Registros sem vínculo de tomador não são atribuídos a um cotista específico.</p>
+        </section>}
         <p className="fb-note">O custo/hora usa o tempo total (acionamento até corte). Traslados e voos de teste são compartilhados igualmente entre cotistas ativos do cadastro atual; a duração da etapa é preservada e as horas atribuídas mostram a parcela de cada cotista. Voos emprestados pertencem ao tomador identificado.</p>
       </section>}
 

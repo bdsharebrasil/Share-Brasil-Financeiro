@@ -235,6 +235,7 @@ export default function NFSaidaTab({ aoVoltar }: { aoVoltar: () => void }) {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const notaIdempotencyKey = useRef<string | null>(null);
+  const baixaIdempotencyKey = useRef<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [cotistas, setCotistas] = useState<CotistaOpcao[]>([]);
@@ -645,8 +646,8 @@ export default function NFSaidaTab({ aoVoltar }: { aoVoltar: () => void }) {
   /* ─────────────── dar baixa (registrar recebimento) ─────────────── */
 
 
-  const openBaixa = (n: NFSaida) => { setBaixaTarget(n); setBaixaForm({ ...emptyBaixaForm, data_pagamento: todayLocal() }); };
-  const closeBaixa = () => { setBaixaTarget(null); setBaixaForm({ ...emptyBaixaForm, data_pagamento: todayLocal() }); };
+  const openBaixa = (n: NFSaida) => { baixaIdempotencyKey.current = crypto.randomUUID(); setBaixaTarget(n); setBaixaForm({ ...emptyBaixaForm, data_pagamento: todayLocal() }); };
+  const closeBaixa = () => { baixaIdempotencyKey.current = null; setBaixaTarget(null); setBaixaForm({ ...emptyBaixaForm, data_pagamento: todayLocal() }); };
 
   const uploadComprovante = async (file: File) => {
     setBaixaUploading(true); setToast(null);
@@ -661,10 +662,13 @@ export default function NFSaidaTab({ aoVoltar }: { aoVoltar: () => void }) {
   const confirmBaixa = async () => {
     if (!baixaTarget?.contas_areceber_id) return;
     if (!baixaForm.data_pagamento) { setToast({ type: "err", text: "Informe a data do pagamento." }); return; }
+    if (!baixaForm.conta_bancaria) { setToast({ type: "err", text: "Selecione a conta bancária do recebimento." }); return; }
     if (mutationLock.current) return;
     mutationLock.current = true;
     setBaixaSaving(true); setToast(null);
     try {
+      const chavePagamento = baixaIdempotencyKey.current ?? crypto.randomUUID();
+      baixaIdempotencyKey.current = chavePagamento;
       await nfSaidaApi.darBaixaNotaOuReciboSaida(baixaTarget.id, {
         origem: baixaTarget.origem === "recibo_saida" ? "recibo_saida" : "nf_saida",
         data_pagamento: baixaForm.data_pagamento,
@@ -672,6 +676,7 @@ export default function NFSaidaTab({ aoVoltar }: { aoVoltar: () => void }) {
         forma_pagamento: baixaForm.forma_pagamento || null,
         comprovante_url: baixaForm.comprovante_url || null,
         pagamentos: [{
+          idempotency_key: chavePagamento,
           tipo_pagador: baixaTarget.socio_id ? "HOLDING" : "COTISTA",
           pagador_cotista_id: baixaTarget.socio_id ? null : baixaTarget.cotista_aeronave_id,
           pagador_holding_id: baixaTarget.socio_id ? baixaTarget.holding_id ?? null : null,

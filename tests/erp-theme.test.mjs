@@ -8,7 +8,7 @@ const temaERP = ler("../src/styles/erp-system.css");
 const entrada = ler("../src/main.tsx");
 
 function cor(css, token) {
-  const nome = token.replace(/[.*+?^\$\{\}()|[\]\\]/g, "\\$&");
+  const nome = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = css.match(new RegExp(`^\\s*${nome}:\\s*(#[a-fA-F0-9]{6});`, "m"));
   assert.ok(match, `Token ${token} deve ter valor hexadecimal`);
   return match[1];

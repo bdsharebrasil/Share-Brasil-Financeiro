@@ -425,6 +425,7 @@ export type SolicitacaoVooInterna = { preparacao_pendencias?: number | null;
   horario_previsto_agendamento: string | null;
   dias_duracao: number;
   numero_passageiros: number;
+  passageiros?: string[];
   voo_emprestado: string;
   status: "pendente" | "aprovada" | "reprovada" | "cancelada" | string;
   checklist_status?: string | null;
@@ -660,6 +661,7 @@ export type NovoAgendamento = {
   data_fim: string;
   horario_previsto_agendamento?: string;
   numero_passageiros?: number;
+  passageiros: string[];
   cliente_emprestimo_id?: string;
   socio_emprestimo_id?: string;
   voo_emprestimo_confirmado?: boolean;
@@ -669,7 +671,7 @@ export type NovoAgendamento = {
 };
 
 export function criarAgendamento(dados: NovoAgendamento) {
-  return colaboradorRequest<{ id: string; status: string; numero_voo: string | null }>("/api/interno/agendamento", {
+  return colaboradorRequest<{ id: string; solicitacao_id?: string; status: string; numero_voo: string | null }>("/api/interno/agendamento", {
     method: "POST",
     body: JSON.stringify(dados),
   });
@@ -751,7 +753,7 @@ export function buscarChecklistPreVoo(id: string) { return colaboradorRequest<Ch
 export function salvarChecklistPreVoo(id: string, payload: { itens: Record<string, unknown>; observacoes?: string; abastecimento?: Record<string, unknown>; status?: string; alertas?: Record<string, string>; nivel_oleo?: string | null }) { return colaboradorRequest<{ id: string; abastecimento_id: string | null }>(`/api/interno/agendamento/${id}/checklist`, { method: "POST", body: JSON.stringify(payload) }); }
 export function enviarComandaAbastecimento(id: string, arquivo: File) { const form = new FormData(); form.append("arquivo", arquivo); form.append("tipo", "comanda"); return colaboradorRequest<{ success: boolean; caminho_arquivo: string }>(`/api/interno/abastecimentos/${id}/arquivo`, { method: "POST", body: form }); }
 
-export type ItemCarregamento = { id: string; descricao: string; peso: number | null; braco: number | null };
+export type ItemCarregamento = { id: string; descricao: string; categoria?: string; peso: number | null; braco: number | null };
 export type PesoBalanceamentoFicha = {
   id: string;
   solicitacao_id: string;
@@ -784,16 +786,7 @@ export type PesoBalanceamentoFicha = {
   criado_em: string;
   finalizado_em: string | null;
 };
-export type PesoBalanceamentoContexto = {
-  solicitacao: SolicitacaoVooInterna & { fabricante?: string | null; matricula_registro?: string | null; modelo?: string | null };
-  piloto: { id: string; nome: string; canac: string | null } | null;
-  copiloto: { id: string; nome: string; canac: string | null } | null;
-  configuracao: Record<string, any> | null;
-  ficha: PesoBalanceamentoFicha | null;
-};
-export function buscarPesoBalanceamentoVoo(id: string) { return colaboradorRequest<PesoBalanceamentoContexto>(`/api/interno/agendamento/${id}/peso-balanceamento`); }
-export function salvarPesoBalanceamentoVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ success: boolean; ficha: PesoBalanceamentoFicha }>(`/api/interno/agendamento/${id}/peso-balanceamento`, { method: "POST", body: JSON.stringify(payload) }); }
-
+export type PontoEnvelopePeso = { peso_kg: number; cg_estacao: number };
 export type ConfiguracaoPesoBalanceamento = {
   id: string;
   aeronave_id: string;
@@ -820,8 +813,20 @@ export type ConfiguracaoPesoBalanceamento = {
   responsavel_tecnico?: string | null;
   limite_bagagem_diant_kg?: number | null;
   limite_bagagem_tras_kg?: number | null;
+  envelope_pontos?: PontoEnvelopePeso[] | null;
+  envelope_pontos_json?: PontoEnvelopePeso[] | string | null;
   atualizado_em?: string | null;
 };
+export type PesoBalanceamentoContexto = {
+  solicitacao: SolicitacaoVooInterna & { fabricante?: string | null; matricula_registro?: string | null; modelo?: string | null };
+  piloto: { id: string; nome: string; canac: string | null } | null;
+  copiloto: { id: string; nome: string; canac: string | null } | null;
+  configuracao: ConfiguracaoPesoBalanceamento | null;
+  ficha: PesoBalanceamentoFicha | null;
+};
+export function buscarPesoBalanceamentoVoo(id: string) { return colaboradorRequest<PesoBalanceamentoContexto>(`/api/interno/agendamento/${id}/peso-balanceamento`); }
+export function salvarPesoBalanceamentoVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ success: boolean; ficha: PesoBalanceamentoFicha }>(`/api/interno/agendamento/${id}/peso-balanceamento`, { method: "POST", body: JSON.stringify(payload) }); }
+
 export type FichaPesoBalanceamentoLista = PesoBalanceamentoFicha & { matricula_registro?: string | null; modelo?: string | null; origem?: string | null; destino?: string | null; data_agendada?: string | null };
 export function buscarConfiguracoesPesoBalanceamento(aeronaveId?: string) { return colaboradorRequest<{ configuracoes: ConfiguracaoPesoBalanceamento[] }>(`/api/ctm/peso-balanceamento${aeronaveId ? `?aeronave_id=${encodeURIComponent(aeronaveId)}` : ""}`); }
 export function salvarConfiguracaoPesoBalanceamento(payload: Partial<ConfiguracaoPesoBalanceamento> & { aeronave_id: string }) { return colaboradorRequest<{ configuracao: ConfiguracaoPesoBalanceamento }>("/api/ctm/peso-balanceamento", { method: "POST", body: JSON.stringify(payload) }); }

@@ -84,6 +84,18 @@ export function FormularioAgendamento({ novo, opcoes, titulares, aerodromos, aer
     atualizar("socio_emprestimo_id", tipo === "socio" ? id : undefined);
     atualizar("voo_emprestimo_confirmado", true);
   };
+  const quantidadePassageiros = Number(novo.numero_passageiros ?? 1);
+  const nomesPassageiros = Array.from({ length: Number.isInteger(quantidadePassageiros) && quantidadePassageiros > 0 ? Math.min(quantidadePassageiros, 50) : 0 }, (_, indice) => novo.passageiros?.[indice] ?? "");
+  const alterarQuantidadePassageiros = (quantidade: number) => {
+    atualizar("numero_passageiros", quantidade);
+    const tamanho = Number.isInteger(quantidade) && quantidade > 0 ? Math.min(quantidade, 50) : 0;
+    atualizar("passageiros", Array.from({ length: tamanho }, (_, indice) => novo.passageiros?.[indice] ?? ""));
+  };
+  const alterarNomePassageiro = (indice: number, nome: string) => {
+    const nomes = [...nomesPassageiros];
+    nomes[indice] = nome;
+    atualizar("passageiros", nomes);
+  };
   const aerodromoItems = aerodromos.map((item) => ({ id: item.id, label: item.label }));
   const aeronaveItems = aeronavesAtivas.map((item) => ({ id: item.id, label: `${item.matricula_registro} · ${[item.fabricante, item.modelo].filter(Boolean).join(" ")}` }));
 
@@ -111,7 +123,8 @@ export function FormularioAgendamento({ novo, opcoes, titulares, aerodromos, aer
         <div className="space-y-1.5"><Label className="text-[10px]">Destino</Label><SearchableCombobox items={aerodromoItems} value={novo.destino} onChange={(value) => atualizar("destino", value)} placeholder={aerodromosCarregando ? "Carregando aeródromos..." : "Selecione o aeródromo"} searchPlaceholder="Buscar ICAO, nome ou cidade" emptyMessage="Nenhum aeródromo encontrado." icon={<Search size={14} />} disabled={aerodromosCarregando} /></div>
         <PeriodoAgendamento inicio={novo.data_agendada} fim={novo.data_fim} aoAlterarInicio={(valor) => atualizar("data_agendada", valor)} aoAlterarFim={(valor) => atualizar("data_fim", valor)} />
         <div className="space-y-1.5"><Label htmlFor="hora-agendamento" className="text-[10px]">Horário previsto (UTC)</Label><Input id="hora-agendamento" type="time" value={novo.horario_previsto_agendamento || ""} onChange={(event) => atualizar("horario_previsto_agendamento", event.target.value)} required className="h-10 text-xs" /></div>
-        <div className="space-y-1.5"><Label htmlFor="passageiros-agendamento" className="text-[10px]">Passageiros</Label><Input id="passageiros-agendamento" type="number" min={1} value={novo.numero_passageiros || 1} onChange={(event) => atualizar("numero_passageiros", Number(event.target.value))} className="h-10 text-xs" /></div>
+        <div className="space-y-1.5"><Label htmlFor="passageiros-agendamento" className="text-[10px]">Passageiros</Label><Input id="passageiros-agendamento" type="number" min={1} max={50} step={1} value={novo.numero_passageiros ?? 1} onChange={(event) => alterarQuantidadePassageiros(Number(event.target.value))} className="h-10 text-xs" /></div>
+        {nomesPassageiros.map((nome, indice) => <div key={indice} className="space-y-1.5"><Label htmlFor={`nome-passageiro-${indice}`} className="text-[10px]">Nome completo do passageiro {indice + 1}</Label><Input id={`nome-passageiro-${indice}`} value={nome} onChange={(event) => alterarNomePassageiro(indice, event.target.value)} autoComplete="name" minLength={3} maxLength={120} required className="h-10 text-xs" placeholder="Nome e sobrenome" /></div>)}
         <div className="space-y-1.5 sm:col-span-2"><Label className="text-[10px]">Comandante</Label><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={novo.piloto_id || ""} onChange={(value) => atualizar("piloto_id", value)} placeholder="Definir depois" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>
         <div className="space-y-1.5 sm:col-span-2"><Label className="text-[10px]">SIC (segundo em comando) <span className="text-muted-foreground">(opcional)</span></Label><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac}` }))} value={novo.copiloto_id || ""} onChange={(value) => atualizar("copiloto_id", value)} placeholder="Sem copiloto" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>
         <div className="space-y-1.5 sm:col-span-2 xl:col-span-4"><Label htmlFor="observacoes-agendamento" className="text-[10px]">Observações</Label><Textarea id="observacoes-agendamento" value={novo.observacoes || ""} onChange={(event) => atualizar("observacoes", event.target.value)} placeholder="Informações da trip, passageiros ou operação" className="min-h-16 text-xs" /></div>

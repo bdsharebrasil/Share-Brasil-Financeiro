@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Clock3, MapPin, Plane, Radio, Users } from "lucide-react";
+import { MapPin, Plane, Radio } from "lucide-react";
 import type { SolicitacaoVooInterna, VooEmOperacao } from "@/lib/colaborador-api";
 import VooEmOperacaoMapa from "@/components/dashboard/operacoes/VooEmOperacaoMapa";
 import HistoricoRastreioVoo from "@/components/dashboard/operacoes/HistoricoRastreioVoo";
@@ -9,15 +9,12 @@ import { hojeBrasilia } from "@/lib/agendamentos-hoje";
 type Props = {
   voos: SolicitacaoVooInterna[];
   vooSelecionado: SolicitacaoVooInterna | null;
-  nomesTripulantes: Map<string, string>;
   voosEmOperacao: VooEmOperacao[];
-  carregando: boolean;
   carregandoAoVivo: boolean;
   erroAoVivo: string | null;
   atualizadoAoVivo: string | null;
   visaoInicial?: "ao-vivo" | "prontos";
   aoSelecionar: (id: string) => void;
-  aoIniciar: (item: SolicitacaoVooInterna) => void;
 };
 
 function dataBR(data?: string | null) {
@@ -39,8 +36,7 @@ function diaCurto(data: string) {
 }
 
 export default function VoosDeHoje({
-  voos, nomesTripulantes, voosEmOperacao, carregando, carregandoAoVivo, erroAoVivo,
-  atualizadoAoVivo, aoIniciar,
+  voos, voosEmOperacao, carregandoAoVivo, erroAoVivo, atualizadoAoVivo,
 }: Props) {
   const [vooSelecionadoId, setVooSelecionadoId] = useState("");
   const [pernaSelecionadaId, setPernaSelecionadaId] = useState("todas");
@@ -55,7 +51,6 @@ export default function VoosDeHoje({
     [agendamentosHoje, voosEmOperacao],
   );
   const vooSelecionado = voosReais.find((v) => v.id === vooSelecionadoId) || voosReais[0] || null;
-  const porId = new Map(voosReais.map((v) => [v.id, v]));
   const pernasSelecionadas = useMemo(() => {
     if (!vooSelecionado) return [];
     const pernas = [...vooSelecionado.pernas];
@@ -91,7 +86,6 @@ export default function VoosDeHoje({
         return { dia, inicio: horarios[0]?.toISOString(), fim: horarios.at(-1)?.toISOString() };
       }).filter((trecho) => Boolean(trecho.inicio && trecho.fim)).sort((a, b) => a.dia.localeCompare(b.dia));
   }, [vooSelecionado, pernasSelecionadas]);
-  const agendamentosEmVoo = agendamentosHoje.filter((item) => porId.has(item.id));
   const statusVoo = (status: string) => ({ em_voo: "Em voo", decolado: "Decolado", em_solo: "Em solo", acionado: "Acionado", aguardando: "Aguardando", encerrada: "Encerrado", concluida: "Encerrado" }[status] || status);
 
   return (
@@ -172,20 +166,6 @@ export default function VoosDeHoje({
               </div>
             </div>
           )}
-          <div className="border-t border-border pt-4">
-            <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-bold">Voos em voo hoje</h3><span className="text-xs text-muted-foreground">{agendamentosEmVoo.length}</span></div>
-            {carregando ? <p className="text-xs text-muted-foreground">Carregando voos…</p> : agendamentosEmVoo.length ? agendamentosEmVoo.map((item) => {
-              const monitorado = porId.get(item.id);
-              const pilotoNome = item.piloto_nome || (item.piloto_id ? nomesTripulantes.get(item.piloto_id) : null);
-              const copilotoNome = item.copiloto_nome || (item.copiloto_id ? nomesTripulantes.get(item.copiloto_id) : null);
-              return <article key={item.id} className="mb-2 rounded-lg border border-border p-3">
-                <div className="flex items-center justify-between gap-2"><strong className="font-mono text-xs">{item.numero_voo || "Solicitação sem número"}</strong><span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${["encerrada", "concluida"].includes(String(monitorado?.status || item.status).toLowerCase()) ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border bg-secondary/30 text-muted-foreground"}`}>{statusVoo(monitorado?.status || item.status)}</span></div>
-                <p className="mt-1 text-xs text-muted-foreground">{dataBR(item.data_agendada)} · {item.origem} → {item.destino} · {item.matricula_registro || "Aeronave a definir"}</p>
-                <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground"><Users size={11}/><span><strong className="font-semibold text-foreground">Cmte.</strong> {pilotoNome || "Não definido"}{copilotoNome && <> · <strong className="font-semibold text-foreground">Cop.</strong> {copilotoNome}</>}</span></p>
-                {item.status === "aprovada" && item.checklist_status === "concluido" && <button type="button" onClick={() => aoIniciar(item)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary"><Clock3 size={12}/>Abrir operação</button>}
-              </article>;
-            }) : <p className="text-xs text-muted-foreground">Nenhum voo com status “Em voo” hoje.</p>}
-          </div>
         </div>
       </div>
     </section>

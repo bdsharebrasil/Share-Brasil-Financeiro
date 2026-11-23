@@ -1,7 +1,7 @@
 import { CalendarDays, History, LayoutDashboard, Radio, Users, type LucideIcon } from "lucide-react";
 import type { KeyboardEvent } from "react";
 
-type AbaAgendamento = "cronograma" | "pendentes" | "aprovados" | "calendario" | "escala" | "voos-hoje" | "historico";
+type AbaAgendamento = "cronograma" | "pendentes" | "aprovados" | "calendario" | "escala" | "voos-hoje" | "historico" | "horas-voadas";
 
 type ItemAba = {
   id: AbaAgendamento;

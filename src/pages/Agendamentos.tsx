@@ -1,7 +1,7 @@
 import "@/pages/agendamentos-screen.css";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, ChevronLeft, Clock3, Plane, Plus, Radio, ShieldCheck, Users, Search, ArrowRight, X, History } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, Clock3, Plane, Plus, Radio, ShieldCheck, Users, Search, ArrowRight, X, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -678,25 +678,6 @@ export default function Agendamentos() {
     setMostrarNovo(false);
     selecionarAba(proxima);
   };
-  const agendarProximoDia = (item: SolicitacaoVooInterna) => {
-    const base = [hojeBrasilia(), item.data_agendada, item.perna_atual_horario_corte?.slice(0, 10)].filter(Boolean).sort().at(-1)!;
-    const data = new Date(`${base}T12:00:00Z`);
-    data.setUTCDate(data.getUTCDate() + 1);
-    const proximoDia = data.toISOString().slice(0, 10);
-    setNovo({
-      cliente_id: item.cliente_id || undefined, socio_id: item.socio_id || undefined,
-      aeronave_id: item.aeronave_id || "", origem: item.perna_atual_destino || item.destino, destino: "",
-      data_agendada: proximoDia, data_fim: proximoDia, horario_previsto_agendamento: "",
-      numero_passageiros: item.numero_passageiros, passageiros: [...(item.passageiros || Array.from({ length: item.numero_passageiros }, () => ""))],
-      piloto_id: item.piloto_id || "", copiloto_id: item.copiloto_id || "",
-      voo_emprestimo_confirmado: item.voo_emprestado === "sim",
-      cliente_emprestimo_id: item.cliente_emprestimo_id || undefined, socio_emprestimo_id: item.socio_emprestimo_id || undefined,
-      observacoes: item.observacoes || "",
-    });
-    selecionarAba("calendario");
-    navegarParaDataCalendario(proximoDia);
-    setMostrarNovo(true);
-  };
   const renderizarDetalhes = (item: SolicitacaoVooInterna, somenteLeitura = false, incorporado = false) => <DetalhesSolicitacao
     key={item.id} incorporado={incorporado} somenteLeitura={somenteLeitura}
     mostrarMensagensConfirmacao={mensagensConfirmacaoId === item.id}
@@ -746,9 +727,9 @@ export default function Agendamentos() {
             {vooOperacional ? <>
               {visaoAndamento === "hoje" ? <OperacaoVooSelecionado key={vooOperacional.id} item={vooOperacional} processando={processando}
                 aoAtualizar={async (status) => { await carregar(true); if (status && status !== "aprovada") { setVooHojeSelecionadoId(vooOperacional.id); setFiltroOperacoes("operacao"); } }}
-                aoProximoDia={agendarProximoDia} aoFinalizar={(item) => void finalizar(item)} />
+                aoFinalizar={(item) => void finalizar(item)} />
                 : <VoosDeHoje key={vooOperacional.id} item={vooOperacional} voosEmOperacao={voosAoVivo} carregandoAoVivo={carregandoAoVivo} erroAoVivo={erroAoVivo} atualizadoAoVivo={atualizadoAoVivo} />}
-              <section className="sb-flight-details" aria-label="Detalhes do voo selecionado">{renderizarDetalhes(vooOperacional, visaoAndamento === "monitoramento", true)}</section>
+              <details key={`dados-${vooOperacional.id}`} className="sb-flight-details" aria-label="Detalhes do voo selecionado"><summary>Dados do voo <span>{visaoAndamento === "monitoramento" ? "Expandir para consultar" : "Expandir para consultar e editar"}</span><ChevronDown size={16} /></summary><div className="sb-flight-details-body">{renderizarDetalhes(vooOperacional, visaoAndamento === "monitoramento", true)}</div></details>
             </> : <section className="sb-empty">{carregando ? "Carregando voos..." : visaoAndamento === "monitoramento" ? "Nenhuma operação ativa para monitorar." : "Selecione um dos filtros à esquerda para consultar os voos."}</section>}
           </>}
           {abaLista && aba !== "voos-hoje" && !selecionada && <section className="sb-content-card"><Cronograma titulo={tituloAba[aba]} detalhe={descricaoAba[aba]} mostrarFiltros={false} selecionada={null} progressoChecklistPorId={progressoChecklistPorId} checklistAberto={checklistAberto} solicitacoes={solicitacoesFiltradas} nomesTripulantes={nomesTripulantes} busca={busca} filtroStatus={filtroCronograma} visao={visaoCronograma} aoMudarBusca={setBusca} aoMudarFiltroStatus={setFiltroStatus} aoMudarVisao={setVisaoCronograma} aoAbrir={abrirSolicitacao} aoHistorico={(item) => abrirJornada(item, "historico")} aoConfirmar={confirmarSolicitacao} aoVoltar={() => setSelecionada(null)} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={abrirJornada} aoFinalizar={(item) => void finalizar(item)} aoExcluir={(item) => excluir(item)}/></section>}

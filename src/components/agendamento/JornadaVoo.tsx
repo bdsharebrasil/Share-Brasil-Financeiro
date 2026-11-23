@@ -7,6 +7,7 @@ import { buscarAerodromos, type AerodromoOption } from "@/lib/flightplan-api";
 import { atualizarJornadaVoo, atualizarPernaJornada, adicionarPernaJornada, buscarJornadaVoo, buscarLimitesJornada, encerrarJornadaVoo, excluirJornadaVoo, excluirPernaJornada, iniciarJornadaVoo, type JornadaVoo as Jornada, type LimitesJornada, type NivelAlertaJornada } from "@/lib/colaborador-api";
 import type { SolicitacaoVooInterna, VooEmOperacao } from "@/lib/colaborador-api";
 import ResumoJornadaOperacaoCard from "@/components/agendamento/ResumoJornadaOperacao";
+import { prepararProximaJornada } from "./proximaJornada";
 import AcompanhamentoVooAgendado from "@/components/agendamento/AcompanhamentoVooAgendado";
 
 const input = "h-9 w-full rounded-lg border border-border bg-background px-3 text-xs outline-none transition-colors focus:border-primary disabled:cursor-not-allowed disabled:bg-secondary/30 disabled:opacity-50";
@@ -117,6 +118,7 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
   const [exclusao, setExclusao] = useState<{ tipo: "jornada" | "perna"; jornadaId: string; pernaId?: string; resumo: string } | null>(null);
   const [excluindo, setExcluindo] = useState(false);
   const [criandoPerna, setCriandoPerna] = useState(false);
+  const [agendandoProximaJornada, setAgendandoProximaJornada] = useState(false);
   const [editandoPernaAtual, setEditandoPernaAtual] = useState(false);
   const [formPernaAtual, setFormPernaAtual] = useState<PernaForm>(pernaVazia());
   const [aerodromos, setAerodromos] = useState<AerodromoOption[]>([]);
@@ -126,7 +128,7 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
   const [acionamento, setAcionamento] = useState("");
   const [apresentacao, setApresentacao] = useState("");
   const [posCorte, setPosCorte] = useState<30 | 45>(30);
-  const [perna, setPerna] = useState<PernaForm>({ ...pernaVazia(), origem: item.origem || "", destino: item.destino || "" });
+  const [perna, setPerna] = useState<PernaForm>({ ...pernaVazia(), origem: item.origem || "", destino: item.destino || "", numero_passageiros: String(item.numero_passageiros ?? 0) });
   const [limites, setLimites] = useState<LimitesJornada | null>(null);
   const somenteLeitura = ["encerrada", "concluida"].includes(String(item.status || "").trim().toLowerCase());
   const modoHistorico = modo === "historico";
@@ -153,9 +155,9 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
       setApresentacao(hora(jornadaNormalizada.horario_apresentacao));
       setPosCorte(jornadaNormalizada.minutos_pos_corte === 45 ? 45 : 30);
       const ultima = jornadaNormalizada.pernas[jornadaNormalizada.pernas.length - 1];
-      if (ultima) setPerna({ origem: ultima.origem || "", destino: ultima.destino || "", numero_passageiros: String(ultima.numero_passageiros ?? 0), horario_ac: hora(ultima.horario_ac), horario_dep: hora(ultima.horario_dep), horario_pouso: hora(ultima.horario_pouso), horario_corte: hora(ultima.horario_corte) });
+      if (ultima) setPerna({ origem: ultima.origem || "", destino: ultima.destino || "", numero_passageiros: String(ultima.numero_passageiros ?? item.numero_passageiros ?? 0), horario_ac: hora(ultima.horario_ac), horario_dep: hora(ultima.horario_dep), horario_pouso: hora(ultima.horario_pouso), horario_corte: hora(ultima.horario_corte) });
     }
-  }, [item.data_agendada, item.id]);
+  }, [item.data_agendada, item.id, item.numero_passageiros]);
   useEffect(() => { void carregar().catch((e) => setErro(e instanceof Error ? e.message : "Falha ao carregar jornada.")).finally(() => setCarregando(false)); }, [carregar]);
   useEffect(() => {
     let ativo = true;
@@ -175,8 +177,24 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
   const prepararNovaPerna = () => {
     if (!jornada || !ultimaPerna) return;
     setDataNovaPerna(dataDoUltimoLancamento(ultimaPerna, jornada.data));
-    setPerna({ ...pernaVazia(), origem: ultimaPerna.destino || "" });
+    setPerna({ ...pernaVazia(), origem: ultimaPerna.destino || "", numero_passageiros: String(ultimaPerna.numero_passageiros ?? item.numero_passageiros ?? 0) });
     setCriandoPerna(true);
+  };
+  const agendarProximaJornada = () => {
+    if (!jornada) return;
+    const proxima = prepararProximaJornada(jornada, item, hoje());
+    if (!proxima) {
+      setErro("Registre o pouso e o aeródromo de destino da última jornada encerrada para agendar a próxima jornada.");
+      return;
+    }
+    setErro("");
+    setMensagem("Próxima jornada: confira a data, os passageiros e o destino antes de criar o agendamento.");
+    setData(proxima.data);
+    setPerna({ ...pernaVazia(), origem: proxima.origem, destino: proxima.destino, numero_passageiros: proxima.numero_passageiros });
+    setAcionamento("");
+    setApresentacao("");
+    setAgendandoProximaJornada(true);
+    setJornada(null);
   };
   const iniciarEdicaoPernaAtual = () => {
     if (!ultimaPerna) return;
@@ -195,9 +213,10 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
       if (aguardarHorarios) payload.aguardar_horarios = true;
       else Object.assign(payload, { horario_apresentacao: horarioApresentacao, tripulacao_checkin_hora: horarioApresentacao, horario_acionamento: horarioAcionamento, tempo_ac: horarioAcionamento, horario_ac: horarioAcionamento, horario_dep: horarioDep, tempo_dep: horarioDep });
       await iniciarJornadaVoo(item.id, payload);
+      setAgendandoProximaJornada(false);
       await carregar();
       await aoAtualizarAgendamento?.(aguardarHorarios ? item.status : horarioDep ? "decolado" : "acionado");
-      setMensagem(aguardarHorarios ? "Nova jornada criada como programada. Preencha os horários quando estiverem disponíveis." : horarioDep ? "Check-in, AC e DEP salvos. Registre POU e COR após o pouso." : "Check-in e AC salvos como Acionado. Registre a DEP quando a aeronave decolar.");
+      setMensagem(aguardarHorarios ? "Agendamento criado. Preencha os horários da jornada quando estiverem disponíveis." : horarioDep ? "Check-in, AC e DEP salvos. Registre POU e COR após o pouso." : "Check-in e AC salvos como Acionado. Registre a DEP quando a aeronave decolar.");
     }
     catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível iniciar a jornada."); } finally { setSalvando(false); }
   };
@@ -275,20 +294,20 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
   const tripulantesComLimites = jornada?.tripulantes ?? (jornada && limites ? [{ ...jornada, funcao_tripulante: jornada.funcao_tripulante, limites }] : []);
   return <section className={`${box} space-y-5`}>
     {somenteLeitura && aoFechar && <div className="flex justify-end"><button type="button" onClick={aoFechar} aria-label="Fechar resumo" className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"><X size={16} /></button></div>}
-    {!somenteLeitura && <div className="flex flex-col gap-4 rounded-xl border border-border bg-background/25 p-4"><div className="flex items-start gap-3"><div className="min-w-0 flex-1"><p className="text-[9px] font-bold uppercase tracking-[.14em] text-primary">{somenteLeitura ? "Operação concluída · histórico" : "Operação · UTC/Zulu"}</p><h2 className="mt-1 text-base font-bold">{somenteLeitura ? "Jornada realizada" : `${item.numero_voo || "Voo a gerar"} → ${item.matricula_registro || "Aeronave a definir"} → ${item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Não informado"}`}</h2><p className="mt-1 text-[10px] text-muted-foreground">{somenteLeitura ? "Visualização somente leitura da operação encerrada." : "Controle de apresentação, acionamento, voo, pouso e corte."}</p></div>{jornada?.status === "encerrada" && <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-[9px] font-bold text-emerald-300">Encerrada</span>}<button type="button" onClick={aoFechar} aria-label="Fechar jornada de voo" className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"><X size={16} /></button></div>{jornada?.status === "encerrada" && !somenteLeitura && <Button type="button" onClick={() => { setJornada(null); setMensagem("Nova jornada: preencha os horários e o novo dia."); setData(item.data_agendada || hoje()); setAcionamento(""); setApresentacao(""); setPerna({ ...pernaVazia(), origem: item.origem || "", destino: item.destino || "" }); }} className="w-full gap-2 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:w-auto sm:self-end"><Plus size={14} /> Iniciar nova jornada</Button>}</div>}
+    {!somenteLeitura && <div className="flex flex-col gap-4 rounded-xl border border-border bg-background/25 p-4"><div className="flex items-start gap-3"><div className="min-w-0 flex-1"><p className="text-[9px] font-bold uppercase tracking-[.14em] text-primary">{somenteLeitura ? "Operação concluída · histórico" : "Operação · UTC/Zulu"}</p><h2 className="mt-1 text-base font-bold">{somenteLeitura ? "Jornada realizada" : `${item.numero_voo || "Voo a gerar"} → ${item.matricula_registro || "Aeronave a definir"} → ${item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Não informado"}`}</h2><p className="mt-1 text-[10px] text-muted-foreground">{somenteLeitura ? "Visualização somente leitura da operação encerrada." : "Controle de apresentação, acionamento, voo, pouso e corte."}</p></div>{jornada?.status === "encerrada" && <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-[9px] font-bold text-emerald-300">Encerrada</span>}<button type="button" onClick={aoFechar} aria-label="Fechar jornada de voo" className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"><X size={16} /></button></div>{jornada?.status === "encerrada" && !somenteLeitura && <Button type="button" onClick={agendarProximaJornada} className="w-full gap-2 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:w-auto sm:self-end"><Plus size={14} /> Agendar próxima jornada</Button>}</div>}
     {modoHistorico && jornada && <nav className="flex gap-1 overflow-x-auto rounded-[5px] border border-border bg-card/60 p-1">{([{ id: "historico", label: "Histórico de voo" }, { id: "mapa", label: "MAPA TRAJETO" }, { id: "jornada", label: "Jornada de voo" }] as const).filter((aba) => permitirMapa || aba.id !== "mapa").map((aba) => <button key={aba.id} type="button" onClick={() => setAbaHistorico(aba.id)} className={`rounded-[6px] px-4 py-2 text-[10px] font-bold uppercase transition-colors ${abaHistorico === aba.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>{aba.label}</button>)}</nav>}
     {modoHistorico && jornada && abaHistorico === "jornada" && somenteLeitura && <ResumoJornadaOperacaoCard solicitacaoId={item.id} />}
     {modoHistorico && jornada && abaHistorico === "jornada" && <div className="grid gap-2 sm:grid-cols-2">{tripulantesComLimites.map((t) => <div key={t.id} className={`rounded-lg border px-3 py-2 text-[23px] font-extralight leading-[17px] ${t.limites.dados_incompletos ? "border-border bg-muted/20 text-muted-foreground" : tomAlerta[t.limites.nivel_alerta]}`}><div className="flex items-center justify-between gap-2 text-[32px]"><span className="text-[9px] font-bold uppercase tracking-wide"> · {nomesTripulantes.get(t.tripulante_id ?? "") || "Tempo Jornada"}</span></div><p className="mt-1 text-[11px] font-semibold leading-[19px] text-[rgb(19,25,25)] dark:text-[#dde2e9]">{t.limites.dados_incompletos ? "Dados incompletos · " : ""}Janela semanal {horas(t.limites.semana.minutos)}/{horas(t.limites.semana.limite)} · Mês {horas(t.limites.mes.minutos)}/{horas(t.limites.mes.limite)}</p></div>)}</div>}
       {!jornada ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Campo label="Data da jornada *"><input type="date" value={data} onChange={(e) => setData(e.target.value)} className={input} /></Campo>
       <Campo label="Pós-corte / tipo de voo"><select value={posCorte} onChange={(e) => setPosCorte(Number(e.target.value) === 45 ? 45 : 30)} className={input}><option value={30}>Doméstico · 30 minutos</option><option value={45}>Internacional · 45 minutos</option></select></Campo>
-      <AeroportoCampo label="Aeródromo de saída *" value={perna.origem} aerodromos={opcoesAerodromos} carregando={aerodromosCarregando} onChange={(valor) => alterarPerna("origem", valor)} />
+      {agendandoProximaJornada ? <Campo label="Aeródromo de saída *"><input value={perna.origem} readOnly className={input} /><span className="block text-[9px] text-muted-foreground">Último pouso registrado da última jornada encerrada.</span></Campo> : <AeroportoCampo label="Aeródromo de saída *" value={perna.origem} aerodromos={opcoesAerodromos} carregando={aerodromosCarregando} onChange={(valor) => alterarPerna("origem", valor)} />}
       <AeroportoCampo label="Aeródromo de destino *" value={perna.destino} aerodromos={opcoesAerodromos} carregando={aerodromosCarregando} onChange={(valor) => alterarPerna("destino", valor)} />
       <Campo label="Passageiros"><input type="number" min="0" step="1" value={perna.numero_passageiros} onChange={(e) => alterarPerna("numero_passageiros", e.target.value)} className={input} /></Campo>
-      <Campo label="Tripulação check-in automático"><input type="time" value={apresentacao} readOnly disabled={!acionamento} aria-describedby="checkin-automatico-ajuda" className={input} /><span id="checkin-automatico-ajuda" className="block text-[9px] text-muted-foreground">Preenchido 30 min antes do acionamento. Se ainda não há horários, crie a jornada programada.</span></Campo>
+      <Campo label="Tripulação check-in automático"><input type="time" value={apresentacao} readOnly disabled={!acionamento} aria-describedby="checkin-automatico-ajuda" className={input} /><span id="checkin-automatico-ajuda" className="block text-[9px] text-muted-foreground">Preenchido 30 min antes do acionamento. Se ainda não há horários, crie o agendamento.</span></Campo>
       <Campo label="Horário de acionamento (AC)"><input type="time" value={acionamento} onChange={(e) => { setAcionamento(e.target.value); setApresentacao(""); }} className={input} /></Campo>
       <Campo label="Decolagem / saída (DEP), se já ocorreu"><input type="time" value={perna.horario_dep} onChange={(e) => alterarPerna("horario_dep", e.target.value)} className={input} /></Campo>
-      <div className="sm:col-span-2 lg:col-span-4"><p className="mb-2 text-[10px] text-muted-foreground">Registre check-in e AC agora, ou crie somente a jornada do dia como programada e informe os horários quando estiverem disponíveis. DEP, POU e COR podem ser completados depois.</p><div className="flex flex-wrap gap-2"><Button onClick={() => void salvarInicio()} disabled={salvando || !data || !perna.origem || !perna.destino || !apresentacao || !acionamento} className="gap-2 text-xs"><Save size={14} /> Registrar acionamento</Button><Button type="button" variant="outline" onClick={() => void salvarInicio(true)} disabled={salvando || !data || !perna.origem || !perna.destino} className="gap-2 text-xs"><CalendarDays size={14} /> Criar jornada e aguardar horários</Button></div></div>
+      <div className="sm:col-span-2 lg:col-span-4"><p className="mb-2 text-[10px] text-muted-foreground">Registre check-in e AC agora, ou crie somente a jornada do dia como programada e informe os horários quando estiverem disponíveis. DEP, POU e COR podem ser completados depois.</p><div className="flex flex-wrap gap-2"><Button onClick={() => void salvarInicio()} disabled={salvando || !data || !perna.origem || !perna.destino || !apresentacao || !acionamento} className="gap-2 text-xs"><Save size={14} /> Registrar acionamento</Button><Button type="button" variant="outline" onClick={() => void salvarInicio(true)} disabled={salvando || !data || !perna.origem || !perna.destino} className="gap-2 text-xs"><CalendarDays size={14} /> Criar agendamento</Button></div></div>
     </div> : <>
       {modoHistorico && abaHistorico === "historico" && !somenteLeitura && <SecaoRecolhivel titulo="Dados do voo"><AcompanhamentoVooAgendado item={item} voosEmOperacao={voosEmOperacao} secao="historico" /></SecaoRecolhivel>}
       {permitirMapa && modoHistorico && abaHistorico === "mapa" && !somenteLeitura && <AcompanhamentoVooAgendado item={item} voosEmOperacao={voosEmOperacao} secao="mapa" />}

@@ -137,7 +137,7 @@ function SimulacaoAeronave({ itens, fuelArm, fases }: { itens: ItemCarregamento[
     </svg></div></section>;
 }
 
-export default function PesoBalanceamentoFicha({ item, aberto: abertoControlado, aoAlterarAberto }: { item: SolicitacaoVooInterna; aberto?: boolean; aoAlterarAberto?: (aberto: boolean) => void }) {
+export default function PesoBalanceamentoFicha({ item, aberto: abertoControlado, aoAlterarAberto, rotuloBotao }: { rotuloBotao?: string; item: SolicitacaoVooInterna; aberto?: boolean; aoAlterarAberto?: (aberto: boolean) => void }) {
   const [abertoInterno, setAbertoInterno] = useState(false);
   const aberto = abertoControlado ?? abertoInterno;
   const setAberto = aoAlterarAberto ?? setAbertoInterno;
@@ -301,7 +301,7 @@ export default function PesoBalanceamentoFicha({ item, aberto: abertoControlado,
   };
 
   return <>
-    <Button type="button" variant="outline" onClick={() => setAberto(true)} className={cn("h-9 gap-2 text-[11px] font-bold", abertoControlado !== undefined && "hidden", somenteLeitura ? ACAO_CONCLUIDA : [ACAO_A_REALIZAR, "dark:bg-[rgba(2,7,44,0.16)] dark:text-[rgba(176,235,216,1)] dark:border-[rgba(11,34,151,0.63)]"])}><Scale size={13} /> {somenteLeitura ? "Ver ficha concluída" : "Gerar peso e balanceamento"}</Button>
+    <Button type="button" variant="outline" onClick={() => setAberto(true)} className={cn("h-9 gap-2 text-[11px] font-bold", abertoControlado !== undefined && "hidden", somenteLeitura ? ACAO_CONCLUIDA : [ACAO_A_REALIZAR, "dark:bg-[rgba(2,7,44,0.16)] dark:text-[rgba(176,235,216,1)] dark:border-[rgba(11,34,151,0.63)]"])}><Scale size={13} /> {rotuloBotao || (somenteLeitura ? "Ver ficha concluída" : "Gerar peso e balanceamento")}</Button>
     <Dialog open={aberto} onOpenChange={setAberto}><DialogContent className="max-h-[100dvh] w-full max-w-5xl overscroll-contain overflow-y-auto rounded-t-3xl rounded-b-none p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-h-[92dvh] sm:w-[96vw] sm:rounded-2xl sm:p-6">
       <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Scale size={17} className="text-primary" /> Ficha de peso e balanceamento {somenteLeitura && <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[9px] font-bold text-emerald-400">Finalizada</span>}</DialogTitle></DialogHeader>
       {carregando ? <div className="flex items-center justify-center gap-2 py-14 text-xs text-muted-foreground"><Loader2 className="animate-spin" size={16} /> Carregando contexto do voo e da aeronave…</div> : <div className={`space-y-4 ${somenteLeitura ? "pointer-events-none opacity-90" : ""}`}>

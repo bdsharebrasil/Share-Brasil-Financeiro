@@ -48,7 +48,7 @@ import { CalendarioAgendamento, Escala, type VisaoEscala } from "@/components/ag
 import { DetalhesSolicitacao } from "@/components/agendamento/AgendamentoDetalhes";
 import { FormularioAgendamento, FormularioDisponibilidade } from "@/components/agendamento/AgendamentoFormularios";
 import PesoBalanceamentoFicha from "@/components/agendamento/PesoBalanceamentoFicha";
-import ModalHorasVoadas, { DetalhamentoHorasVoadas } from "@/components/agendamento/ModalHorasVoadas";
+import { DetalhamentoHorasVoadas } from "@/components/agendamento/DetalhamentoHorasVoadas";
 
 function normalizarAgendamentos(itens: SolicitacaoVooInterna[] | null | undefined) {
   const porId = new Map<string, SolicitacaoVooInterna>();
@@ -136,7 +136,6 @@ export default function Agendamentos() {
   const [buscaCalendario, setBuscaCalendario] = useState("");
   const [mostrarNovo, setMostrarNovo] = useState(false);
   const [mostrarDisponibilidade, setMostrarDisponibilidade] = useState(false);
-  const [modalHorasAberto, setModalHorasAberto] = useState(false);
   const [dadosHoras, setDadosHoras] = useState<HorasVoadasOperacionaisResponse | null>(null);
   const [carregandoHoras, setCarregandoHoras] = useState(true);
   const [erroHoras, setErroHoras] = useState<string | null>(null);
@@ -693,14 +692,13 @@ export default function Agendamentos() {
         <main className="sb-main">
           <div className="sb-main-heading"><div><h1>{tituloAba[aba]}</h1><p>{descricaoAba[aba]}</p></div><div className="sb-main-actions">
             {aba === "calendario" && <button className="sb-new-button" type="button" onClick={() => setMostrarNovo((atual) => !atual)}><Plus size={16}/>{mostrarNovo ? "Fechar formulário" : "Criar agendamento"}</button>}
-            {aba === "voos-hoje" && <button type="button" className="sb-hours-circle" title="Ver horas voadas" onClick={() => setModalHorasAberto(true)}><Clock3 size={15}/><strong>{horasVoadasMes}</strong><small>horas voadas</small></button>}
           </div></div>
           {aba === "calendario" && <div className="sb-subtabs"><button type="button" onClick={() => selecionarAba("calendario")} className={aba === "calendario" ? "active" : ""}>Calendário</button><button type="button" onClick={() => selecionarAba("cronograma")}>Voos de hoje</button><button type="button" onClick={() => selecionarAba("aprovados")}>Confirmados ({confirmados.length})</button><button type="button" onClick={() => selecionarAba("pendentes")}>Pendentes ({pendentes.length})</button><button type="button" onClick={() => selecionarAba("historico")}>Histórico ({encerrados.length})</button></div>}
           {["cronograma", "aprovados", "pendentes", "historico"].includes(aba) && <div className="sb-subtabs"><button type="button" onClick={() => selecionarAba("calendario")}>Calendário</button><button type="button" onClick={() => selecionarAba("cronograma")} className={aba === "cronograma" ? "active" : ""}>Voos de hoje</button><button type="button" onClick={() => selecionarAba("aprovados")} className={aba === "aprovados" ? "active" : ""}>Confirmados ({confirmados.length})</button><button type="button" onClick={() => selecionarAba("pendentes")} className={aba === "pendentes" ? "active" : ""}>Pendentes ({pendentes.length})</button><button type="button" onClick={() => selecionarAba("historico")} className={aba === "historico" ? "active" : ""}>Histórico ({encerrados.length})</button></div>}
           {erro && <div className="sb-error">{erro}<button type="button" onClick={() => void carregar()}>Tentar novamente</button></div>}
           {aba === "calendario" && mostrarNovo && <section className="sb-form-expanded"><div className="sb-section-heading"><h3>Novo agendamento — informações completas</h3><button type="button" onClick={() => setMostrarNovo(false)} aria-label="Fechar formulário"><X size={18}/></button></div><FormularioAgendamento novo={novo} opcoes={opcoes} titulares={titulares} aerodromos={aerodromos} aerodromosCarregando={aerodromosCarregando} tripulacao={painel?.tripulacao || []} atualizando={processando} atualizar={atualizarNovo} aoCancelar={() => setMostrarNovo(false)} aoEnviar={criarNovo}/></section>}
           {aba === "voos-hoje" && !selecionada && <div className="sb-subtabs sb-monitor-tabs"><button type="button" className={visaoAndamento === "monitoramento" ? "active" : ""} onClick={() => { setVisaoAndamento("monitoramento"); setVooHojeSelecionadoId(null); }}><Radio size={14}/> Monitoramento ao vivo</button><button type="button" className={visaoAndamento === "hoje" ? "active" : ""} onClick={() => { setVisaoAndamento("hoje"); setVooHojeSelecionadoId(null); }}><Plane size={14}/> Voos do dia ({voosAtivosHoje.length})</button></div>}
-          {aba === "voos-hoje" && !selecionada && <section className="sb-live-panel"><VoosDeHoje voos={voosExibidos} vooSelecionado={voosEmAndamentoSelecionado} nomesTripulantes={nomesTripulantes} voosEmOperacao={voosAoVivo} carregando={carregando} carregandoAoVivo={carregandoAoVivo} erroAoVivo={erroAoVivo} atualizadoAoVivo={atualizadoAoVivo} visaoInicial={visaoAndamento === "hoje" ? "prontos" : "ao-vivo"} aoSelecionar={setVooHojeSelecionadoId} aoIniciar={abrirJornada}/></section>}
+          {aba === "voos-hoje" && !selecionada && <section className="sb-live-panel"><VoosDeHoje voos={voosExibidos} vooSelecionado={voosEmAndamentoSelecionado} voosEmOperacao={voosAoVivo} carregandoAoVivo={carregandoAoVivo} erroAoVivo={erroAoVivo} atualizadoAoVivo={atualizadoAoVivo} visaoInicial={visaoAndamento === "hoje" ? "prontos" : "ao-vivo"} aoSelecionar={setVooHojeSelecionadoId}/></section>}
           {abaLista && aba !== "voos-hoje" && !selecionada && <section className="sb-content-card"><Cronograma titulo={tituloAba[aba]} detalhe={descricaoAba[aba]} mostrarFiltros={false} selecionada={null} progressoChecklistPorId={progressoChecklistPorId} checklistAberto={checklistAberto} solicitacoes={solicitacoesFiltradas} nomesTripulantes={nomesTripulantes} busca={busca} filtroStatus={filtroCronograma} visao={visaoCronograma} aoMudarBusca={setBusca} aoMudarFiltroStatus={setFiltroStatus} aoMudarVisao={setVisaoCronograma} aoAbrir={abrirSolicitacao} aoHistorico={(item) => abrirJornada(item, "historico")} aoConfirmar={confirmarSolicitacao} aoVoltar={() => setSelecionada(null)} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={abrirJornada} aoFinalizar={(item) => void finalizar(item)} aoExcluir={(item) => excluir(item)}/></section>}
           {abaLista && selecionada && !checklistAberto && !jornadaAberta && <section className="sb-content-card" id="detalhes-solicitacao"><DetalhesSolicitacao voosEmOperacao={voosAoVivo} mostrarMensagensConfirmacao={mensagensConfirmacaoId === selecionada.id} acoes={<AcoesDetalhe item={selecionada} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={abrirJornada} aoFinalizar={(item) => void finalizar(item)} progressoChecklist={progressoChecklistPorId[selecionada.id] ?? calcularProgressoChecklist(selecionada)} checklistAberto={checklistAberto}/>} selecionada={selecionada} opcoes={opcoes} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoAtualizar={atualizarSelecionada} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={(alteracoes) => void aprovar(alteracoes)} aoReprovar={() => void reprovar()}/></section>}
           {abaLista && selecionada && checklistAberto && (statusPermiteChecklist(selecionada.status) || selecionada.checklist_status === "concluido") && <section className="sb-content-card"><button type="button" className="sb-back" onClick={() => setChecklistAberto(false)}><ChevronLeft size={16}/> Voltar aos detalhes</button><ChecklistPreVoo key={selecionada.id} item={selecionada} aoConcluir={() => carregar(true)} aoAtualizarProgresso={notificarProgressoChecklist}/></section>}
@@ -768,16 +766,6 @@ export default function Agendamentos() {
         </DialogContent>
       </Dialog>
 
-      {/* 9. MODAL HORAS VOADAS */}
-      <ModalHorasVoadas
-        aberto={modalHorasAberto}
-        aoFechar={() => setModalHorasAberto(false)}
-        dados={dadosHoras}
-        carregando={carregandoHoras}
-        erro={erroHoras}
-        ano={anoHoras}
-        mes={mesHoras}
-      />
       {fichaAutoItem && <PesoBalanceamentoFicha key={fichaAutoItem.id} item={fichaAutoItem} aberto aoAlterarAberto={(aberto) => { if (!aberto) setFichaAutoItem(null); }} />}
     </div>
   );

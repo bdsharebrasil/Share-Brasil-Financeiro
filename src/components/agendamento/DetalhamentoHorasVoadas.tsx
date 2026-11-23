@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Plane, Calendar, Gauge, BarChart3 } from "lucide-react";
+import { Plane, Calendar, BarChart3 } from "lucide-react";
 import type { HorasVoadasOperacionaisResponse } from "@/lib/colaborador-api";
 import { consolidarHorasVoadas, formatarHorasVoadas } from "@/lib/horas-voadas-operacionais";
 
-type DetalhamentoProps = {
+type Props = {
   dados: HorasVoadasOperacionaisResponse | null;
   carregando: boolean;
   erro: string | null;
@@ -12,14 +11,9 @@ type DetalhamentoProps = {
   mes: number;
 };
 
-type Props = DetalhamentoProps & {
-  aberto: boolean;
-  aoFechar: () => void;
-};
-
 type AbaDetalhamento = "aeronave" | "mes" | "dia" | "ano";
 
-export function DetalhamentoHorasVoadas({ dados, carregando, erro, ano, mes }: DetalhamentoProps) {
+export function DetalhamentoHorasVoadas({ dados, carregando, erro, ano, mes }: Props) {
   const [aba, setAba] = useState<AbaDetalhamento>("aeronave");
   const resumo = useMemo(() => consolidarHorasVoadas(dados, ano, mes), [dados, ano, mes]);
   const pronto = Boolean(dados) && !carregando && !erro;
@@ -158,33 +152,5 @@ export function DetalhamentoHorasVoadas({ dados, carregando, erro, ano, mes }: D
         )}
       </div>
     </div>
-  );
-}
-
-export default function ModalHorasVoadas({ aberto, aoFechar, ...detalhamento }: Props) {
-  return (
-    <Dialog open={aberto} onOpenChange={(open) => !open && aoFechar()}>
-      <DialogContent className="max-w-2xl overflow-hidden rounded-2xl border border-border bg-card p-0 shadow-2xl">
-        <DialogHeader className="border-b border-border p-6 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#6366f1]/10 text-[#6366f1]">
-              <Gauge size={22} />
-            </div>
-            <div>
-              <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
-                Horas Voadas · Detalhamento Operacional
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Tempo de voo registrado no diário de bordo · somente aeronaves ativas
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="max-h-[460px] overflow-y-auto p-6">
-          <DetalhamentoHorasVoadas {...detalhamento} />
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }

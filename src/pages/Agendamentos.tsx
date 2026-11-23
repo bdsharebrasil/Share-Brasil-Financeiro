@@ -48,7 +48,7 @@ import { CalendarioAgendamento, Escala, type VisaoEscala } from "@/components/ag
 import { DetalhesSolicitacao } from "@/components/agendamento/AgendamentoDetalhes";
 import { FormularioAgendamento, FormularioDisponibilidade } from "@/components/agendamento/AgendamentoFormularios";
 import PesoBalanceamentoFicha from "@/components/agendamento/PesoBalanceamentoFicha";
-import ModalHorasVoadas from "@/components/agendamento/ModalHorasVoadas";
+import ModalHorasVoadas, { DetalhamentoHorasVoadas } from "@/components/agendamento/ModalHorasVoadas";
 
 function normalizarAgendamentos(itens: SolicitacaoVooInterna[] | null | undefined) {
   const porId = new Map<string, SolicitacaoVooInterna>();
@@ -616,6 +616,7 @@ export default function Agendamentos() {
     escala: "Escala da tripulação",
     "voos-hoje": "Voos em andamento",
     historico: "Histórico operacional",
+    "horas-voadas": "Horas Voadas",
   };
   const descricaoAba: Record<AbaAgendamento, string> = {
     cronograma: "Operações previstas ou realizadas no dia de hoje, no horário de Brasília.",
@@ -625,6 +626,7 @@ export default function Agendamentos() {
     escala: "Disponibilidade, escalas e limites RBAC 117 da tripulação.",
     "voos-hoje": "Operações em solo, em voo e em rota, com rastreio disponível quando houver telemetria.",
     historico: "Operações concluídas e registros de voo para consulta.",
+    "horas-voadas": "Tempo de voo registrado no diário de bordo, por aeronave, mês, dia e ano.",
   };
 
   // Esta aba mostra TODAS as operações em andamento, não apenas as agendadas hoje.
@@ -649,6 +651,7 @@ export default function Agendamentos() {
     { id: "voos-hoje", label: "Voos em andamento", icon: Radio },
     { id: "calendario", label: "Agenda de voo", icon: CalendarDays },
     { id: "escala", label: "Escala tripulação", icon: Users },
+    { id: "horas-voadas", label: "Horas Voadas", icon: Clock3 },
   ];
   const selecionarArea = (proxima: AbaAgendamento) => {
     setMostrarNovo(false);
@@ -660,7 +663,7 @@ export default function Agendamentos() {
     <div className="sb-ops">
       <header className="sb-pillbar">
         <div className="sb-pillbar-brand"><Plane size={15}/>Agendamentos</div>
-        <nav className="sb-tabs" aria-label="Áreas de operações">{tabsPainel.map(({id, label, icon: Icon}) => <button type="button" key={id} className={(aba === id || (id === "calendario" && ["cronograma", "aprovados", "pendentes", "historico"].includes(aba))) ? "active" : ""} onClick={() => selecionarArea(id)}><Icon size={16}/>{label}</button>)}</nav>
+        <nav className="sb-tabs" aria-label="Áreas de operações">{tabsPainel.map(({id, label, icon: Icon}) => <button type="button" key={id} className={(aba === id || (id === "calendario" && ["cronograma", "aprovados", "pendentes", "historico"].includes(aba))) ? "active" : ""} onClick={() => selecionarArea(id)}><Icon size={16}/>{label}{id === "horas-voadas" && <strong className="font-mono text-[10px] opacity-80">{horasVoadasMes}</strong>}</button>)}</nav>
       </header>
       <div className={`sb-layout${aba === "voos-hoje" ? " sb-stage" : ""}`}>
         {aba === "voos-hoje" && <aside className="sb-sidebar">
@@ -702,6 +705,7 @@ export default function Agendamentos() {
           {abaLista && selecionada && !checklistAberto && !jornadaAberta && <section className="sb-content-card" id="detalhes-solicitacao"><DetalhesSolicitacao voosEmOperacao={voosAoVivo} mostrarMensagensConfirmacao={mensagensConfirmacaoId === selecionada.id} acoes={<AcoesDetalhe item={selecionada} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={abrirJornada} aoFinalizar={(item) => void finalizar(item)} progressoChecklist={progressoChecklistPorId[selecionada.id] ?? calcularProgressoChecklist(selecionada)} checklistAberto={checklistAberto}/>} selecionada={selecionada} opcoes={opcoes} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoAtualizar={atualizarSelecionada} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={(alteracoes) => void aprovar(alteracoes)} aoReprovar={() => void reprovar()}/></section>}
           {abaLista && selecionada && checklistAberto && (statusPermiteChecklist(selecionada.status) || selecionada.checklist_status === "concluido") && <section className="sb-content-card"><button type="button" className="sb-back" onClick={() => setChecklistAberto(false)}><ChevronLeft size={16}/> Voltar aos detalhes</button><ChecklistPreVoo key={selecionada.id} item={selecionada} aoConcluir={() => carregar(true)} aoAtualizarProgresso={notificarProgressoChecklist}/></section>}
           {aba === "calendario" && <section className="sb-content-card"><CalendarioAgendamento mes={mes} semana={semanaCalendario} dias={dias} visao={visaoCalendario} confirmados={[...confirmados, ...encerrados]} pendentes={pendentes} aeronaves={painel?.aeronaves || []} buscaVoo={buscaCalendario} aoMudarBuscaVoo={setBuscaCalendario} aoNavegarParaData={navegarParaDataCalendario} aoMudarMes={mudarMes} aoMudarSemana={mudarSemana} aoMudarVisao={mudarVisaoCalendario} aoAbrir={abrirSolicitacao}/></section>}
+          {aba === "horas-voadas" && <section className="sb-content-card"><DetalhamentoHorasVoadas dados={dadosHoras} carregando={carregandoHoras} erro={erroHoras} ano={anoHoras} mes={mesHoras}/></section>}
           {aba === "escala" && <section className="sb-content-card"><Escala tripulacao={painel?.tripulacao || []} escala={painel?.escala || []} disponibilidades={painel?.disponibilidades || []} aoMarcar={abrirCriacaoEscala} aoAbrirVoo={(id) => { const item = agendamentos.find((a) => a.id === id); if (item) abrirSolicitacao(item); }}/>{mostrarDisponibilidade && <FormularioDisponibilidade dados={novaDisponibilidade} tripulacao={painel?.tripulacao || []} atualizando={processando} aoCancelar={() => setMostrarDisponibilidade(false)} aoEnviar={salvarDisponibilidade} aoAlterar={(campo, valor) => setNovaDisponibilidade((atual) => ({ ...atual, [campo]: valor }))}/>}</section>}
         </main>
       </div>

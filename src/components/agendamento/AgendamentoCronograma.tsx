@@ -421,9 +421,9 @@ export function AcoesDetalhe({
       )}
 
       {acoes.historico && (
-        <span className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#17885f]/10 px-4 text-xs font-bold text-[#17885f]">
-          <Check size={15} /> Operação concluída
-        </span>
+        <Button type="button" variant="outline" onClick={() => aoJornada(item)} className="h-10 gap-2 rounded-lg text-xs">
+          <FileText size={15} /> Ver histórico de voo
+        </Button>
       )}
     </div>
   );

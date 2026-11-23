@@ -11,12 +11,9 @@ import {
   type OpcoesAgendamentoResponse,
   type SolicitacaoVooInterna,
   type TripulanteAgendamento,
-  type VooEmOperacao,
 } from "@/lib/colaborador-api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import AcompanhamentoVooAgendado from "@/components/agendamento/AcompanhamentoVooAgendado";
-import JornadaVoo from "@/components/agendamento/JornadaVoo";
 
 function dataIso(data: Date) {
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
@@ -79,7 +76,6 @@ function criarEdicaoConfirmacao(selecionada: SolicitacaoVooInterna): EdicaoConfi
 }
 
 export function DetalhesSolicitacao({
-  voosEmOperacao,
   acoes,
   mostrarMensagensConfirmacao,
   selecionada,
@@ -96,8 +92,11 @@ export function DetalhesSolicitacao({
   aoMotivo,
   aoAprovar,
   aoReprovar,
+  somenteLeitura = false,
+  incorporado = false,
 }: {
-  voosEmOperacao: VooEmOperacao[];
+  somenteLeitura?: boolean;
+  incorporado?: boolean;
   acoes: ReactNode;
   mostrarMensagensConfirmacao: boolean;
   selecionada: SolicitacaoVooInterna;
@@ -107,7 +106,7 @@ export function DetalhesSolicitacao({
   copilotoId: string;
   motivo: string;
   processando: boolean;
-  aoAtualizar: (dados: AtualizacaoAgendamento) => void;
+  aoAtualizar: (dados: AtualizacaoAgendamento) => Promise<boolean | void>;
   aoFechar: () => void;
   aoPiloto: (valor: string) => void;
   aoCopiloto: (valor: string) => void;
@@ -127,6 +126,7 @@ export function DetalhesSolicitacao({
     numero_passageiros: Number(selecionada.numero_passageiros) || 1,
     piloto_id: selecionada.piloto_id || "",
     copiloto_id: selecionada.copiloto_id || "",
+    observacoes: selecionada.observacoes || "",
   }));
 
   useEffect(() => {
@@ -142,6 +142,7 @@ export function DetalhesSolicitacao({
       numero_passageiros: Number(selecionada.numero_passageiros) || 1,
       piloto_id: selecionada.piloto_id || "",
       copiloto_id: selecionada.copiloto_id || "",
+      observacoes: selecionada.observacoes || "",
     });
   }, [selecionada]);
 
@@ -251,9 +252,10 @@ export function DetalhesSolicitacao({
   const comandanteNome =
     selecionada.piloto_nome || tripulacao.find((t) => t.id === pilotoId)?.nome_completo || "Comandante";
 
-  const statusPendente = String(selecionada.status || "").trim().toLowerCase() === "pendente";
+  const statusPendente = !somenteLeitura && String(selecionada.status || "").trim().toLowerCase() === "pendente";
   // Detalhes de um voo já numerado não podem oferecer uma segunda confirmação.
   const podeConfirmar = statusPendente && !selecionada.numero_voo;
+  const podeEditar = !somenteLeitura && !["encerrada", "concluida", "cancelada", "reprovada", "pendente"].includes(String(selecionada.status).toLowerCase());
   const statusOperacional = String(selecionada.status || "").trim().toLowerCase();
   const rotuloStatus: Record<string, string> = {
     aprovada: "Confirmado", acionado: "Acionado", decolado: "Decolado",
@@ -263,7 +265,7 @@ export function DetalhesSolicitacao({
   };
 
   return (
-    <div id="detalhes-solicitacao" className="space-y-6">
+    <div className="space-y-6">
       {/* GRID DE 2 COLUNAS DO WIREFRAME PRANCHA 02 */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
         {/* COLUNA ESQUERDA: Dados da solicitação (#detalhes-solicitacao - 7 Colunas) */}
@@ -271,21 +273,22 @@ export function DetalhesSolicitacao({
           {/* Cabeçalho do Bloco Esquerdo */}
           <div className="flex items-center justify-between border-b border-border pb-4">
             <div className="flex items-center gap-3">
-              <Button
+              {!incorporado && <Button
                 type="button"
                 variant="outline"
                 onClick={aoFechar}
                 className="h-8 gap-1.5 rounded-lg border-border bg-card px-2.5 text-xs font-semibold text-foreground hover:bg-secondary/40"
               >
                 <ChevronLeft size={14} /> Voltar
-              </Button>
+              </Button>}
               <div>
                 <h3 className="text-base font-bold text-foreground">{podeConfirmar ? "Dados da solicitação" : "Dados do voo"}</h3>
                 <p className="text-xs text-muted-foreground">{podeConfirmar ? "Revise e ajuste antes de confirmar" : "Informações do agendamento já confirmado"}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {podeEditar && <Button type="button" variant="outline" size="sm" disabled={processando} onClick={() => setEditandoAgendamento((atual) => !atual)} className="gap-1.5 text-xs"><Pencil size={13} />{editandoAgendamento ? "Cancelar edição" : "Editar informações"}</Button>}
               <span
                 className={`rounded-full px-3 py-1 text-xs font-bold ${
                   podeConfirmar
@@ -298,6 +301,18 @@ export function DetalhesSolicitacao({
             </div>
           </div>
 
+          {editandoAgendamento && podeEditar && <form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={async (event) => {
+            event.preventDefault();
+            const sucesso = await aoAtualizar({ ...dadosAgendamento, horario_previsto_agendamento: dadosAgendamento.horario_previsto_agendamento ? horarioUtc(dadosAgendamento.data_agendada || selecionada.data_agendada, dadosAgendamento.horario_previsto_agendamento) : null });
+            if (sucesso !== false) setEditandoAgendamento(false);
+          }}>
+            <label className="space-y-1 text-xs">Aeronave<SearchableCombobox items={aeronaves} value={dadosAgendamento.aeronave_id || ""} onChange={(valor) => setDadosAgendamento((atual) => ({ ...atual, aeronave_id: valor }))} placeholder="Selecionar aeronave" /></label>
+            {([['origem', 'Origem', 'text'], ['destino', 'Destino', 'text'], ['data_agendada', 'Data de saída', 'date'], ['data_fim', 'Data final', 'date'], ['horario_previsto_agendamento', 'Horário previsto (UTC)', 'time'], ['numero_passageiros', 'Passageiros', 'number']] as const).map(([campo, rotulo, tipo]) => <label key={campo} className="space-y-1 text-xs">{rotulo}<Input type={tipo} value={dadosAgendamento[campo] ?? ""} required={campo !== "horario_previsto_agendamento"} min={campo === "numero_passageiros" ? 1 : campo === "data_fim" ? dadosAgendamento.data_agendada : undefined} max={campo === "numero_passageiros" ? 50 : undefined} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, [campo]: tipo === "number" ? Number(event.target.value) : ['origem', 'destino'].includes(campo) ? event.target.value.toUpperCase() : event.target.value }))} /></label>)}
+            {([['piloto_id', 'Comandante'], ['copiloto_id', 'Copiloto']] as const).map(([campo, rotulo]) => <label key={campo} className="space-y-1 text-xs">{rotulo}<SearchableCombobox items={tripulacao.filter((tripulante) => tripulante.id !== dadosAgendamento[campo === "piloto_id" ? "copiloto_id" : "piloto_id"]).map((tripulante) => ({ id: tripulante.id, label: tripulante.nome_completo }))} value={dadosAgendamento[campo] || ""} onChange={(valor) => setDadosAgendamento((atual) => ({ ...atual, [campo]: valor }))} placeholder={`Selecionar ${rotulo.toLowerCase()}`} /></label>)}
+            <label className="space-y-1 text-xs sm:col-span-2">Observações<Textarea value={dadosAgendamento.observacoes || ""} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, observacoes: event.target.value }))} /></label>
+            <div className="flex gap-2 sm:col-span-2"><Button type="submit" disabled={processando} className="text-xs">{processando ? "Salvando..." : "Salvar alterações"}</Button><Button type="button" variant="outline" disabled={processando} onClick={() => setEditandoAgendamento(false)} className="text-xs">Cancelar</Button></div>
+          </form>}
+          <div hidden={editandoAgendamento && podeEditar}>
           {/* Grid de Campos da Solicitação */}
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Titular */}
@@ -335,7 +350,7 @@ export function DetalhesSolicitacao({
               <Label className="text-xs font-semibold text-foreground">Origem</Label>
               <Input
                 readOnly
-                value={selecionada.origem || "SBBH"}
+                value={selecionada.origem || "—"}
                 className="mt-1.5 h-10 rounded-lg border-border bg-secondary/40 font-mono text-xs font-bold text-foreground"
               />
             </div>
@@ -345,7 +360,7 @@ export function DetalhesSolicitacao({
               <Label className="text-xs font-semibold text-foreground">Destino</Label>
               <Input
                 readOnly
-                value={selecionada.destino || "SBGR"}
+                value={selecionada.destino || "—"}
                 className="mt-1.5 h-10 rounded-lg border-border bg-secondary/40 font-mono text-xs font-bold text-foreground"
               />
             </div>
@@ -462,6 +477,7 @@ export function DetalhesSolicitacao({
               placeholder="Observações operacionais..."
               className="mt-1.5 min-h-[72px] rounded-lg border-border text-xs text-foreground"
             />
+          </div>
           </div>
         </section>
 
@@ -583,10 +599,10 @@ export function DetalhesSolicitacao({
                   <p className="mt-1 font-mono text-sm font-bold text-foreground">{horaParaCampo(selecionada.perna_atual_horario_corte || selecionada.horario_corte)}</p>
                 </div>
               )}
-              <div className="border-t border-border pt-2">
+              {acoes && <div className="border-t border-border pt-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Próxima ação</p>
                 {acoes}
-              </div>
+              </div>}
             </div>
           </section>
         )}
@@ -611,12 +627,7 @@ export function DetalhesSolicitacao({
           </div>
       )}
 
-      {/* Rastreio/histórico não existe para um voo apenas confirmado sem jornada aberta ou encerrada. */}
-      {(statusOperacional !== "aprovada" || Number(selecionada.jornadas_abertas || 0) > 0 || Number(selecionada.jornadas_encerradas || 0) > 0) && (
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <AcompanhamentoVooAgendado item={selecionada} voosEmOperacao={voosEmOperacao} />
-        </section>
-      )}
+
     </div>
   );
 }

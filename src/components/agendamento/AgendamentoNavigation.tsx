@@ -16,7 +16,7 @@ const itens: Omit<ItemAba, "count">[] = [
   { id: "cronograma", label: "Voos de hoje", icon: LayoutDashboard },
   { id: "calendario", label: "Agenda de voos", icon: CalendarDays },
   { id: "escala", label: "Escala da tripulação", icon: Users },
-  { id: "historico", label: "Histórico", icon: History },
+  { id: "historico", label: "Histórico de voos", icon: History },
 ];
 
 type Props = {

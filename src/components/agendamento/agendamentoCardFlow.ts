@@ -19,7 +19,7 @@ export function statusPermiteChecklist(status: string): boolean {
 
 export function statusPermiteAbrirJornada(status: string): boolean {
   const normalizado = normalizarStatus(status);
-  return STATUS_OPERACIONAIS.has(normalizado) || normalizado === "encerrada";
+  return STATUS_OPERACIONAIS.has(normalizado) || ["encerrada", "concluida"].includes(normalizado);
 }
 
 export function correspondeFiltroStatusAgendamento(status: string, filtro: string): boolean {

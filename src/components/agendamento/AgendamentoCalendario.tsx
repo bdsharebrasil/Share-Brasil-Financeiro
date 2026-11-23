@@ -151,12 +151,12 @@ export function CalendarioAgendamento({
             {modoExibicao === "lista-periodos" ? (
               <>
                 <CalendarDays size={14} className="text-[#3867ed]" />
-                Ver Calendário
+                Visualização Calendário
               </>
             ) : (
               <>
                 <List size={14} className="text-[#3867ed]" />
-                Ver por Período
+                Visualização por Período
               </>
             )}
           </button>

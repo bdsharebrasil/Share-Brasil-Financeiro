@@ -85,6 +85,11 @@ export interface NotaSaidaPayload {
 	status: StatusDocumentoSaida;
 	arquivo_pdf_url: string | null;
 	idempotency_key?: string;
+	data_pagamento?: string;
+	conta_bancaria_id?: string;
+	forma_pagamento?: string | null;
+	comprovante_url?: string | null;
+	saida_pagamento?: 'DGA_BRADESCO' | 'CONTA_COTISTA';
 }
 export interface ReciboSaidaPayload {
 	cotista_aeronave_id: string;

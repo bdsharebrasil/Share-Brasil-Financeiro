@@ -103,6 +103,7 @@ export interface AtualizarNotaSaidaPayload extends Partial<NotaSaidaPayload> {}
 export interface AtualizarReciboSaidaPayload { pdf_url: string; }
 export interface BaixaDocumentoSaidaPayload {
 	origem: DocumentoSaidaOrigem;
+	saida_pagamento?: 'DGA_BRADESCO' | 'CONTA_COTISTA';
 	data_pagamento: string;
 	conta_bancaria: string | null;
 	forma_pagamento: string | null;
@@ -117,6 +118,7 @@ export interface BaixaDocumentoSaidaPayload {
 		conta_bancaria_id?: string | null;
 		forma_pagamento?: string | null;
 		comprovante_url?: string | null;
+		saida_pagamento?: 'DGA_BRADESCO' | 'CONTA_COTISTA' | null;
 	}>;
 }
 export interface OpcoesNotasSaida {

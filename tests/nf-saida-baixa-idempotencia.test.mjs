@@ -34,3 +34,12 @@ test("dados reais da baixa seguem no pagamento; banco selecionado é obrigatóri
     assert.match(confirmar, new RegExp(campo + ":"));
   }
 });
+
+test("baixa de hold_socios oferece as duas saídas e envia o pagador compatível", () => {
+  assert.match(componente, /Saída do pagamento/);
+  assert.match(componente, /DGA_BRADESCO/);
+  assert.match(componente, /CONTA_COTISTA/);
+  assert.match(confirmar, /baixaTarget\.socio_id/);
+  assert.match(confirmar, /pagador_cotista_id: baixaTarget\.socio_id && baixaForm\.saida_pagamento === "DGA_BRADESCO" \? null : baixaTarget\.cotista_aeronave_id/);
+  assert.match(confirmar, /saida_pagamento: baixaForm\.saida_pagamento/);
+});

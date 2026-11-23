@@ -85,11 +85,14 @@ const emptyForm: FormState = {
   arquivo_pdf_url: "",
 };
 
+type SaidaPagamento = 'DGA_BRADESCO' | 'CONTA_COTISTA';
+
 interface BaixaFormState {
   data_pagamento: string;
   conta_bancaria: string;
   forma_pagamento: string;
   comprovante_url: string;
+  saida_pagamento: SaidaPagamento;
 }
 
 const emptyBaixaForm: BaixaFormState = {
@@ -97,6 +100,7 @@ const emptyBaixaForm: BaixaFormState = {
   conta_bancaria: "",
   forma_pagamento: "PIX",
   comprovante_url: "",
+  saida_pagamento: "DGA_BRADESCO",
 };
 
 const FORMAS_PAGAMENTO = ["PIX", "Transferência (TED/DOC)", "Boleto", "Dinheiro", "Cartão"];
@@ -662,6 +666,7 @@ export default function NFSaidaTab({ aoVoltar }: { aoVoltar: () => void }) {
   const confirmBaixa = async () => {
     if (!baixaTarget?.contas_areceber_id) return;
     if (!baixaForm.data_pagamento) { setToast({ type: "err", text: "Informe a data do pagamento." }); return; }
+    if (baixaTarget.socio_id && !baixaForm.saida_pagamento) { setToast({ type: "err", text: "Selecione a saída do pagamento." }); return; }
     if (!baixaForm.conta_bancaria) { setToast({ type: "err", text: "Selecione a conta bancária do recebimento." }); return; }
     if (mutationLock.current) return;
     mutationLock.current = true;
@@ -674,12 +679,14 @@ export default function NFSaidaTab({ aoVoltar }: { aoVoltar: () => void }) {
         data_pagamento: baixaForm.data_pagamento,
         conta_bancaria: contasBancarias.find(c => c.id === baixaForm.conta_bancaria)?.banco || null,
         forma_pagamento: baixaForm.forma_pagamento || null,
+        ...(baixaTarget.socio_id ? { saida_pagamento: baixaForm.saida_pagamento } : {}),
         comprovante_url: baixaForm.comprovante_url || null,
         pagamentos: [{
           idempotency_key: chavePagamento,
-          tipo_pagador: baixaTarget.socio_id ? "HOLDING" : "COTISTA",
-          pagador_cotista_id: baixaTarget.socio_id ? null : baixaTarget.cotista_aeronave_id,
-          pagador_holding_id: baixaTarget.socio_id ? baixaTarget.holding_id ?? null : null,
+          tipo_pagador: baixaTarget.socio_id && baixaForm.saida_pagamento === "DGA_BRADESCO" ? "HOLDING" : "COTISTA",
+          pagador_cotista_id: baixaTarget.socio_id && baixaForm.saida_pagamento === "DGA_BRADESCO" ? null : baixaTarget.cotista_aeronave_id,
+          pagador_holding_id: baixaTarget.socio_id && baixaForm.saida_pagamento === "DGA_BRADESCO" ? baixaTarget.holding_id ?? null : null,
+          ...(baixaTarget.socio_id ? { saida_pagamento: baixaForm.saida_pagamento } : {}),
           valor_centavos: Math.round(Number(baixaTarget.valor ?? 0) * 100),
           data_pagamento: baixaForm.data_pagamento,
           conta_bancaria_id: baixaForm.conta_bancaria || null,
@@ -803,7 +810,7 @@ export default function NFSaidaTab({ aoVoltar }: { aoVoltar: () => void }) {
     {emailTarget && <EnviarEmailClienteDialog open={emailOpen} onOpenChange={setEmailOpen} onSent={() => setEmailsEnviados(current => new Set(current).add(`${emailTarget.origem}:${emailTarget.id}`))} assuntoSugerido={`${emailTarget.origem === 'recibo_saida' ? 'Recibo' : 'Nota fiscal'} de saída ${emailTarget.numero || 'sem número'} — ${emailTarget.cliente_nome || ''}`} mensagemSugerida={`Olá${emailTarget.cliente_nome ? ` ${emailTarget.cliente_nome}` : ''},\n\nSegue a documentação de saída emitida pela Share.\n\nNúmero: ${emailTarget.numero || '—'}\nValor: ${formatBRL(num(emailTarget.valor))}\n\nAtenciosamente,\nEquipe Share Brasil`} destinatarioInicial={emailTarget.cliente_email || ''} referencias={[`${emailTarget.origem}:${emailTarget.id}`]} anexos={emailTarget.arquivo_pdf_url ? [{id:`${emailTarget.origem}:${emailTarget.id}`,url:emailTarget.arquivo_pdf_url,label:emailTarget.origem === 'recibo_saida' ? 'Recibo de saída' : 'Nota fiscal de saída',filename:getFileNameFromUrl(emailTarget.arquivo_pdf_url)}] : []} />}
     {deleteId && <Modal title="Excluir documento" onClose={() => setDeleteId(null)} busy={deleting}>{feedback}<div className="nf-confirm-icon"><Trash2 /></div><p className="nf-dialog-copy">O documento, o PDF e os lançamentos financeiros vinculados serão removidos. Esta ação não pode ser desfeita.</p><footer className="nf-modal-footer"><button className="nf-btn" disabled={deleting} onClick={() => setDeleteId(null)}>Manter documento</button><button className="nf-btn destructive" disabled={deleting} onClick={() => void confirmDelete()}>{deleting ? 'Excluindo…' : 'Excluir documento'}</button></footer></Modal>}
     {baixaTarget && <Modal title="Registrar recebimento" onClose={closeBaixa} busy={baixaSaving || baixaUploading} pagamento>
-      <form onSubmit={e => {e.preventDefault(); void confirmBaixa();}}>{feedback}<BaixaResumo descricao={baixaTarget.descricao || "Documento de saída"} detalhe={`${baixaTarget.cliente_nome || "Cliente"} · Documento ${baixaTarget.numero || "sem número"}`} valor={formatBRL(num(baixaTarget.valor))} rotuloValor="Valor do recebimento" vencimento={formatDate(baixaTarget.data_vencimento)} categoria={baixaTarget.categoria || "—"} situacao={baixaTarget.status || "Em aberto"}/><p className="nf-info">Confirma o recebimento da Share e atualiza a despesa correspondente do cliente.</p><fieldset className="nf-fieldset" disabled={baixaSaving || baixaUploading}><div className="nf-form-grid two"><label>Data do pagamento *<input required type="date" value={baixaForm.data_pagamento} onChange={e => setBaixaForm({...baixaForm,data_pagamento:e.target.value})} /></label><label>Forma de pagamento<select value={baixaForm.forma_pagamento} onChange={e => setBaixaForm({...baixaForm,forma_pagamento:e.target.value})}>{FORMAS_PAGAMENTO.map(v => <option key={v}>{v}</option>)}</select></label><label className="span-2">Conta bancária<select value={baixaForm.conta_bancaria} onChange={e => setBaixaForm({...baixaForm,conta_bancaria:e.target.value})}><option value="">Selecione a conta</option>{contasBancarias.map(c => <option key={c.id} value={c.id}>{c.banco}{c.numero_conta ? ` • ${c.numero_conta}` : ''}</option>)}</select></label><label className="nf-upload span-2"><Upload /><span><strong>{baixaUploading ? 'Enviando…' : 'Anexar imagem do comprovante'}</strong><small>PNG, JPG ou WebP • até 20 MB</small></span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => {const file=e.target.files?.[0]; if(file) {if(file.size > 20 * 1024 * 1024) setToast({type:'err',text:'O comprovante deve ter até 20 MB.'}); else void uploadComprovante(file);} e.target.value='';}} /></label></div></fieldset><footer className="nf-modal-footer"><button type="button" className="nf-btn" disabled={baixaSaving || baixaUploading} onClick={closeBaixa}>Cancelar</button><button type="submit" className="nf-btn primary" disabled={baixaSaving || baixaUploading}><CheckCircle2 />{baixaSaving ? 'Registrando…' : 'Confirmar recebimento'}</button></footer></form>
+      <form onSubmit={e => {e.preventDefault(); void confirmBaixa();}}>{feedback}<BaixaResumo descricao={baixaTarget.descricao || "Documento de saída"} detalhe={`${baixaTarget.cliente_nome || "Cliente"} · Documento ${baixaTarget.numero || "sem número"}`} valor={formatBRL(num(baixaTarget.valor))} rotuloValor="Valor do recebimento" vencimento={formatDate(baixaTarget.data_vencimento)} categoria={baixaTarget.categoria || "—"} situacao={baixaTarget.status || "Em aberto"}/><p className="nf-info">Confirma o recebimento da Share e atualiza a despesa correspondente do cliente.</p><fieldset className="nf-fieldset" disabled={baixaSaving || baixaUploading}><div className="nf-form-grid two"><label>Data do pagamento *<input required type="date" value={baixaForm.data_pagamento} onChange={e => setBaixaForm({...baixaForm,data_pagamento:e.target.value})} /></label><label>Forma de pagamento<select value={baixaForm.forma_pagamento} onChange={e => setBaixaForm({...baixaForm,forma_pagamento:e.target.value})}>{FORMAS_PAGAMENTO.map(v => <option key={v}>{v}</option>)}</select></label>{baixaTarget.socio_id && <label>Saída do pagamento<select aria-label="Saída do pagamento" value={baixaForm.saida_pagamento} onChange={e => setBaixaForm({...baixaForm,saida_pagamento:e.target.value as SaidaPagamento})}><option value="DGA_BRADESCO">DGA - BRADESCO</option><option value="CONTA_COTISTA">CONTA COTISTA</option></select><small>DGA - BRADESCO: pago pela conta da holding. CONTA COTISTA: pago diretamente pelo cotista.</small></label>}<label className="span-2">Conta bancária<select value={baixaForm.conta_bancaria} onChange={e => setBaixaForm({...baixaForm,conta_bancaria:e.target.value})}><option value="">Selecione a conta</option>{contasBancarias.map(c => <option key={c.id} value={c.id}>{c.banco}{c.numero_conta ? ` • ${c.numero_conta}` : ''}</option>)}</select></label><label className="nf-upload span-2"><Upload /><span><strong>{baixaUploading ? 'Enviando…' : 'Anexar imagem do comprovante'}</strong><small>PNG, JPG ou WebP • até 20 MB</small></span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => {const file=e.target.files?.[0]; if(file) {if(file.size > 20 * 1024 * 1024) setToast({type:'err',text:'O comprovante deve ter até 20 MB.'}); else void uploadComprovante(file);} e.target.value='';}} /></label></div></fieldset><footer className="nf-modal-footer"><button type="button" className="nf-btn" disabled={baixaSaving || baixaUploading} onClick={closeBaixa}>Cancelar</button><button type="submit" className="nf-btn primary" disabled={baixaSaving || baixaUploading}><CheckCircle2 />{baixaSaving ? 'Registrando…' : 'Confirmar recebimento'}</button></footer></form>
     </Modal>}
   </div>;
 }

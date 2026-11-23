@@ -1,7 +1,7 @@
 import "@/pages/agendamentos-screen.css";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, ChevronLeft, Clock3, Plane, Plus, Radio, ShieldCheck, Users, Search, ArrowRight, RefreshCw, X, CalendarPlus } from "lucide-react";
+import { CalendarDays, ChevronLeft, Clock3, Plane, Plus, Radio, ShieldCheck, Users, Search, ArrowRight, X, CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -661,7 +661,6 @@ export default function Agendamentos() {
       <header className="sb-pillbar">
         <div className="sb-pillbar-brand"><Plane size={15}/>Agendamentos</div>
         <nav className="sb-tabs" aria-label="Áreas de operações">{tabsPainel.map(({id, label, icon: Icon}) => <button type="button" key={id} className={(aba === id || (id === "calendario" && ["cronograma", "aprovados", "pendentes", "historico"].includes(aba))) ? "active" : ""} onClick={() => selecionarArea(id)}><Icon size={16}/>{label}</button>)}</nav>
-        <div className="sb-pillbar-end">{aba === "voos-hoje" ? <span className="sb-live-indicator"><i/>{carregandoAoVivo ? "Atualizando rastreio" : `${voosAoVivo.length} sinais de rastreio`}</span> : null}</div>
       </header>
       <div className={`sb-layout${aba === "voos-hoje" ? " sb-stage" : ""}`}>
         {aba === "voos-hoje" && <aside className="sb-sidebar">
@@ -690,7 +689,6 @@ export default function Agendamentos() {
         </aside>}
         <main className="sb-main">
           <div className="sb-main-heading"><div><h1>{tituloAba[aba]}</h1><p>{descricaoAba[aba]}</p></div><div className="sb-main-actions">
-            <button type="button" className="sb-icon-button" title="Atualizar operações" onClick={() => void carregar(true)}><RefreshCw size={16} className={atualizando ? "animate-spin" : ""}/></button>
             {aba === "calendario" && <button className="sb-new-button" type="button" onClick={() => setMostrarNovo((atual) => !atual)}><Plus size={16}/>{mostrarNovo ? "Fechar formulário" : "Criar agendamento"}</button>}
             {aba === "voos-hoje" && <button type="button" className="sb-hours-circle" title="Ver horas voadas" onClick={() => setModalHorasAberto(true)}><Clock3 size={15}/><strong>{horasVoadasMes}</strong><small>horas voadas</small></button>}
           </div></div>

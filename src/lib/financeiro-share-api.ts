@@ -589,7 +589,7 @@ export async function buscarContasAReceber(filtros: FiltrosContasAReceber = {}):
   return contas.map((conta) => normalizarContaFinanceira<ContaAReceber>(conta));
 }
 
-export async function darBaixaContaAReceber(id: string, dados: { dataRecebimento?: string; bancoRecebimento?: string; formaPagamento?: string; comprovanteRecebimentoUrl?: string; pagamentos: Array<{ idempotency_key?: string; data_pagamento?: string; conta_bancaria_id?: string; comprovante_url?: string | null; forma_pagamento?: string | null; tipo_pagador: "COTISTA" | "SHARE" | "HOLDING"; pagador_cotista_id?: string; pagador_holding_id?: string; valor_centavos: number; rateios: Array<{ rateio_id: string; valor_centavos: number }> }> }): Promise<ContaAReceber> {
+export async function darBaixaContaAReceber(id: string, dados: { dataRecebimento?: string; bancoRecebimento?: string; formaPagamento?: string; comprovanteRecebimentoUrl?: string; pagamentos: Array<{ idempotency_key?: string; data_pagamento?: string; conta_bancaria_id?: string; comprovante_url?: string | null; forma_pagamento?: string | null; tipo_pagador: "COTISTA" | "SHARE" | "HOLDING"; pagador_cotista_id?: string; pagador_holding_id?: string; saida_pagamento?: "DGA_BRADESCO" | "CONTA_COTISTA"; valor_centavos: number; rateios: Array<{ rateio_id: string; valor_centavos: number }> }> }): Promise<ContaAReceber> {
 
   const resposta = await financeiroRequest<Record<string, unknown>>(`/api/financeiro/contas-areceber/${encodeURIComponent(id)}/baixa`, {
 

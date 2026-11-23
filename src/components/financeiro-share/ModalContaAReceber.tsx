@@ -22,6 +22,7 @@ import { enviarComprovanteRecebimento, type ContaBancaria } from '../../lib/fina
 import type { ContaAReceber } from './tipos';
 
 type TipoPagador = 'COTISTA' | 'SHARE' | 'HOLDING';
+export type SaidaPagamento = 'DGA_BRADESCO' | 'CONTA_COTISTA';
 type RateioInput = { rateio_id: string; valor_centavos: number };
 
 export type DadosBaixaReceber = {
@@ -38,6 +39,7 @@ export type DadosBaixaReceber = {
     tipo_pagador: TipoPagador;
     pagador_cotista_id?: string;
     pagador_holding_id?: string;
+    saida_pagamento?: SaidaPagamento;
     valor_centavos: number;
     rateios: RateioInput[];
   }>;
@@ -60,6 +62,7 @@ type Pagamento = {
   data: string;
   banco: string;
   forma: string;
+  saidaPagamento: '' | SaidaPagamento;
   arquivo: File | null;
   rateios: Record<string, string>;
 };
@@ -134,8 +137,18 @@ function prepararEnvio(
     const idPagador = pagamento.pagador === 'COTISTA' ? conta.cotistaId : conta.holdingId;
     const valor = lerCentavos(pagamento.valor);
     const distribuicao = distribuir(pagamento, rateios);
+    const ehHoldSocio = Boolean(conta.holdingId);
 
     if (!pagamento.pagador || !idPagador) throw new Error(`${prefixo} — selecione o pagador.`);
+    if (ehHoldSocio && !pagamento.saidaPagamento) {
+      throw new Error(`${prefixo} — selecione a saída do pagamento do hold.`);
+    }
+    if (ehHoldSocio && pagamento.saidaPagamento === 'CONTA_COTISTA' && pagamento.pagador !== 'COTISTA') {
+      throw new Error(`${prefixo} — CONTA COTISTA exige o cotista como pagador.`);
+    }
+    if (ehHoldSocio && pagamento.saidaPagamento === 'DGA_BRADESCO' && pagamento.pagador !== 'HOLDING') {
+      throw new Error(`${prefixo} — DGA - BRADESCO exige a holding como pagadora.`);
+    }
     if (!lerData(pagamento.data)) throw new Error(`${prefixo} — informe uma data válida.`);
     if (!bancos.some((banco) => banco.id === pagamento.banco)) {
       throw new Error(`${prefixo} — selecione uma conta bancária.`);
@@ -165,6 +178,7 @@ function prepararEnvio(
       ...(pagamento.pagador === 'COTISTA'
         ? { pagador_cotista_id: idPagador }
         : { pagador_holding_id: idPagador }),
+      ...(ehHoldSocio ? { saida_pagamento: pagamento.saidaPagamento as SaidaPagamento } : {}),
       valor_centavos: valor,
       rateios: distribuicao.filter((item) => item.valor_centavos > 0),
       arquivo: pagamento.arquivo,
@@ -215,6 +229,7 @@ function Recebimento({ conta, onFechar, onConfirmar, contasBancarias, envioEmCur
   const [erro, setErro] = useState('');
 
   const cotista = conta.cotistaNome || 'Cotista não informado';
+  const ehHoldSocio = Boolean(conta.holdingId);
   const aeronave = conta.aeronaveMatricula || 'Aeronave não informada';
   const vencimento = lerData(conta.dataVencimento?.slice(0, 10) ?? '');
   const rateios: Rateio[] = (conta.rateios ?? []).map((rateio, index) => ({
@@ -254,6 +269,7 @@ function Recebimento({ conta, onFechar, onConfirmar, contasBancarias, envioEmCur
       data: hojeLocal(),
       banco: '',
       forma: 'PIX',
+      saidaPagamento: '',
       arquivo: null,
       rateios: sugerirRateios
         ? Object.fromEntries(rateios.map(({ id }, index) => [id, exibirValor(saldosRateio[index], false)]))
@@ -397,6 +413,7 @@ function Recebimento({ conta, onFechar, onConfirmar, contasBancarias, envioEmCur
                   bancos={bancos}
                   cotista={conta.cotistaId ? cotista : undefined}
                   holding={conta.holdingId ? conta.holdingNome || 'Holding vinculada' : undefined}
+                  ehHoldSocio={ehHoldSocio}
                   onAlterar={(patch) => atualizar(pagamento.chave, (atual) => ({ ...atual, ...patch }))}
                   onRateio={(id, valor) => atualizar(pagamento.chave, (atual) => ({
                     ...atual,
@@ -478,6 +495,7 @@ type EditorPagamentoProps = {
   bancos: Opcao[];
   cotista?: string;
   holding?: string;
+  ehHoldSocio: boolean;
   onAlterar: (patch: Partial<Pagamento>) => void;
   onRateio: (id: string, valor: string) => void;
   onArquivo: (arquivo: File | null) => void;
@@ -485,7 +503,7 @@ type EditorPagamentoProps = {
 };
 
 function EditorPagamento({
-  numero, pagamento, rateios, bancos, cotista, holding, onAlterar, onRateio, onArquivo, onRemover,
+  numero, pagamento, rateios, bancos, cotista, holding, ehHoldSocio, onAlterar, onRateio, onArquivo, onRemover,
 }: EditorPagamentoProps) {
   const id = useId();
   const totalRateios = distribuir(pagamento, rateios).reduce((total, item) => total + item.valor_centavos, 0);
@@ -542,6 +560,28 @@ function EditorPagamento({
               />
             </div>
           </div>
+          {ehHoldSocio && (
+            <div className="min-w-0">
+              <Label htmlFor={`${id}-saida`} className={rotulo}>Saída do pagamento do hold</Label>
+              <select
+                id={`${id}-saida`}
+                value={pagamento.saidaPagamento}
+                onChange={(event) => {
+                  const saida = event.currentTarget.value as '' | SaidaPagamento;
+                  onAlterar({
+                    saidaPagamento: saida,
+                    pagador: saida === 'CONTA_COTISTA' ? 'COTISTA' : saida === 'DGA_BRADESCO' ? 'HOLDING' : '',
+                  });
+                }}
+                className={classeCampo}
+              >
+                <option value="">Selecione a origem</option>
+                <option value="DGA_BRADESCO">DGA - BRADESCO · pago pela holding</option>
+                <option value="CONTA_COTISTA">CONTA COTISTA · pago diretamente pelo cotista</option>
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">Define quem realizou o pagamento e o rateio do hold.</p>
+            </div>
+          )}
           <div className="min-w-0">
             <Label htmlFor={`${id}-data`} className={rotulo}>Data do pagamento</Label>
             <Input
@@ -667,4 +707,3 @@ function EditorPagamento({
     </section>
   );
 }
-

@@ -19,6 +19,7 @@ test("status acionado e decolado mantêm o modal de jornada acessível", () => {
 
 test("a abertura da jornada preserva o histórico encerrado e bloqueia solicitações pendentes", () => {
   assert.equal(statusPermiteAbrirJornada("encerrada"), true);
+  assert.equal(statusPermiteAbrirJornada("concluida"), true);
   assert.equal(statusPermiteAbrirJornada("pendente"), false);
 });
 

@@ -16,6 +16,7 @@ interface MapaVooProps {
   pernaId?: string;
   historico?: boolean;
   compacto?: boolean;
+  altura?: number;
 }
 
 type Coord = { lat: number; lon: number };
@@ -54,7 +55,7 @@ const COR_POR_ALTITUDE: ExpressionSpecification = [
 const par = (c: Coord): [number, number] => [c.lon, c.lat];
 
 export default function VooEmOperacaoMapa({
-  voo, pernaId, historico = !vooComSinalNoAr(voo), compacto = false,
+  voo, pernaId, historico = !vooComSinalNoAr(voo), compacto = false, altura,
 }: MapaVooProps) {
   const mapaRef = useRef<MapRef>(null);
   const [mapaCarregado, setMapaCarregado] = useState(false);
@@ -181,6 +182,7 @@ export default function VooEmOperacaoMapa({
   return (
     <div
       className={`${compacto ? "h-[250px]" : "h-[340px]"} relative w-full overflow-hidden rounded-xl bg-slate-900`}
+      style={altura ? { height: altura } : undefined}
       aria-label={posicaoAoVivo ? "Posição real e percurso ADS-B da aeronave" : "Mapa satélite da rota planejada e sinais captados"}
     >
       <MapLibre

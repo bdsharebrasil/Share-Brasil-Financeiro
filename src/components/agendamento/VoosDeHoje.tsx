@@ -1,20 +1,17 @@
-import { useMemo, useState } from "react";
-import { MapPin, Plane, Radio } from "lucide-react";
-import type { SolicitacaoVooInterna, VooEmOperacao } from "@/lib/colaborador-api";
-import VooEmOperacaoMapa from "@/components/dashboard/operacoes/VooEmOperacaoMapa";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { MapPin, Radio } from "lucide-react";
+import { buscarHistoricoRastreio, type SolicitacaoVooInterna, type VooEmOperacao } from "@/lib/colaborador-api";
 import HistoricoRastreioVoo from "@/components/dashboard/operacoes/HistoricoRastreioVoo";
-import { horarioRastreio } from "@/lib/rastreio";
-import { hojeBrasilia } from "@/lib/agendamentos-hoje";
+import { horarioRastreio, vooComSinalNoAr } from "@/lib/rastreio";
+
+const MapaVoo = lazy(() => import("@/components/dashboard/operacoes/VooEmOperacaoMapa"));
 
 type Props = {
-  voos: SolicitacaoVooInterna[];
-  vooSelecionado: SolicitacaoVooInterna | null;
+  item: SolicitacaoVooInterna;
   voosEmOperacao: VooEmOperacao[];
   carregandoAoVivo: boolean;
   erroAoVivo: string | null;
   atualizadoAoVivo: string | null;
-  visaoInicial?: "ao-vivo" | "prontos";
-  aoSelecionar: (id: string) => void;
 };
 
 function dataBR(data?: string | null) {
@@ -35,22 +32,34 @@ function diaCurto(data: string) {
   return `${data.slice(8, 10)}/${data.slice(5, 7)}`;
 }
 
-export default function VoosDeHoje({
-  voos, voosEmOperacao, carregandoAoVivo, erroAoVivo, atualizadoAoVivo,
-}: Props) {
-  const [vooSelecionadoId, setVooSelecionadoId] = useState("");
+export default function VoosDeHoje({ item, voosEmOperacao, carregandoAoVivo, erroAoVivo, atualizadoAoVivo }: Props) {
+  const [modo, setModo] = useState<"ao-vivo" | "historico">("ao-vivo");
   const [pernaSelecionadaId, setPernaSelecionadaId] = useState("todas");
-  const hoje = hojeBrasilia();
-  const agendamentosHoje = useMemo(() => voos.filter((v) => {
-    const inicio = String(v.data_agendada || "").slice(0, 10);
-    const fim = String(v.data_fim || v.data_agendada || "").slice(0, 10);
-    return inicio <= hoje && fim >= hoje;
-  }), [voos, hoje]);
-  const voosReais = useMemo(
-    () => voosEmOperacao.filter((voo) => voo.status === "em_voo" && agendamentosHoje.some((item) => item.id === voo.id)),
-    [agendamentosHoje, voosEmOperacao],
-  );
-  const vooSelecionado = voosReais.find((v) => v.id === vooSelecionadoId) || voosReais[0] || null;
+  const [historico, setHistorico] = useState<VooEmOperacao | null>(null);
+  const [carregandoHistorico, setCarregandoHistorico] = useState(true);
+  const [erroHistorico, setErroHistorico] = useState("");
+  const vooAoVivo = voosEmOperacao.find((voo) => voo.id === item.id);
+
+  useEffect(() => {
+    let ativo = true;
+    setCarregandoHistorico(true);
+    setErroHistorico("");
+    setHistorico(null);
+    void buscarHistoricoRastreio(item.id).then((voo) => { if (ativo) setHistorico(voo); })
+      .catch(() => { if (ativo) setErroHistorico("Não foi possível carregar o histórico deste voo."); })
+      .finally(() => { if (ativo) setCarregandoHistorico(false); });
+    return () => { ativo = false; };
+  }, [item.id, item.status, item.atualizado_em]);
+
+  const vooSelecionado = useMemo(() => {
+    if (!vooAoVivo) return historico;
+    if (!historico) return vooAoVivo;
+    const pernas = new Map(historico.pernas.map((perna) => [perna.id, perna]));
+    vooAoVivo.pernas.forEach((perna) => pernas.set(perna.id, perna));
+    const trilha = new Map((historico.trilha || []).map((ponto) => [`${ponto.trilha_id}:${ponto.registrado_em}:${ponto.lat}:${ponto.lon}`, ponto]));
+    (vooAoVivo.trilha || []).forEach((ponto) => trilha.set(`${ponto.trilha_id}:${ponto.registrado_em}:${ponto.lat}:${ponto.lon}`, ponto));
+    return { ...historico, ...vooAoVivo, pernas: [...pernas.values()], trilha: [...trilha.values()].sort((a, b) => a.registrado_em.localeCompare(b.registrado_em)), eventos_rastreio: vooAoVivo.eventos_rastreio?.length ? vooAoVivo.eventos_rastreio : historico.eventos_rastreio };
+  }, [historico, vooAoVivo]);
   const pernasSelecionadas = useMemo(() => {
     if (!vooSelecionado) return [];
     const pernas = [...vooSelecionado.pernas];
@@ -86,50 +95,40 @@ export default function VoosDeHoje({
         return { dia, inicio: horarios[0]?.toISOString(), fim: horarios.at(-1)?.toISOString() };
       }).filter((trecho) => Boolean(trecho.inicio && trecho.fim)).sort((a, b) => a.dia.localeCompare(b.dia));
   }, [vooSelecionado, pernasSelecionadas]);
-  const statusVoo = (status: string) => ({ em_voo: "Em voo", decolado: "Decolado", em_solo: "Em solo", acionado: "Acionado", aguardando: "Aguardando", encerrada: "Encerrado", concluida: "Encerrado" }[status] || status);
 
-  return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-base font-bold tracking-tight text-foreground">Monitoramento ao vivo</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Posições e rotas recebidas do rastreio ADS-B · {atualizadoAoVivo ? `atualizado ${new Date(atualizadoAoVivo).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : "aguardando atualização"}</p>
+  const aoVivo = Boolean(vooAoVivo && vooComSinalNoAr(vooAoVivo));
+  const vooMapa = modo === "ao-vivo" ? vooAoVivo || vooSelecionado : vooSelecionado;
+  const pernaMapa = modo === "ao-vivo" ? vooMapa?.perna_atual?.id : pernaSelecionadaId === "todas" ? undefined : pernaSelecionadaId;
+
+  return <div className="sb-monitor-selected">
+    <section className="sb-monitor-map" aria-label="Mapa do voo selecionado">
+      <header className="sb-monitor-map-heading">
+        <h2>Monitoramento Voos</h2>
+        <div role="group" aria-label="Visualização do mapa">
+          <button type="button" aria-pressed={modo === "ao-vivo"} onClick={() => setModo("ao-vivo")}><Radio size={13} />Ao vivo</button>
+          <button type="button" aria-pressed={modo === "historico"} onClick={() => setModo("historico")}>Histórico da rota</button>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#17885f]/30 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-[#17885f]">
-          <Radio size={13} /> {carregandoAoVivo ? "Consultando" : `${voosReais.length} ${voosReais.length === 1 ? "operação real" : "operações reais"}`}
-        </span>
-      </div>
-      {erroAoVivo && <p role="status" className="border-b border-border px-5 py-3 text-xs text-amber-700">Não foi possível atualizar o rastreio: {erroAoVivo}</p>}
-      <div className="grid min-h-[400px] grid-cols-1 lg:grid-cols-12">
-        <div className="min-h-[320px] border-b border-border p-4 lg:col-span-7 lg:border-b-0 lg:border-r">
-          {vooSelecionado ? <div className="space-y-2">
-            {pernasSelecionadas.length > 1 && <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Selecionar trecho no mapa">
-              <button type="button" onClick={() => setPernaSelecionadaId("todas")} aria-pressed={pernaSelecionadaId === "todas"} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${pernaSelecionadaId === "todas" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Todas as pernas ({pernasSelecionadas.length})</button>
-              {pernasSelecionadas.map((perna, index) => <button key={perna.id} type="button" onClick={() => setPernaSelecionadaId(perna.id)} aria-pressed={pernaSelecionadaId === perna.id} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${pernaSelecionadaId === perna.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>{index + 1} · {perna.origem} → {perna.destino}</button>)}
-            </div>}
-            <VooEmOperacaoMapa key={vooSelecionado.id} voo={vooSelecionado} pernaId={pernaSelecionadaId === "todas" ? undefined : pernaSelecionadaId} historico={!vooSelecionado.rastreio || vooSelecionado.rastreio_status !== "ao_vivo"} />
-          </div> : (
-            <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              <MapPin size={24} />
-              <strong className="text-foreground">Sem posição de voo real disponível</strong>
-              <span>O mapa aparecerá quando houver voo monitorado. A rota prevista pode ser exibida mesmo sem posição ADS-B.</span>
-            </div>
-          )}
-        </div>
-        <div className="space-y-3 p-4 lg:col-span-5">
-          <div className="flex items-center justify-between"><h3 className="text-sm font-bold">Voos monitorados</h3><span className="text-xs text-muted-foreground">{voosReais.length}</span></div>
-          {voosReais.length ? voosReais.map((flight) => (
-            <button key={flight.id} type="button" onClick={() => { setVooSelecionadoId(flight.id); setPernaSelecionadaId("todas"); }} className={`w-full rounded-lg border px-2.5 py-2 text-left ${vooSelecionado?.id === flight.id ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"}`}>
-              <span className="flex items-center justify-between gap-2"><strong className="font-mono text-xs">{flight.numero_voo || "Voo sem número"}</strong><span className="text-[9px] text-emerald-700">{statusVoo(flight.status)}</span></span>
-              <span className="mt-0.5 block text-[11px] leading-tight text-muted-foreground">{flight.matricula_registro || "Matrícula indisponível"} · {flight.modelo || "Aeronave"} · {dataBR(flight.horario_previsto_agendamento)}</span>
-              <span className="mt-1 flex items-center gap-1.5 text-[11px] leading-tight"><Plane size={11} /> {flight.origem || "—"} → {flight.destino || "—"} <span className="ml-auto text-muted-foreground">{flight.rastreio_status === "ao_vivo" ? "Sinal ao vivo" : "Em voo"}</span></span>
-            </button>
-          )) : <p className="rounded-lg bg-secondary/40 p-4 text-xs text-muted-foreground">Nenhum voo com rastreio ou histórico disponível neste momento.</p>}
-          {vooSelecionado && (pernasSelecionadas.length > 0 || trechosSistema.length > 0) && (
-            <div className="rounded-xl border border-border bg-secondary/20 p-3">
+      </header>
+      {modo === "historico" && <label className="sb-leg-select">Perna do voo
+        <select value={pernaSelecionadaId} onChange={(event) => setPernaSelecionadaId(event.target.value)}>
+          <option value="todas">Percurso completo · todas as pernas</option>
+          {pernasSelecionadas.map((perna, indice) => <option key={perna.id} value={perna.id}>{indice + 1} · {perna.origem} → {perna.destino} · {dataPerna(perna)}</option>)}
+        </select>
+      </label>}
+      {vooMapa ? <Suspense fallback={<p className="sb-empty">Carregando mapa...</p>}><MapaVoo key={`${item.id}-${modo}-${pernaMapa || "todas"}`} voo={vooMapa} pernaId={pernaMapa} historico={modo === "historico" || !aoVivo} altura={480} /></Suspense>
+        : <div className="sb-map-empty"><MapPin size={28} /><strong>{carregandoHistorico || carregandoAoVivo ? "Carregando percurso..." : "Aguardando posições do voo"}</strong><p>O mapa será exibido quando houver coordenadas ou posições registradas para esta operação.</p></div>}
+    </section>
+    <section className="sb-monitor-history sb-monitor-status" aria-label="Informações de monitoramento">
+      <h3>{item.numero_voo || "Voo selecionado"} · {item.matricula_registro || "Aeronave a definir"}</h3>
+      <p>{aoVivo ? "Sinal ao vivo disponível" : "Sem sinal ADS-B ao vivo neste momento"} · {atualizadoAoVivo ? `Última consulta ${new Date(atualizadoAoVivo).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : "Aguardando atualização"}</p>
+      {erroAoVivo && <p role="status">Não foi possível atualizar o rastreio: {erroAoVivo}</p>}
+      {erroHistorico && <p role="status">{erroHistorico}</p>}
+    </section>
+          {vooSelecionado && (
+            <div className="sb-monitor-history">
               <h3 className="mb-2 text-xs font-bold text-foreground">Trechos e horários registrados · UTC</h3>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[360px] text-left text-[10px]">
+                <table className="w-full min-w-[480px] text-left text-[10px]">
                   <thead className="text-muted-foreground"><tr>
                     {["Trecho", "AC", "DEP", "POU", "COR"].map((titulo) => (
                       <th key={titulo} className="px-1 py-1 font-semibold">{titulo}</th>
@@ -166,8 +165,5 @@ export default function VoosDeHoje({
               </div>
             </div>
           )}
-        </div>
-      </div>
-    </section>
-  );
+  </div>;
 }

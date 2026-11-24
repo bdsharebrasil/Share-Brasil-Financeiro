@@ -132,7 +132,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
   const [dataOperacoes, setDataOperacoes] = useState(hojeBrasilia());
   const [vooHojeSelecionadoId, setVooHojeSelecionadoId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
-  const [filtroOperacoes, setFiltroOperacoes] = useState<FiltroOperacoes>("confirmados");
+  const [filtroOperacoes, setFiltroOperacoes] = useState<FiltroOperacoes>("operacao");
   const [visaoAndamento, setVisaoAndamento] = useState<"monitoramento" | "hoje">("hoje");
   
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatusCronograma>("todos");
@@ -723,7 +723,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
           <label className="sb-search"><Search size={17}/><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar voo, rota, matrícula ou tripulante" /></label>
           {visaoAndamento === "hoje" && filtroOperacoes === "confirmados" && <label className="sb-sidebar-caption">Data dos voos<input type="date" aria-label="Data dos voos" value={dataOperacoes} onChange={event => { setDataOperacoes(event.target.value); setVooHojeSelecionadoId(null); }} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs" /></label>}
           {visaoAndamento === "hoje" ? <div className="sb-filters" role="group" aria-label="Filtrar voos da operação">
-            {([['confirmados', 'Voos Confirmados', voosConfirmadosHoje.length], ['operacao', 'Voos em Operação', voosEmAndamento.length]] as const).map(([valor, rotulo, quantidade]) => <button key={valor} type="button" aria-pressed={filtroOperacoes === valor} className={filtroOperacoes === valor ? "active" : ""} onClick={() => { setFiltroOperacoes(valor); setVooHojeSelecionadoId(null); }}>{rotulo} ({quantidade})</button>)}
+            {([['operacao', 'Voos em Operação', voosEmAndamento.length], ['confirmados', 'Voos Confirmados', voosConfirmadosHoje.length]] as const).map(([valor, rotulo, quantidade]) => <button key={valor} type="button" aria-pressed={filtroOperacoes === valor} className={filtroOperacoes === valor ? "active" : ""} onClick={() => { setFiltroOperacoes(valor); setVooHojeSelecionadoId(null); }}>{rotulo} ({quantidade})</button>)}
           </div> : <p className="sb-sidebar-caption">Todas as operações ativas, inclusive sem sinal ao vivo.</p>}
           <div className="sb-flight-list">
             {carregando && !painel ? <p className="sb-empty">Carregando operações...</p> : voosLateral.length === 0 ? <p className="sb-empty">Nenhum voo encontrado para esta visualização.</p> : voosLateral.map((voo) => {

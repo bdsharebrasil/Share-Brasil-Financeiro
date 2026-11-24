@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, useRef, useId, type ReactNode } from "react";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, FileText, Pencil, RefreshCw, Search, TriangleAlert, X, Download } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, FileText, MoreVertical, Pencil, RefreshCw, Search, TriangleAlert, X, Download } from "lucide-react";
 import { toast } from "sonner";
 import {
   buscarContasBancariasHolding,
@@ -22,11 +22,12 @@ import type { ContaAPagar, StatusContaFinanceira } from "./tipos";
 import { createPortal } from "react-dom";
 
 const POR_PAGINA = 12;
-const LARGURAS_COLUNAS = [56, 124, 210, 260, 118, 124, 128, 150];
+const LARGURAS_COLUNAS = [100, 124, 210, 260, 118, 124, 128];
 const LARGURA_MINIMA_COLUNA = 60;
 
 type AbaSolicitacao = "cotista" | "colaborador";
 type FiltroLista = { id: string; label: string; quantidade?: number };
+type AcaoLinha = { rotulo: ReactNode; aoClicar: () => void; desabilitada?: boolean; titulo?: string };
 type LinhaExibida = {
   chave: string;
   expandida: boolean;
@@ -39,7 +40,7 @@ type LinhaExibida = {
   secundaria: string;
   valor: string;
   status: string;
-  acao?: ReactNode;
+  acoes: AcaoLinha[];
   detalhe: ReactNode;
 };
 
@@ -227,6 +228,17 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   const [alvo, setAlvo] = useState<ReembolsoColaborador | null>(null);
   const [contaBaixa, setContaBaixa] = useState<ContaAPagar | null>(null);
   const [expandido, setExpandido] = useState<string | null>(null);
+  const [menuAberto, setMenuAberto] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!menuAberto) return;
+    const fecharFora = (evento: PointerEvent) => {
+      if (evento.target instanceof Element && evento.target.closest(".nf-menu-linha")) return;
+      setMenuAberto(null);
+    };
+    document.addEventListener("pointerdown", fecharFora);
+    return () => document.removeEventListener("pointerdown", fecharFora);
+  }, [menuAberto]);
   const [busca, setBusca] = useState("");
   const [filtroEnvio, setFiltroEnvio] = useState("TODOS");
   const [filtroReembolso, setFiltroReembolso] = useState("TODOS");
@@ -436,7 +448,10 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
       secundaria: item.descricao ?? "",
       valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : Number(item.valor ?? 0))}`,
       status: item.status,
-      acao: <>{<button type="button" className="nf-btn" onClick={() => editarSolicitacao(item)}><Pencil size={14} /> Editar</button>}{baixaDisponivel && <button type="button" className="nf-btn primary" disabled={!item.conta_a_pagar_id} title={!item.conta_a_pagar_id ? "Conta a pagar vinculada não encontrada" : undefined} onClick={() => abrirBaixaCliente(item)}>Dar baixa</button>}</>,
+      acoes: [
+        { rotulo: <><Pencil size={14} /> Editar</>, aoClicar: () => editarSolicitacao(item) },
+        ...(baixaDisponivel ? [{ rotulo: "Dar baixa", desabilitada: !item.conta_a_pagar_id, titulo: !item.conta_a_pagar_id ? "Conta a pagar vinculada não encontrada" : undefined, aoClicar: () => abrirBaixaCliente(item) }] : []),
+      ],
       detalhe: expandida ? detalheLancamento(item, setDocumentoAberto) : null,
     };
   });
@@ -455,12 +470,25 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
       secundaria: item.descricao ?? "",
       valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : item.valor)}`,
       status: item.status,
-      acao: <><button type="button" className="nf-btn" onClick={() => editarSolicitacao(item)}><Pencil size={14} /> Editar</button><button type="button" className="nf-btn primary" onClick={() => abrirBaixa(item)}><CheckCircle2 /> Dar baixa</button></>,
+      acoes: [
+        { rotulo: <><Pencil size={14} /> Editar</>, aoClicar: () => editarSolicitacao(item) },
+        { rotulo: "Dar baixa", aoClicar: () => abrirBaixa(item) },
+      ],
       detalhe: expandida ? detalheLancamento(item, setDocumentoAberto) : null,
     };
   });
 
   const linhas = aba === "cotista" ? linhasEnvio : linhasReembolso;
+
+  function celulaAcoes(linha: LinhaExibida) {
+    const aberto = menuAberto === linha.chave;
+    return <div className="nf-menu-linha">
+      <button type="button" className="nf-icon" aria-label={`Ações de ${linha.secundaria || linha.principal}`} aria-haspopup="menu" aria-expanded={aberto} onClick={() => setMenuAberto(aberto ? null : linha.chave)}><MoreVertical /></button>
+      {aberto && <div className="nf-menu-acoes" role="menu">
+        {linha.acoes.map((acao, indice) => <button key={indice} type="button" role="menuitem" disabled={acao.desabilitada} title={acao.titulo} onClick={() => { setMenuAberto(null); acao.aoClicar(); }}>{acao.rotulo}</button>)}
+      </div>}
+    </div>;
+  }
 
   return (
     <div className="nf-workspace nf-payment-requests">
@@ -499,28 +527,26 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
                   {larguras.map((largura, indice) => <col key={indice} style={{ width: largura }} />)}
                 </colgroup>
                 <thead><tr>
-                  <th scope="col"><span className="nf-sr">Expandir</span></th>
+                  <th scope="col"><span className="nf-sr">Expandir e ações</span></th>
                   <th scope="col"><span className="erp-ordenar">Doc / emissão</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 1)} /></th>
                   <th scope="col"><span className="erp-ordenar">{aba === "cotista" ? "Cliente" : "Colaborador"}</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 2)} /></th>
                   <th scope="col"><span className="erp-ordenar">Descrição</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 3)} /></th>
                   <th scope="col"><span className="erp-ordenar">Vencimento</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 4)} /></th>
                   <th scope="col"><span className="erp-ordenar">Valor</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 5)} /></th>
                   <th scope="col" className="erp-th-status"><span className="erp-ordenar">Status</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 6)} /></th>
-                  <th scope="col"><span className="erp-ordenar">Ações</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 7)} /></th>
                 </tr></thead>
                 <tbody>
                   {linhas.map((linha) => <Fragment key={linha.chave}>
                     <tr className={`erp-linha${linha.expandida ? " erp-linha-aberta" : ""}`}>
-                      <td className="erp-td-acoes"><button type="button" className="erp-expandir" aria-expanded={linha.expandida} aria-label={`${linha.expandida ? "Recolher" : "Expandir"} ${linha.secundaria || linha.principal}`} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}</button></td>
+                      <td className="erp-td-acoes"><div className="erp-celula-selecao"><button type="button" className="erp-expandir" aria-expanded={linha.expandida} aria-label={`${linha.expandida ? "Recolher" : "Expandir"} ${linha.secundaria || linha.principal}`} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}</button>{celulaAcoes(linha)}</div></td>
                       <td><span className="erp-documento">{linha.documento}</span><span className="erp-texto-secundario">Emissão {linha.dataEmissao}</span></td>
                       <td>{aba === "cotista" ? linha.cliente : linha.colaborador}</td>
                       <td><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.secundaria || linha.principal}>{linha.secundaria || linha.principal}</strong></div>{linha.secundaria && <span className="erp-texto-secundario">{linha.principal}</span>}</td>
                       <td className="erp-td-data"><span>{linha.vencimento}</span></td>
                       <td className="erp-valor">{linha.valor}</td>
                       <td><StatusSolicitacao status={linha.status} /></td>
-                      <td>{linha.acao}</td>
                     </tr>
-                    {linha.expandida && <tr className="erp-linha-detalhes"><td colSpan={8}>{linha.detalhe}</td></tr>}
+                    {linha.expandida && <tr className="erp-linha-detalhes"><td colSpan={7}>{linha.detalhe}</td></tr>}
                   </Fragment>)}
                 </tbody>
               </table>
@@ -529,7 +555,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
               {linhas.map((linha) => <article className={`nf-mobile-doc${linha.expandida ? " expanded" : ""}`} key={linha.chave}>
                 <header><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div><StatusSolicitacao status={linha.status} /></header>
                 <dl><div><dt>{aba === "cotista" ? "Cliente" : "Colaborador"}</dt><dd>{aba === "cotista" ? linha.cliente : linha.colaborador}</dd></div><div><dt>Descrição</dt><dd>{linha.secundaria || linha.principal}{linha.secundaria && <small>{linha.principal}</small>}</dd></div><div><dt>Vencimento</dt><dd>{linha.vencimento}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
-                <footer>{linha.acao}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
+                <footer>{celulaAcoes(linha)}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
                 {linha.detalhe}
               </article>)}
             </div>
@@ -642,6 +668,11 @@ const STYLES = `
 .nf-payment-requests .nf-dot{width:6px;height:6px;background:var(--nf-blue);border-radius:50%}
 .nf-payment-requests h1{font-size:27px;font-weight:650;letter-spacing:-1px;margin:-15px 0 4px}
 .nf-payment-requests .nf-subtitle{margin:0;color:var(--nf-muted);font-size:13px}
+.nf-payment-requests .nf-menu-linha{position:relative;display:inline-flex}
+.nf-payment-requests .nf-menu-acoes{position:absolute;top:calc(100% + 4px);right:0;z-index:40;min-width:160px;padding:4px;border:1px solid var(--app-line);border-radius:8px;background:var(--app-surface);box-shadow:0 12px 30px #0003}
+.nf-payment-requests .nf-menu-acoes button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:0;border-radius:6px;background:transparent;color:var(--app-text);font-size:12px;text-align:left;white-space:nowrap}
+.nf-payment-requests .nf-menu-acoes button:hover:not(:disabled){background:var(--app-soft)}
+.nf-payment-requests .nf-menu-acoes button:disabled{opacity:.45;cursor:not-allowed}
 .nf-payment-requests .nf-btn,.nf-payment-dialog .nf-btn,.nf-payment-requests .nf-icon,.nf-payment-dialog .nf-icon{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:9px 13px;border:1px solid var(--app-line);border-radius:9px;color:var(--app-text);background:var(--app-surface);font-size:12px;font-weight:600;text-decoration:none;transition:background .15s,box-shadow .15s}
 .nf-payment-requests .nf-btn:hover,.nf-payment-dialog .nf-btn:hover{background:var(--app-soft);box-shadow:0 2px 5px #162c4510}
 .nf-payment-requests .nf-btn.primary,.nf-payment-dialog .nf-btn.primary{background:var(--nf-blue);border-color:var(--nf-blue);color:var(--app-primary-text);box-shadow:0 2px 4px #245bd81a}
@@ -665,6 +696,16 @@ const STYLES = `
 .nf-payment-requests .nf-list-heading{padding:4px 22px 18px}.nf-payment-requests .nf-list-heading h2{font-size:15px;font-weight:650}.nf-payment-requests .nf-list-heading p{margin:3px 0 0;color:var(--app-muted);font-size:11px}
 .nf-payment-requests .nf-text-btn,.nf-payment-dialog .nf-text-btn{padding:5px 8px;border:0;background:transparent;color:var(--app-info);font-size:12px;font-weight:600;min-height:36px}
 .nf-payment-requests .nf-table-wrap{width:100%;overflow:auto}.nf-payment-requests .erp-tabela{width:100%;table-layout:fixed}.nf-payment-requests .erp-tabela th{position:relative}.nf-payment-requests .erp-redimensionar{position:absolute;right:-3px;top:0;bottom:0;z-index:1;width:7px;cursor:col-resize;touch-action:none}.nf-payment-requests .erp-redimensionar:hover{background:var(--app-info)}.nf-payment-requests .erp-tabela-container{cursor:auto}.nf-payment-requests .erp-linha{cursor:default}.nf-payment-requests .erp-linha-detalhes .nf-detail{margin:12px 16px}
+.nf-payment-requests .erp-tabela{font-size:14px;line-height:1.45}
+.nf-payment-requests .erp-tabela th{height:46px;padding:0 14px}
+.nf-payment-requests .erp-tabela th .erp-ordenar{height:44px;font-size:11px}
+.nf-payment-requests .erp-tabela td{padding:10px 14px;font-size:14px}
+.nf-payment-requests .erp-tabela td.erp-td-data{padding-top:10px;padding-bottom:10px}
+.nf-payment-requests .erp-tabela .erp-linha{height:56px}
+.nf-payment-requests .erp-tabela .erp-documento{font-size:13px}
+.nf-payment-requests .erp-tabela .erp-texto-secundario{font-size:12px;margin-top:3px;margin-bottom:0}
+.nf-payment-requests .erp-tabela .erp-valor{font-size:15px}
+.nf-payment-requests .erp-tabela .erp-expandir{width:24px;height:32px}
 .nf-payment-requests .nf-doc-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:30px;height:34px;border:1px solid var(--app-line);border-radius:7px;background:var(--app-soft);color:var(--app-muted)}.nf-payment-requests .nf-doc-icon svg{width:15px;height:15px}
 .nf-payment-requests .nf-amount{font-weight:650;font-variant-numeric:tabular-nums;color:var(--app-text)}
 .nf-payment-requests .nf-detail{display:grid;grid-template-columns:minmax(160px,1fr) minmax(0,3fr);gap:24px;padding:22px;background:var(--app-soft);border:1px solid var(--app-line);border-radius:10px;white-space:normal}.nf-payment-requests .nf-detail h3{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--app-muted);margin-bottom:12px}.nf-payment-requests .nf-detail p{font-size:12px;color:var(--app-muted)}
@@ -673,7 +714,7 @@ const STYLES = `
 .nf-payment-requests .nf-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 22px;font-size:11px;color:var(--app-muted)}.nf-payment-requests .nf-pagination>div{display:flex;align-items:center;gap:14px}.nf-payment-requests .nf-mobile-docs{display:none}
 .nf-payment-requests .nf-empty,.nf-payment-dialog .nf-empty{padding:60px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;color:var(--app-muted)}.nf-payment-requests .nf-empty h3,.nf-payment-dialog .nf-empty h3{font-size:16px}.nf-payment-requests .nf-empty p,.nf-payment-dialog .nf-empty p{margin:0;font-size:12px;max-width:380px}
 .nf-payment-requests .nf-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.nf-spin{animation:nf-payment-spin 1s linear infinite}@keyframes nf-payment-spin{to{transform:rotate(360deg)}}
-.nf-payment-dialog{border:1px solid var(--app-line);border-radius:16px;padding:0;background:var(--app-surface);width:min(620px,calc(100vw - 28px));max-width:calc(100vw - 28px);max-height:calc(100dvh - 32px);box-shadow:0 24px 90px #091a4433;overflow:auto}.nf-payment-dialog.wide{width:min(980px,calc(100vw - 28px))}.nf-payment-dialog::backdrop{background:#14253d99;backdrop-filter:blur(4px)}
+.nf-payment-dialog{border:1px solid var(--app-line);border-radius:16px;padding:0;background:var(--app-surface);width:min(620px,calc(100vw - 28px));max-width:calc(100vw - 28px);max-height:calc(100dvh - 32px);box-shadow:0 24px 90px #091a4433;overflow:auto}.nf-payment-dialog.wide{width:min(1200px,calc(100vw - 28px))}.nf-payment-dialog::backdrop{background:#14253d99;backdrop-filter:blur(4px)}
 .nf-payment-dialog .nf-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:2;background:var(--app-surface);border-bottom:1px solid #e8edf4;padding:16px 22px}.nf-payment-dialog .nf-dialog-header h2{font-size:17px;font-weight:650}.nf-payment-dialog .nf-dialog-content{padding:22px}
 .nf-payment-dialog .nf-payment-summary{display:flex;justify-content:space-between;gap:16px;padding:16px;background:var(--app-soft);border:1px solid var(--app-info-line);border-radius:10px;margin-bottom:22px}.nf-payment-dialog .nf-payment-summary span{font-size:12px;font-weight:600}.nf-payment-dialog .nf-payment-summary small{display:block;color:var(--app-muted);font-weight:400;margin-top:5px;overflow-wrap:anywhere}.nf-payment-dialog .nf-payment-summary strong{font-size:20px;white-space:nowrap}
 .nf-payment-dialog .nf-fieldset{border:0;padding:0;margin:0 0 22px;min-width:0}.nf-payment-dialog legend{display:flex;align-items:center;gap:9px;padding:0;margin-bottom:16px;font-size:12px;font-weight:650;color:var(--app-muted)}.nf-payment-dialog legend span{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:var(--app-soft);border-radius:6px;color:var(--app-info);font-size:10px}
@@ -681,7 +722,7 @@ const STYLES = `
 .nf-payment-dialog .nf-form-grid input,.nf-payment-dialog .nf-form-grid select,.nf-payment-dialog .nf-form-grid textarea{display:block;width:100%;min-width:0;min-height:42px;border:1px solid var(--app-line);border-radius:8px;padding:10px 12px;background:white;color:var(--app-text);font-size:13px;font-weight:400}.nf-payment-dialog textarea{resize:vertical}
 .nf-payment-dialog .nf-upload{position:relative;display:inline-flex;align-items:center;gap:9px;max-width:100%;border:1px solid var(--app-info-line);border-radius:8px;padding:11px 15px;cursor:pointer;color:var(--app-info);background:var(--app-soft);font-size:12px;overflow-wrap:anywhere}.nf-payment-dialog .nf-upload svg{width:17px;height:17px;flex-shrink:0}.nf-payment-dialog .nf-upload input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}.nf-payment-dialog .nf-upload:focus-within{outline:3px solid #93b4ff;outline-offset:3px}.nf-payment-dialog .nf-upload strong{font-weight:600}
 .nf-payment-dialog .nf-info{padding:12px;background:var(--app-soft);border-radius:8px;color:var(--app-muted);font-size:11px}.nf-payment-dialog .nf-modal-footer{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px;padding-top:18px;margin-top:20px;border-top:1px solid #e8edf4}
-.nf-payment-dialog .nf-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;color:var(--app-muted);font-size:12px}.nf-payment-dialog .nf-preview-toolbar>span{display:flex;align-items:center;gap:8px}.nf-payment-dialog .nf-preview{height:65dvh;min-height:240px;overflow:auto;display:flex;justify-content:center;align-items:center;border:1px solid var(--app-line);border-radius:9px;background:var(--app-soft)}.nf-payment-dialog .nf-preview img{display:block;max-width:100%;max-height:100%;object-fit:contain}.nf-payment-dialog .nf-preview iframe{width:100%;height:100%;border:0;background:var(--app-surface)}
+.nf-payment-dialog .nf-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;color:var(--app-muted);font-size:12px}.nf-payment-dialog .nf-preview-toolbar>span{display:flex;align-items:center;gap:8px}.nf-payment-dialog .nf-preview{height:75dvh;min-height:240px;overflow:auto;display:flex;justify-content:center;align-items:center;border:1px solid var(--app-line);border-radius:9px;background:var(--app-soft)}.nf-payment-dialog .nf-preview img{display:block;max-width:100%;max-height:100%;object-fit:contain}.nf-payment-dialog .nf-preview iframe{width:100%;height:100%;border:0;background:var(--app-surface)}
 @container(max-width:1050px){.nf-payment-requests .nf-table-wrap{display:none}.nf-payment-requests .nf-mobile-docs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 20px 20px}.nf-payment-requests .nf-mobile-doc{min-width:0;border:1px solid var(--app-line);border-radius:11px;overflow:hidden;background:white}.nf-payment-requests .nf-mobile-doc.expanded{grid-column:1/-1}.nf-payment-requests .nf-mobile-doc>header{display:flex;align-items:center;gap:9px;padding:16px;border-bottom:1px solid #edf1f6}.nf-payment-requests .nf-mobile-doc>header>div{flex:1;min-width:0;overflow-wrap:anywhere}.nf-payment-requests .nf-mobile-doc>header strong{font-size:12px}.nf-payment-requests .nf-mobile-doc>header small{display:block;font-size:11px;color:var(--app-muted)}.nf-payment-requests .nf-mobile-doc>dl{display:grid;gap:16px;padding:16px;margin:0}.nf-payment-requests .nf-mobile-doc dt{font-size:10px;color:var(--app-muted);margin-bottom:4px}.nf-payment-requests .nf-mobile-doc dd{margin:0;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}.nf-payment-requests .nf-mobile-doc dd small{display:block;font-size:12px;color:var(--app-muted);line-height:1.7;margin-top:6px}.nf-payment-requests .nf-mobile-doc>footer{display:flex;justify-content:flex-end;gap:8px;padding:0 16px 16px;flex-wrap:wrap}.nf-payment-requests .nf-mobile-doc .nf-detail{border-radius:0;border-width:1px 0 0}}
 @container(max-width:620px){.nf-payment-requests .nf-header{align-items:flex-start;gap:10px}.nf-payment-requests .nf-header-actions .nf-btn{font-size:0;padding:10px}.nf-payment-requests .nf-header-actions .nf-btn svg{width:18px;height:18px}nf-payment-requests .nf-panel-top{padding:12px}.nf-payment-requests .nf-segment{display:flex}.nf-payment-requests .nf-segment button{flex:1;font-size:11px;padding:7px;gap:6px}.nf-payment-requests .nf-toolbar{padding:14px 12px;flex-direction:column;align-items:stretch;gap:8px}.nf-payment-requests .nf-list-heading{padding:2px 14px 14px}.nf-payment-requests .nf-mobile-docs{grid-template-columns:1fr;padding:0 12px 12px;gap:12px}.nf-payment-requests .nf-detail{grid-template-columns:1fr;padding:16px;gap:20px}.nf-payment-requests .nf-detail dl{grid-template-columns:1fr}.nf-payment-requests .nf-pagination{padding:14px 12px;flex-wrap:wrap;font-size:10px}.nf-payment-requests .nf-pagination>div{gap:8px}}
 @media(max-width:600px){.nf-payment-dialog .nf-dialog-header{padding:12px 14px}.nf-payment-dialog .nf-dialog-header h2{font-size:15px}.nf-payment-dialog .nf-dialog-content{padding:14px}.nf-payment-dialog .nf-form-grid.two{grid-template-columns:1fr}.nf-payment-dialog .nf-form-grid input,.nf-payment-dialog .nf-form-grid select,.nf-payment-dialog .nf-form-grid textarea{font-size:16px}.nf-payment-dialog .nf-payment-summary{flex-direction:column}.nf-payment-dialog .nf-modal-footer .nf-btn{flex:1}.nf-payment-dialog .nf-preview-toolbar{flex-wrap:wrap}.nf-payment-dialog .nf-preview{height:60dvh}}

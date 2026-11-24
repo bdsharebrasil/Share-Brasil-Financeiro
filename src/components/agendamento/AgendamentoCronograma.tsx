@@ -280,6 +280,7 @@ function LinhaSolicitacao({
           {item.numero_voo || (pendente ? `SOL-${item.id.slice(0, 4).toUpperCase()}` : item.matricula_registro || "Voo a definir")} · {new Date(`${item.data_agendada}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}
         </span>
         <strong className="mt-0.5 block text-sm font-bold text-foreground">{cliente}</strong>
+        {item.perna_planejada_id && <span className="text-[10px] font-semibold text-primary">Perna planejada · mesma solicitação</span>}
         {pendente && (
           <p className="mt-0.5 text-xs text-muted-foreground">
             {formatarData(item.data_agendada)} · {item.numero_passageiros || 1} pax · {item.matricula_registro || "Aeronave a definir"}
@@ -355,14 +356,14 @@ function LinhaSolicitacao({
           </div>
         )}
 
-        <button
+        {!item.perna_planejada_id && <button
           type="button"
           onClick={() => aoExcluir(item)}
           title="Excluir agendamento"
           className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
         >
           <Trash2 size={14} />
-        </button>
+        </button>}
       </div>
     </article>
   );

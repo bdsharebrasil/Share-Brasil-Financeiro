@@ -20,7 +20,7 @@ export function operacaoIniciada(voo: SolicitacaoVooInterna): boolean {
 export function filtrarOperacoes(voos: SolicitacaoVooInterna[], filtro: FiltroOperacoes, data: string): SolicitacaoVooInterna[] {
   return voos.filter((voo) => filtro === "operacao"
     ? operacaoIniciada(voo)
-    : statusOperacao(voo.status) === "aprovada" && !operacaoIniciada(voo) && operacaoNaData(voo, data));
+    : (Boolean(voo.perna_planejada_id) || (statusOperacao(voo.status) === "aprovada" && !operacaoIniciada(voo))) && operacaoNaData(voo, data));
 }
 
 export function selecionarOperacao(voos: SolicitacaoVooInterna[], selecionadoId: string | null): SolicitacaoVooInterna | null {

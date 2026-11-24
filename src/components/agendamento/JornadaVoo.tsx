@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CalendarDays, CheckCircle2, ChevronDown, Clock3, Flag, Gauge, Loader2, MapPin, Pencil, Plane, Plus, Route, Save, Timer, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { buscarAerodromos, type AerodromoOption } from "@/lib/flightplan-api";
-import { atualizarJornadaVoo, atualizarPernaJornada, adicionarPernaJornada, buscarJornadaVoo, buscarLimitesJornada, encerrarJornadaVoo, excluirJornadaVoo, excluirPernaJornada, iniciarJornadaVoo, type JornadaVoo as Jornada, type LimitesJornada, type NivelAlertaJornada } from "@/lib/colaborador-api";
-import type { SolicitacaoVooInterna, VooEmOperacao } from "@/lib/colaborador-api";
+import { planejarPernaVoo, cancelarPernaPlanejada, atualizarJornadaVoo, atualizarPernaJornada, adicionarPernaJornada, buscarJornadaVoo, buscarLimitesJornada, encerrarJornadaVoo, excluirJornadaVoo, excluirPernaJornada, iniciarJornadaVoo, type JornadaVoo as Jornada, type LimitesJornada, type NivelAlertaJornada } from "@/lib/colaborador-api";
+import type { SolicitacaoVooInterna, VooEmOperacao, PernaPlanejada } from "@/lib/colaborador-api";
 import ResumoJornadaOperacaoCard from "@/components/agendamento/ResumoJornadaOperacao";
 import { prepararProximaJornada } from "./proximaJornada";
 import AcompanhamentoVooAgendado from "@/components/agendamento/AcompanhamentoVooAgendado";
@@ -114,6 +114,10 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  const [erroCarregamento, setErroCarregamento] = useState("");
+  const [planejadaIniciandoId, setPlanejadaIniciandoId] = useState<string | null>(null);
+  const [horarioPrevistoPlanejado, setHorarioPrevistoPlanejado] = useState("");
+  const chavePlanejamento = useRef(crypto.randomUUID());
   const [mensagem, setMensagem] = useState("");
   const [exclusao, setExclusao] = useState<{ tipo: "jornada" | "perna"; jornadaId: string; pernaId?: string; resumo: string } | null>(null);
   const [excluindo, setExcluindo] = useState(false);
@@ -137,7 +141,8 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
 
   const opcoesAerodromos = useMemo(() => aerodromos, [aerodromos]);
   const carregar = useCallback(async () => {
-    const atual = await buscarJornadaVoo(item.id);
+    const atual = await buscarJornadaVoo(item.id).catch(error => { setErroCarregamento(error instanceof Error ? error.message : "Falha ao carregar jornada."); throw error; });
+    setErroCarregamento("");
     setErro("");
     const jornadaNormalizada = atual ? {
       ...atual,
@@ -158,7 +163,7 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
       if (ultima) setPerna({ origem: ultima.origem || "", destino: ultima.destino || "", numero_passageiros: String(ultima.numero_passageiros ?? item.numero_passageiros ?? 0), horario_ac: hora(ultima.horario_ac), horario_dep: hora(ultima.horario_dep), horario_pouso: hora(ultima.horario_pouso), horario_corte: hora(ultima.horario_corte) });
     }
   }, [item.data_agendada, item.id, item.numero_passageiros]);
-  useEffect(() => { void carregar().catch((e) => setErro(e instanceof Error ? e.message : "Falha ao carregar jornada.")).finally(() => setCarregando(false)); }, [carregar]);
+  useEffect(() => { void carregar().catch(() => undefined).finally(() => setCarregando(false)); }, [carregar]);
   useEffect(() => {
     let ativo = true;
     setAerodromosCarregando(true);
@@ -180,45 +185,69 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
     setPerna({ ...pernaVazia(), origem: ultimaPerna.destino || "", numero_passageiros: String(ultimaPerna.numero_passageiros ?? item.numero_passageiros ?? 0) });
     setCriandoPerna(true);
   };
+  const planejadas = (item.pernas_planejadas || []).filter(perna => perna.status === "PLANEJADA");
   const agendarProximaJornada = () => {
-    if (!jornada) return;
-    const proxima = prepararProximaJornada(jornada, item, hoje());
-    if (!proxima) {
-      setErro("Registre o pouso e o aeródromo de destino da última jornada encerrada para agendar a próxima jornada.");
-      return;
-    }
-    setErro("");
-    setMensagem("Próxima jornada: confira a data, os passageiros e o destino antes de criar o agendamento.");
-    setData(proxima.data);
-    setPerna({ ...pernaVazia(), origem: proxima.origem, destino: proxima.destino, numero_passageiros: proxima.numero_passageiros });
-    setAcionamento("");
-    setApresentacao("");
+    const ultimaPlanejada = [...planejadas].sort((a, b) => a.data_prevista.localeCompare(b.data_prevista) || a.criado_em.localeCompare(b.criado_em)).at(-1);
+    const proxima = jornada ? prepararProximaJornada(jornada, item, hoje()) : null;
+    setErro(""); setMensagem(""); setHorarioPrevistoPlanejado("");
+    setData(ultimaPlanejada?.data_prevista || proxima?.data || hoje());
+    setPerna({ ...pernaVazia(), origem: ultimaPlanejada?.destino || proxima?.origem || ultimaPerna?.destino || item.destino || item.origem,
+      numero_passageiros: String(ultimaPlanejada?.numero_passageiros ?? proxima?.numero_passageiros ?? ultimaPerna?.numero_passageiros ?? item.numero_passageiros ?? 0) });
+    setAcionamento(""); setApresentacao(""); setPlanejadaIniciandoId(null);
+    chavePlanejamento.current = crypto.randomUUID();
     setAgendandoProximaJornada(true);
-    setJornada(null);
+  };
+  const salvarPlanejamento = async () => {
+    if (!data || !perna.origem || !perna.destino) { setErro("Confirme a data, a origem e o destino da próxima perna."); return; }
+    setSalvando(true); setErro("");
+    try {
+      await planejarPernaVoo(item.id, { data_prevista: data, origem: perna.origem, destino: perna.destino,
+        numero_passageiros: Number(perna.numero_passageiros), chave_reenvio: chavePlanejamento.current,
+        horario_previsto: horarioPrevistoPlanejado ? utc(data, horarioPrevistoPlanejado) || undefined : undefined });
+      setAgendandoProximaJornada(false);
+      setMensagem("Perna planejada na mesma solicitação. A coordenação já pode consultá-la no agendamento.");
+      await aoAtualizarAgendamento?.();
+    } catch (error) { setErro(error instanceof Error ? error.message : "Não foi possível salvar o planejamento."); }
+    finally { setSalvando(false); }
+  };
+  const iniciarPlanejada = (planejada: PernaPlanejada) => {
+    setErro(""); setMensagem(""); setAgendandoProximaJornada(false);
+    setPlanejadaIniciandoId(planejada.id);
+    setPerna({ ...pernaVazia(), origem: planejada.origem, destino: planejada.destino, numero_passageiros: String(planejada.numero_passageiros) });
+    setAcionamento(""); setApresentacao("");
+    if (jornada && jornada.status !== "encerrada") {
+      setDataNovaPerna(planejada.data_prevista); setCriandoPerna(true);
+    } else { setData(planejada.data_prevista); setJornada(null); }
+  };
+  const cancelarPlanejamento = async (planejada: PernaPlanejada) => {
+    setSalvando(true); setErro("");
+    try { await cancelarPernaPlanejada(item.id, planejada.id); await aoAtualizarAgendamento?.(); }
+    catch (error) { setErro(error instanceof Error ? error.message : "Não foi possível cancelar o planejamento."); }
+    finally { setSalvando(false); }
   };
   const iniciarEdicaoPernaAtual = () => {
     if (!ultimaPerna) return;
     setFormPernaAtual({ origem: ultimaPerna.origem || "", destino: ultimaPerna.destino || "", numero_passageiros: String(ultimaPerna.numero_passageiros ?? 0), horario_ac: hora(ultimaPerna.horario_ac), horario_dep: hora(ultimaPerna.horario_dep), horario_pouso: hora(ultimaPerna.horario_pouso), horario_corte: hora(ultimaPerna.horario_corte) });
     setEditandoPernaAtual(true);
   };
-  const salvarInicio = async (aguardarHorarios = false) => {
-    if (!data || !perna.origem || !perna.destino || (!aguardarHorarios && (!apresentacao || !acionamento))) { setErro(aguardarHorarios ? "Confirme a data e os aeródromos." : "Confirme a data, os aeródromos, a apresentação e o acionamento."); return; }
+  const salvarInicio = async () => {
+    if (!data || !perna.origem || !perna.destino || !apresentacao || !acionamento) { setErro("Confirme a data, os aeródromos e o acionamento."); return; }
     setSalvando(true); setErro(""); setMensagem("");
-    const horarioAcionamento = aguardarHorarios ? null : utc(data, acionamento);
+    const horarioAcionamento = utc(data, acionamento);
     const horarioApresentacao = horarioAcionamento ? new Date(new Date(horarioAcionamento).getTime() - 30 * 60_000).toISOString() : null;
-    const horarioDep = aguardarHorarios ? null : utcDepois(data, perna.horario_dep, horarioAcionamento);
-    if (!aguardarHorarios && (!horarioApresentacao || !horarioAcionamento || (perna.horario_dep && !horarioDep))) { setErro("Os horários informados não são válidos em UTC."); setSalvando(false); return; }
+    const horarioDep = utcDepois(data, perna.horario_dep, horarioAcionamento);
+    if (!horarioApresentacao || !horarioAcionamento || (perna.horario_dep && !horarioDep)) { setErro("Os horários informados não são válidos em UTC."); setSalvando(false); return; }
     try {
-      const payload: Record<string, unknown> = { data: aguardarHorarios ? data : horarioApresentacao!.slice(0, 10), data_jornada: aguardarHorarios ? data : horarioApresentacao!.slice(0, 10), minutos_pos_corte: posCorte, origem: perna.origem, aerodromo_partida: perna.origem, destino: perna.destino, aerodromo_chegada: perna.destino, numero_passageiros: Number(perna.numero_passageiros), tripulante_id: item.piloto_id, tripulantes: [item.piloto_id && { tripulante_id: item.piloto_id, funcao: "PIC" as const }, item.copiloto_id && { tripulante_id: item.copiloto_id, funcao: "SIC" as const }].filter((tripulante): tripulante is { tripulante_id: string; funcao: "PIC" | "SIC" } => Boolean(tripulante)) };
-      if (aguardarHorarios) payload.aguardar_horarios = true;
-      else Object.assign(payload, { horario_apresentacao: horarioApresentacao, tripulacao_checkin_hora: horarioApresentacao, horario_acionamento: horarioAcionamento, tempo_ac: horarioAcionamento, horario_ac: horarioAcionamento, horario_dep: horarioDep, tempo_dep: horarioDep });
-      await iniciarJornadaVoo(item.id, payload);
-      setAgendandoProximaJornada(false);
-      await carregar();
-      await aoAtualizarAgendamento?.(aguardarHorarios ? item.status : horarioDep ? "decolado" : "acionado");
-      setMensagem(aguardarHorarios ? "Agendamento criado. Preencha os horários da jornada quando estiverem disponíveis." : horarioDep ? "Check-in, AC e DEP salvos. Registre POU e COR após o pouso." : "Check-in e AC salvos como Acionado. Registre a DEP quando a aeronave decolar.");
-    }
-    catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível iniciar a jornada."); } finally { setSalvando(false); }
+      await iniciarJornadaVoo(item.id, { data: horarioApresentacao.slice(0, 10), data_jornada: horarioApresentacao.slice(0, 10),
+        minutos_pos_corte: posCorte, origem: perna.origem, destino: perna.destino, numero_passageiros: Number(perna.numero_passageiros),
+        perna_planejada_id: planejadaIniciandoId || undefined, horario_apresentacao: horarioApresentacao,
+        horario_acionamento: horarioAcionamento, horario_dep: horarioDep,
+        tripulantes: [item.piloto_id && { tripulante_id: item.piloto_id, funcao: "PIC" as const }, item.copiloto_id && { tripulante_id: item.copiloto_id, funcao: "SIC" as const }].filter((tripulante): tripulante is { tripulante_id: string; funcao: "PIC" | "SIC" } => Boolean(tripulante)) });
+      setPlanejadaIniciandoId(null); await carregar();
+      await aoAtualizarAgendamento?.(horarioDep ? "decolado" : "acionado");
+      setMensagem(horarioDep ? "Check-in, AC e DEP salvos." : "Acionamento registrado. A jornada foi iniciada.");
+    } catch (error) { setErro(error instanceof Error ? error.message : "Não foi possível iniciar a jornada."); }
+    finally { setSalvando(false); }
   };
   const salvarDecolagem = async () => {
     if (!jornada || !ultimaPerna || !perna.horario_dep) { setErro("Informe o horário de decolagem (DEP)."); return; }
@@ -247,16 +276,16 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
     setSalvando(true); setErro(""); setMensagem("");
     try {
       const dataPerna = dataNovaPerna || dataDoUltimoLancamento(ultimaPerna, jornada.data);
-      const criada = await adicionarPernaJornada(jornada.id, pernaUtc(dataPerna, perna, ultimaPerna?.horario_corte || ultimaPerna?.horario_pouso || ultimaPerna?.horario_ac));
-      await carregar(); await aoAtualizarAgendamento?.(criada.status_agendamento || (perna.horario_dep ? "decolado" : "acionado")); setCriandoPerna(false); setMensagem(perna.horario_dep ? "Nova perna decolada. Registre POU e COR após o pouso." : "Nova perna acionada. Registre a DEP quando a aeronave decolar.");
+      const criada = await adicionarPernaJornada(jornada.id, { ...pernaUtc(dataPerna, perna, ultimaPerna?.horario_corte || ultimaPerna?.horario_pouso || ultimaPerna?.horario_ac), perna_planejada_id: planejadaIniciandoId || undefined });
+      await carregar(); await aoAtualizarAgendamento?.(criada.status_agendamento || (perna.horario_dep ? "decolado" : "acionado")); setCriandoPerna(false); setPlanejadaIniciandoId(null); setMensagem(perna.horario_dep ? "Nova perna decolada. Registre POU e COR após o pouso." : "Nova perna acionada. Registre a DEP quando a aeronave decolar.");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
       if (msg.startsWith("limite_jornada_excedido")) {
         if (window.confirm("Este tripulante já está no limite configurado de jornada. Iniciar esta perna mesmo assim?")) {
           try {
             const dataPerna = dataNovaPerna || dataDoUltimoLancamento(ultimaPerna, jornada.data);
-            const criada = await adicionarPernaJornada(jornada.id, { ...pernaUtc(dataPerna, perna, ultimaPerna?.horario_corte || ultimaPerna?.horario_pouso || ultimaPerna?.horario_ac), confirmar_excedente: true });
-            await carregar(); await aoAtualizarAgendamento?.(criada.status_agendamento || (perna.horario_dep ? "decolado" : "acionado")); setCriandoPerna(false); setMensagem(perna.horario_dep ? "Nova perna decolada com excedente confirmado." : "Nova perna acionada com excedente confirmado. Registre a DEP quando decolar.");
+            const criada = await adicionarPernaJornada(jornada.id, { perna_planejada_id: planejadaIniciandoId || undefined, ...pernaUtc(dataPerna, perna, ultimaPerna?.horario_corte || ultimaPerna?.horario_pouso || ultimaPerna?.horario_ac), confirmar_excedente: true });
+            await carregar(); await aoAtualizarAgendamento?.(criada.status_agendamento || (perna.horario_dep ? "decolado" : "acionado")); setCriandoPerna(false); setPlanejadaIniciandoId(null); setMensagem(perna.horario_dep ? "Nova perna decolada com excedente confirmado." : "Nova perna acionada com excedente confirmado. Registre a DEP quando decolar.");
           } catch (e2) { setErro(e2 instanceof Error ? e2.message : "Não foi possível iniciar a perna."); }
         } else setErro(msg);
       } else setErro(msg || "Não foi possível iniciar a nova perna.");
@@ -288,26 +317,47 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
   const alterarPerna = (campo: keyof PernaForm, valor: string) => setPerna((atual) => ({ ...atual, [campo]: valor }));
   const horas = (min: number) => `${Math.floor(Math.abs(min) / 60)}h${String(Math.abs(min) % 60).padStart(2, "0")}`;
   if (carregando) return <div className={box}><Loader2 className="animate-spin" size={16} /></div>;
-  if (erro && !jornada && !somenteLeitura) return <section className={`${box} space-y-4`}><div className="rounded-xl border border-red-400/30 bg-red-400/5 p-4"><p className="text-xs font-bold text-red-200">Não foi possível carregar o histórico da jornada.</p><p className="mt-2 break-words text-[10px] text-red-200/80">{erro}</p><div className="mt-4 flex flex-wrap gap-2"><Button type="button" onClick={() => { setCarregando(true); setErro(""); void carregar().catch((e) => setErro(e instanceof Error ? e.message : "Falha ao carregar jornada.")).finally(() => setCarregando(false)); }} className="text-xs">Tentar novamente</Button><Button type="button" variant="outline" onClick={aoFechar} className="text-xs">Fechar</Button></div></div></section>;
+  if (erroCarregamento && !jornada && !somenteLeitura) return <section className={`${box} space-y-4`}><div className="rounded-xl border border-red-400/30 bg-red-400/5 p-4"><p className="text-xs font-bold text-red-200">Não foi possível carregar o histórico da jornada.</p><p className="mt-2 break-words text-[10px] text-red-200/80">{erroCarregamento}</p><div className="mt-4 flex flex-wrap gap-2"><Button type="button" onClick={() => { setCarregando(true); setErroCarregamento(""); void carregar().catch(() => undefined).finally(() => setCarregando(false)); }} className="text-xs">Tentar novamente</Button><Button type="button" variant="outline" onClick={aoFechar} className="text-xs">Fechar</Button></div></div></section>;
   if (somenteLeitura && !jornada) return <section className={`${box} space-y-4`}><ResumoJornadaOperacaoCard solicitacaoId={item.id} /><p className="text-xs text-muted-foreground">O endpoint de jornada principal não retornou registros adicionais.</p>{aoFechar && <Button type="button" variant="outline" onClick={aoFechar} className="text-xs">Fechar</Button>}</section>;
 
   const tripulantesComLimites = jornada?.tripulantes ?? (jornada && limites ? [{ ...jornada, funcao_tripulante: jornada.funcao_tripulante, limites }] : []);
   return <section className={`${box} space-y-5`}>
     {somenteLeitura && aoFechar && <div className="flex justify-end"><button type="button" onClick={aoFechar} aria-label="Fechar resumo" className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"><X size={16} /></button></div>}
-    {!somenteLeitura && <div className="flex flex-col gap-4 rounded-xl border border-border bg-background/25 p-4"><div className="flex items-start gap-3"><div className="min-w-0 flex-1"><p className="text-[9px] font-bold uppercase tracking-[.14em] text-primary">{somenteLeitura ? "Operação concluída · histórico" : "Operação · UTC/Zulu"}</p><h2 className="mt-1 text-base font-bold">{somenteLeitura ? "Jornada realizada" : `${item.numero_voo || "Voo a gerar"} → ${item.matricula_registro || "Aeronave a definir"} → ${item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Não informado"}`}</h2><p className="mt-1 text-[10px] text-muted-foreground">{somenteLeitura ? "Visualização somente leitura da operação encerrada." : "Controle de apresentação, acionamento, voo, pouso e corte."}</p></div>{jornada?.status === "encerrada" && <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-[9px] font-bold text-emerald-300">Encerrada</span>}<button type="button" onClick={aoFechar} aria-label="Fechar jornada de voo" className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"><X size={16} /></button></div>{jornada?.status === "encerrada" && !somenteLeitura && <Button type="button" onClick={agendarProximaJornada} className="w-full gap-2 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:w-auto sm:self-end"><Plus size={14} /> Agendar próxima jornada</Button>}</div>}
+    {!somenteLeitura && <div className="flex flex-col gap-4 rounded-xl border border-border bg-background/25 p-4"><div className="flex items-start gap-3"><div className="min-w-0 flex-1"><p className="text-[9px] font-bold uppercase tracking-[.14em] text-primary">{somenteLeitura ? "Operação concluída · histórico" : "Operação · UTC/Zulu"}</p><h2 className="mt-1 text-base font-bold">{somenteLeitura ? "Jornada realizada" : `${item.numero_voo || "Voo a gerar"} → ${item.matricula_registro || "Aeronave a definir"} → ${item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Não informado"}`}</h2><p className="mt-1 text-[10px] text-muted-foreground">{somenteLeitura ? "Visualização somente leitura da operação encerrada." : "Controle de apresentação, acionamento, voo, pouso e corte."}</p></div>{jornada?.status === "encerrada" && <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-[9px] font-bold text-emerald-300">Encerrada</span>}<button type="button" onClick={aoFechar} aria-label="Fechar jornada de voo" className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"><X size={16} /></button></div>{!somenteLeitura && <Button type="button" onClick={agendarProximaJornada} className="w-full gap-2 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:w-auto sm:self-end"><Plus size={14} /> Agendar próxima perna</Button>}</div>}
+    {!somenteLeitura && <section className="rounded-xl border border-border bg-background/20 p-4" aria-label="Próximas pernas da solicitação">
+      <h3 className="text-xs font-bold">Próximas pernas · {item.numero_voo || "Mesma solicitação"}</h3>
+      {!planejadas.length && <p className="mt-2 text-xs text-muted-foreground">Nenhuma próxima perna planejada.</p>}
+      <div className="mt-3 space-y-2">{planejadas.map(planejada => <article key={planejada.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3 text-xs">
+        <div className="min-w-0 flex-1"><strong>{planejada.origem} → {planejada.destino}</strong><p className="mt-1 text-muted-foreground">{dataBr(planejada.data_prevista)} · {planejada.horario_previsto ? `${hora(planejada.horario_previsto)} UTC` : "Horário a definir"} · {planejada.numero_passageiros} passageiros · Planejada</p></div>
+        <Button type="button" variant="outline" className="text-xs" disabled={salvando || Boolean(jornada && jornada.status !== "encerrada" && !pernaCortada)} onClick={() => iniciarPlanejada(planejada)}>Iniciar perna</Button>
+        <Button type="button" variant="ghost" disabled={salvando} aria-label={`Cancelar planejamento ${planejada.origem} ${planejada.destino}`} onClick={() => void cancelarPlanejamento(planejada)}><X size={14} /></Button>
+      </article>)}</div>
+    </section>}
+    {agendandoProximaJornada ? <section className="rounded-xl border border-primary/25 bg-primary/5 p-4" aria-label="Planejar próxima perna">
+      <h3 className="mb-3 text-xs font-bold">Agendamento de perna · mesma solicitação</h3>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Campo label="Data prevista *"><input type="date" value={data} onChange={event => setData(event.target.value)} className={input} /></Campo>
+        <Campo label="Horário previsto (UTC) · opcional"><input type="time" value={horarioPrevistoPlanejado} onChange={event => setHorarioPrevistoPlanejado(event.target.value)} className={input} /></Campo>
+        <AeroportoCampo label="Aeródromo de saída *" value={perna.origem} aerodromos={opcoesAerodromos} carregando={aerodromosCarregando} onChange={valor => alterarPerna("origem", valor)} />
+        <AeroportoCampo label="Aeródromo de destino *" value={perna.destino} aerodromos={opcoesAerodromos} carregando={aerodromosCarregando} onChange={valor => alterarPerna("destino", valor)} />
+        <Campo label="Passageiros"><input type="number" min="0" step="1" value={perna.numero_passageiros} onChange={event => alterarPerna("numero_passageiros", event.target.value)} className={input} /></Campo>
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">Planejamento para a coordenação. A jornada começa somente com o acionamento.</p>
+      <div className="mt-3 flex gap-2"><Button type="button" disabled={salvando || !data || !perna.origem || !perna.destino} onClick={() => void salvarPlanejamento()} className="gap-2 text-xs"><CalendarDays size={14} />Criar agendamento</Button><Button type="button" variant="outline" disabled={salvando} onClick={() => setAgendandoProximaJornada(false)}>Cancelar</Button></div>
+    </section> : <>
     {modoHistorico && jornada && <nav className="flex gap-1 overflow-x-auto rounded-[5px] border border-border bg-card/60 p-1">{([{ id: "historico", label: "Histórico de voo" }, { id: "mapa", label: "MAPA TRAJETO" }, { id: "jornada", label: "Jornada de voo" }] as const).filter((aba) => permitirMapa || aba.id !== "mapa").map((aba) => <button key={aba.id} type="button" onClick={() => setAbaHistorico(aba.id)} className={`rounded-[6px] px-4 py-2 text-[10px] font-bold uppercase transition-colors ${abaHistorico === aba.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>{aba.label}</button>)}</nav>}
     {modoHistorico && jornada && abaHistorico === "jornada" && somenteLeitura && <ResumoJornadaOperacaoCard solicitacaoId={item.id} />}
     {modoHistorico && jornada && abaHistorico === "jornada" && <div className="grid gap-2 sm:grid-cols-2">{tripulantesComLimites.map((t) => <div key={t.id} className={`rounded-lg border px-3 py-2 text-[23px] font-extralight leading-[17px] ${t.limites.dados_incompletos ? "border-border bg-muted/20 text-muted-foreground" : tomAlerta[t.limites.nivel_alerta]}`}><div className="flex items-center justify-between gap-2 text-[32px]"><span className="text-[9px] font-bold uppercase tracking-wide"> · {nomesTripulantes.get(t.tripulante_id ?? "") || "Tempo Jornada"}</span></div><p className="mt-1 text-[11px] font-semibold leading-[19px] text-[rgb(19,25,25)] dark:text-[#dde2e9]">{t.limites.dados_incompletos ? "Dados incompletos · " : ""}Janela semanal {horas(t.limites.semana.minutos)}/{horas(t.limites.semana.limite)} · Mês {horas(t.limites.mes.minutos)}/{horas(t.limites.mes.limite)}</p></div>)}</div>}
       {!jornada ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Campo label="Data da jornada *"><input type="date" value={data} onChange={(e) => setData(e.target.value)} className={input} /></Campo>
       <Campo label="Pós-corte / tipo de voo"><select value={posCorte} onChange={(e) => setPosCorte(Number(e.target.value) === 45 ? 45 : 30)} className={input}><option value={30}>Doméstico · 30 minutos</option><option value={45}>Internacional · 45 minutos</option></select></Campo>
-      {agendandoProximaJornada ? <Campo label="Aeródromo de saída *"><input value={perna.origem} readOnly className={input} /><span className="block text-[9px] text-muted-foreground">Último pouso registrado da última jornada encerrada.</span></Campo> : <AeroportoCampo label="Aeródromo de saída *" value={perna.origem} aerodromos={opcoesAerodromos} carregando={aerodromosCarregando} onChange={(valor) => alterarPerna("origem", valor)} />}
+      <AeroportoCampo label="Aeródromo de saída *" value={perna.origem} aerodromos={opcoesAerodromos} carregando={aerodromosCarregando} onChange={(valor) => alterarPerna("origem", valor)} />
       <AeroportoCampo label="Aeródromo de destino *" value={perna.destino} aerodromos={opcoesAerodromos} carregando={aerodromosCarregando} onChange={(valor) => alterarPerna("destino", valor)} />
       <Campo label="Passageiros"><input type="number" min="0" step="1" value={perna.numero_passageiros} onChange={(e) => alterarPerna("numero_passageiros", e.target.value)} className={input} /></Campo>
       <Campo label="Tripulação check-in automático"><input type="time" value={apresentacao} readOnly disabled={!acionamento} aria-describedby="checkin-automatico-ajuda" className={input} /><span id="checkin-automatico-ajuda" className="block text-[9px] text-muted-foreground">Preenchido 30 min antes do acionamento. Se ainda não há horários, crie o agendamento.</span></Campo>
       <Campo label="Horário de acionamento (AC)"><input type="time" value={acionamento} onChange={(e) => { setAcionamento(e.target.value); setApresentacao(""); }} className={input} /></Campo>
       <Campo label="Decolagem / saída (DEP), se já ocorreu"><input type="time" value={perna.horario_dep} onChange={(e) => alterarPerna("horario_dep", e.target.value)} className={input} /></Campo>
-      <div className="sm:col-span-2 lg:col-span-4"><p className="mb-2 text-[10px] text-muted-foreground">Registre check-in e AC agora, ou crie somente a jornada do dia como programada e informe os horários quando estiverem disponíveis. DEP, POU e COR podem ser completados depois.</p><div className="flex flex-wrap gap-2"><Button onClick={() => void salvarInicio()} disabled={salvando || !data || !perna.origem || !perna.destino || !apresentacao || !acionamento} className="gap-2 text-xs"><Save size={14} /> Registrar acionamento</Button><Button type="button" variant="outline" onClick={() => void salvarInicio(true)} disabled={salvando || !data || !perna.origem || !perna.destino} className="gap-2 text-xs"><CalendarDays size={14} /> Criar agendamento</Button></div></div>
+      <div className="sm:col-span-2 lg:col-span-4"><p className="mb-2 text-[10px] text-muted-foreground">Registre o acionamento para iniciar a jornada desta perna.</p><Button onClick={() => void salvarInicio()} disabled={salvando || !data || !perna.origem || !perna.destino || !apresentacao || !acionamento} className="gap-2 text-xs"><Save size={14} /> Registrar acionamento</Button></div>
     </div> : <>
       {modoHistorico && abaHistorico === "historico" && !somenteLeitura && <SecaoRecolhivel titulo="Dados do voo"><AcompanhamentoVooAgendado item={item} voosEmOperacao={voosEmOperacao} secao="historico" /></SecaoRecolhivel>}
       {permitirMapa && modoHistorico && abaHistorico === "mapa" && !somenteLeitura && <AcompanhamentoVooAgendado item={item} voosEmOperacao={voosEmOperacao} secao="mapa" />}
@@ -317,6 +367,7 @@ export default function JornadaVoo({ item, voosEmOperacao = [], aoFechar, aoAtua
       {!modoHistorico && jornada.status !== "encerrada" && pernaEmVoo && ultimaPerna && <div className="rounded-xl border border-sky-400/30 bg-sky-400/5 p-4"><div className="mb-3 flex items-center gap-2 text-xs font-bold text-sky-200"><Clock3 size={15} /> Perna {ultimaPerna.numero} aguardando POU</div><div className="mb-4 grid gap-2 rounded-lg border border-border/60 bg-background/40 p-3 text-[10px] sm:grid-cols-4"><div><span className="text-muted-foreground">Trecho</span><strong className="block">{ultimaPerna.origem} → {ultimaPerna.destino}</strong></div><div><span className="text-muted-foreground">AC</span><strong className="block">{hora(ultimaPerna.horario_ac) || hora(jornada.horario_acionamento)}</strong></div><div><span className="text-muted-foreground">DEP</span><strong className="block">{hora(ultimaPerna.horario_dep) || "—"}</strong></div><div><span className="text-muted-foreground">Data</span><strong className="block">{dataBr(jornada.data)}</strong></div></div><div className="grid gap-3 sm:grid-cols-3"><Campo label="Passageiros"><input type="number" min="0" step="1" value={perna.numero_passageiros} onChange={(e) => alterarPerna("numero_passageiros", e.target.value)} className={input} /></Campo><Campo label="Pouso (POU) *"><input type="time" value={perna.horario_pouso} onChange={(e) => alterarPerna("horario_pouso", e.target.value)} className={input} /></Campo><Campo label="Corte (CORT) *"><input type="time" value={perna.horario_corte} onChange={(e) => alterarPerna("horario_corte", e.target.value)} className={input} /></Campo></div><Button onClick={() => void salvarCorte()} disabled={salvando || !perna.horario_pouso || !perna.horario_corte} className="mt-4 gap-2 text-xs"><CheckCircle2 size={14} /> Salvar POU e corte</Button></div>}
       {!modoHistorico && jornada.status !== "encerrada" && pernaCortada && !criandoPerna && <div className="flex flex-wrap gap-2 rounded-xl border border-[rgba(52,211,153,0.72)] bg-emerald-400/5 p-4"><p className="w-full text-[10px] text-emerald-200">POU e corte salvos. Escolha o próximo passo da jornada.</p><Button onClick={prepararNovaPerna} className="gap-2 text-xs"><Plus size={14} /> Nova perna</Button><Button variant="outline" onClick={() => void encerrar()} disabled={salvando} className="gap-2 text-xs"><Flag size={14} /> Encerrar jornada</Button></div>}
       {!modoHistorico && jornada.status !== "encerrada" && pernaCortada && criandoPerna && <div className="rounded-xl border border-primary/25 bg-primary/5 p-4"><p className="mb-1 text-xs font-bold">Nova perna</p><p className="mb-3 text-[10px] text-muted-foreground">A saída foi definida automaticamente como o destino da perna anterior.</p><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6"><Campo label="Data da perna"><input type="date" value={dataNovaPerna || jornada.data} readOnly disabled className={input} /></Campo><AeroportoCampo label="Aeródromo de saída *" value={perna.origem} aerodromos={opcoesAerodromos} carregando={aerodromosCarregando} onChange={(valor) => alterarPerna("origem", valor)} /><AeroportoCampo label="Aeródromo de destino *" value={perna.destino} aerodromos={opcoesAerodromos} carregando={aerodromosCarregando} onChange={(valor) => alterarPerna("destino", valor)} /><Campo label="Passageiros"><input type="number" min="0" step="1" value={perna.numero_passageiros} onChange={(e) => alterarPerna("numero_passageiros", e.target.value)} className={input} /></Campo><Campo label="Acionamento / AC *"><input type="time" value={perna.horario_ac} onChange={(e) => alterarPerna("horario_ac", e.target.value)} className={input} /></Campo><Campo label="Decolagem / DEP, se já ocorreu"><input type="time" value={perna.horario_dep} onChange={(e) => alterarPerna("horario_dep", e.target.value)} className={input} /></Campo></div><div className="mt-3 flex flex-wrap gap-2"><Button onClick={() => void salvarNovaPerna()} disabled={salvando || !perna.origem || !perna.destino || !perna.horario_ac} className="gap-2 text-xs"><Save size={14} /> Registrar acionamento da perna</Button><Button variant="outline" onClick={() => { setCriandoPerna(false); setDataNovaPerna(""); setPerna(pernaVazia()); }} className="text-xs">Cancelar</Button></div></div>}
+    </>}
     </>}
     {(erro || mensagem) && <p className={`text-[10px] ${erro ? "text-red-300" : "text-emerald-300"}`}>{erro || mensagem}</p>}
     <Dialog open={Boolean(exclusao)} onOpenChange={(aberto) => { if (!aberto && !excluindo) setExclusao(null); }}><DialogContent className="rounded-2xl border-red-400/25 bg-card sm:max-w-md"><DialogHeader><DialogTitle className="text-base text-red-300">{exclusao?.tipo === "jornada" ? "DESEJA REALMENTE EXCLUIR ESSA JORNADA DE VOO ?" : "DESEJA REALMENTE EXCLUIR ESSA PERNA DE VOO?"}</DialogTitle><DialogDescription className="pt-2 text-xs">Confira o resumo do registro que será excluído:</DialogDescription></DialogHeader><div className="rounded-lg border border-red-400/20 bg-red-400/5 p-3 text-xs font-semibold text-foreground">{exclusao?.resumo}</div><DialogFooter className="gap-2"><Button type="button" variant="outline" disabled={excluindo} onClick={() => setExclusao(null)}>Cancelar</Button><Button type="button" variant="destructive" disabled={excluindo} onClick={() => void confirmarExclusao()} className="gap-2"><Trash2 size={14} />{excluindo ? "Excluindo..." : "Confirmar"}</Button></DialogFooter></DialogContent></Dialog>

@@ -246,7 +246,7 @@ export function CalendarioAgendamento({
                     </div>
                     <div>
                       <strong className="block text-sm font-bold text-foreground">
-                        {flight.numero_voo || "Voo"} · {formatarData(flight.data_agendada)}
+                        {flight.numero_voo || "Voo"}{flight.perna_planejada_id ? " · Perna planejada" : ""} · {formatarData(flight.data_agendada)}
                       </strong>
                       <span className="font-mono text-xs text-muted-foreground">
                         {flight.matricula_registro || "PR-AEX"}

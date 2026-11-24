@@ -411,7 +411,24 @@ export function solicitarFerias(dataInicio: string, dataFim: string, observacoes
   });
 }
 
-export type SolicitacaoVooInterna = { preparacao_pendencias?: number | null;
+export type PernaPlanejada = {
+  id: string; solicitacao_id: string; data_prevista: string; origem: string; destino: string;
+  horario_previsto: string | null; numero_passageiros: number;
+  status: "PLANEJADA" | "INICIADA" | "CANCELADA"; perna_jornada_id: string | null;
+  criado_em: string; atualizado_em: string;
+};
+export function planejarPernaVoo(solicitacaoId: string, dados: { data_prevista: string; origem: string; destino: string; numero_passageiros: number; horario_previsto?: string; chave_reenvio: string }) {
+  return colaboradorRequest<PernaPlanejada>(`/api/interno/agendamento/${encodeURIComponent(solicitacaoId)}/pernas-planejadas`, { method: "POST", body: JSON.stringify(dados) });
+}
+export function cancelarPernaPlanejada(solicitacaoId: string, planejadaId: string) {
+  return colaboradorRequest<{ success: boolean }>(`/api/interno/agendamento/${encodeURIComponent(solicitacaoId)}/pernas-planejadas/${encodeURIComponent(planejadaId)}`, { method: "DELETE" });
+}
+
+export type SolicitacaoVooInterna = {
+  solicitacao_id?: string;
+  perna_planejada_id?: string;
+  pernas_planejadas?: PernaPlanejada[];
+  preparacao_pendencias?: number | null;
   id: string;
   cliente_id: string | null;
   socio_id?: string | null;
@@ -527,6 +544,7 @@ export type VinculoCotistaAgendamento = { id: string; cliente_id: string | null;
 export type OpcoesAgendamentoResponse = { clientes: OpcaoClienteAgendamento[]; socios: OpcaoSocioAgendamento[]; aeronaves: AeronaveAgendamento[]; vinculos: VinculoCotistaAgendamento[] };
 
 export type PainelAgendamentoResponse = {
+  pernas_planejadas?: PernaPlanejada[];
   inicio: string;
   fim: string;
   agendamentos: SolicitacaoVooInterna[];

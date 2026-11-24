@@ -95,6 +95,10 @@ function dataMaisDias(dias: number) {
   return d.toISOString().slice(0, 10);
 }
 
+function dataMenosDias(dias: number) {
+  return dataMaisDias(-dias);
+}
+
 const somar = (linhas: Array<{ valor: number }>) => linhas.reduce((s, l) => s + l.valor, 0);
 const titulos = (n: number) => `${n} ${n === 1 ? "título" : "títulos"}`;
 
@@ -282,16 +286,21 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
   const resumo = useMemo(() => {
     const hoje = hojeISO();
     const limite = dataMaisDias(7);
+    const limiteVencidos = dataMenosDias(7);
     const pendentes = lancamentos.filter((l) => l.situacao === "PENDENTE" || l.situacao === "ATRASADO");
     const doDia = (fluxo: FluxoLinha) => pendentes.filter((l) => l.fluxo === fluxo && l.dataVencimento === hoje);
     const daSemana = (fluxo: FluxoLinha) =>
       pendentes.filter((l) => l.fluxo === fluxo && l.dataVencimento && l.dataVencimento >= hoje && l.dataVencimento <= limite);
+    const vencidosMais7 = (fluxo: FluxoLinha) =>
+      pendentes.filter((l) => l.fluxo === fluxo && l.dataVencimento && l.dataVencimento.slice(0, 10) < limiteVencidos);
 
     return {
       receberHoje: doDia("ENTRADA"),
       pagarHoje: doDia("SAIDA"),
       receberSemana: daSemana("ENTRADA"),
       pagarSemana: daSemana("SAIDA"),
+      receberVencidosMais7: vencidosMais7("ENTRADA"),
+      pagarVencidosMais7: vencidosMais7("SAIDA"),
       feriasPendentes: ferias.filter((f) => f.status === "solicitada"),
       feriasProximas: ferias.filter((f) => f.status === "aprovada" && f.data_inicio >= hoje && f.data_inicio <= dataMaisDias(10)),
     };
@@ -321,6 +330,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
 
   const hoje = hojeISO();
   const fim7 = dataMaisDias(7);
+  const fimVencidosMais7 = dataMenosDias(7);
 
   const linhasFluxo: Array<{
     titulo: string;
@@ -365,6 +375,27 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
           total: totalPagarSemana,
           quantidade: resumo.pagarSemana.length,
           onClick: () => abrir("saida", { situacao: "PENDENTE", inicio: hoje, fim: fim7 }),
+        },
+      ],
+    },
+    {
+      titulo: "Vencidos > 7 dias",
+      celulas: [
+        {
+          rotulo: "Entradas vencidas",
+          tom: "receber",
+          Icon: TrendingUp,
+          total: somar(resumo.receberVencidosMais7),
+          quantidade: resumo.receberVencidosMais7.length,
+          onClick: () => abrir("entrada", { situacao: "ATRASADO", fim: fimVencidosMais7 }),
+        },
+        {
+          rotulo: "Pagamentos vencidos",
+          tom: "pagar",
+          Icon: TrendingDown,
+          total: somar(resumo.pagarVencidosMais7),
+          quantidade: resumo.pagarVencidosMais7.length,
+          onClick: () => abrir("saida", { situacao: "ATRASADO", fim: fimVencidosMais7 }),
         },
       ],
     },

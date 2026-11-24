@@ -1,5 +1,6 @@
 import {
   Fragment,
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -56,6 +57,7 @@ import {
 import { ModalContaAPagar } from "./ModalContaAPagar";
 import { ModalContaAReceber } from "./ModalContaAReceber";
 import { NovoLancamentoShareDialog } from "./NovoLancamentoShareDialog";
+import { AbaSolicitacoesPagamento } from "./AbaSolicitacoesPagamento";
 
 /** Campos opcionais: conecte aos nomes reais do seu backend via obterDetalhes. */
 export type DetalhesLancamento = {
@@ -448,6 +450,13 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   );
   const [arrastando, setArrastando] = useState(false);
   const [menuLinhaId, setMenuLinhaId] = useState<string | null>(null);
+  const [abaSaida, setAbaSaida] = useState<"lancamentos" | "solicitacoes">("lancamentos");
+  const [solicitacoesPendentes, setSolicitacoesPendentes] = useState(0);
+
+  const atualizarSolicitacoesPendentes = useCallback((quantidade: number) => {
+    setSolicitacoesPendentes(quantidade);
+    if (quantidade === 0) setAbaSaida("lancamentos");
+  }, []);
 
   useEffect(() => {
     if (!menuLinhaId) return;
@@ -792,7 +801,14 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   return (
     <section className={`erp-financeiro ${ehEntrada ? "erp-entrada" : "erp-saida"}`} aria-labelledby={`${id}-titulo`}>
       <style>{ESTILOS_FINANCEIRO}</style>
-      <div className="erp-tela">
+      {!ehEntrada && <nav className="erp-abas" aria-label="Registro de saída">
+        <button type="button" className={abaSaida === "lancamentos" ? "ativo" : ""} onClick={() => setAbaSaida("lancamentos")}>Lançamentos</button>
+        {solicitacoesPendentes > 0 && <button type="button" className={abaSaida === "solicitacoes" ? "ativo" : ""} onClick={() => setAbaSaida("solicitacoes")}>Solicitações de pagamento <span>{solicitacoesPendentes}</span></button>}
+      </nav>}
+      {!ehEntrada && <div style={{ display: abaSaida === "solicitacoes" ? "block" : "none" }}>
+        <AbaSolicitacoesPagamento contasBancarias={contasBancarias} aoAlterarQuantidade={atualizarSolicitacoesPendentes} />
+      </div>}
+      {(ehEntrada || abaSaida === "lancamentos") && <div className="erp-tela">
         <header className="erp-cabecalho">
           <div className="erp-titulo"><h2 id={`${id}-titulo`}>{titulo}</h2></div>
           <div className="erp-cabecalho-acoes">
@@ -1028,7 +1044,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
             <button type="button" className="erp-pagina-btn" aria-label="Próxima página" disabled={paginaAtual >= paginas} onClick={() => setPagina(paginaAtual + 1)}><ChevronRight size={16} /></button>
           </div>
         </footer>
-      </div>
+      </div>}
 
       <div className="erp-relatorio-impressao">
         <h1>{titulo}</h1><p>Período: {periodoImpressao}</p><p>Emitido em {new Date().toLocaleString("pt-BR")}</p>
@@ -1095,6 +1111,10 @@ export const ESTILOS_FINANCEIRO = `
 .erp-financeiro button:focus-visible, .erp-financeiro a:focus-visible, .erp-financeiro input:focus-visible,
 .erp-financeiro select:focus-visible, .erp-financeiro [tabindex]:focus-visible { outline: 2px solid #39aaff; outline-offset: 3px; }
 .erp-financeiro .erp-tela { margin: 0; padding: 4px 0; }
+.erp-financeiro .erp-abas { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; padding: 4px; border: 1px solid var(--light-line, #27313b); border-radius: 8px; background: var(--light-soft, #0d141c); }
+.erp-financeiro .erp-abas button { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 12px; border: 1px solid transparent; border-radius: 5px; color: var(--erp-muted); background: transparent; font-size: 11px; font-weight: 600; }
+.erp-financeiro .erp-abas button:hover, .erp-financeiro .erp-abas button.ativo { color: var(--erp-text); border-color: var(--light-line, #078fe6); background: var(--light-info-soft, #078fe61a); }
+.erp-financeiro .erp-abas button span { min-width: 18px; padding: 1px 5px; border-radius: 9px; color: #fff; background: var(--light-danger, #e05263); font-size: 10px; text-align: center; }
 .erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 8px; padding: 0 2px; }
 .erp-financeiro .erp-titulo { margin: 0; padding: 0; }
 .erp-financeiro .erp-cabecalho h2 { padding: 0; margin: 0; font-size: 20px; font-weight: 600; line-height: 1.2; border: 0; }

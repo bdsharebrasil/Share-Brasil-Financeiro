@@ -103,6 +103,13 @@ function naoPago(status: string): boolean {
   return status.toUpperCase() !== "PAGO";
 }
 
+function pendentePagamento(item: SolicitacaoPagamento | ReembolsoColaborador): boolean {
+  const status = item.status.toUpperCase();
+  if (["PAGO", "RECEBIDO", "REEMBOLSADO", "CANCELADO", "REJEITADO", "CONCLUIDO"].includes(status)) return false;
+  const contaStatus = "conta_a_pagar_status" in item ? (item.conta_a_pagar_status ?? "").toUpperCase() : "";
+  return !["PAGO", "RECEBIDO", "REEMBOLSADO", "CANCELADO", "CONCLUIDO"].includes(contaStatus);
+}
+
 function primeiroTexto(...valores: Array<string | null | undefined>): string | null {
   return valores.find((valor) => valor && valor.trim() !== "") ?? null;
 }
@@ -161,7 +168,7 @@ const FILTROS_CAIXA_CLIENTE: FiltroLista[] = [
   { id: "CANCELADOS", label: "Cancelados" },
 ];
 
-export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias: ContaBancaria[] }) {
+export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade }: { contasBancarias: ContaBancaria[]; aoAlterarQuantidade?: (quantidade: number) => void }) {
   const [documentoAberto, setDocumentoAberto] = useState<DocumentoAberto | null>(null);
   const uploadRef = useRef<{ arquivo: File; url: string } | null>(null);
   const [envios, setEnvios] = useState<SolicitacaoPagamento[]>([]);
@@ -197,8 +204,14 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
         buscarAeronavesShare("ativa").catch(() => ({ aeronaves: [] })),
         buscarAeronavesShare("inativa").catch(() => ({ aeronaves: [] })),
       ]);
-      setEnvios(dados.envios.filter((item) => naoPago(item.status)));
-      setReembolsos(dados.reembolsos.filter((item) => naoPago(item.status)));
+      const enviosPendentes = dados.envios.filter((item) => naoPago(item.status));
+      const reembolsosPendentes = dados.reembolsos.filter((item) => naoPago(item.status));
+      setEnvios(enviosPendentes);
+      setReembolsos(reembolsosPendentes);
+      aoAlterarQuantidade?.([
+        ...enviosPendentes.filter(pendentePagamento),
+        ...reembolsosPendentes.filter(pendentePagamento),
+      ].length);
       setMatriculasAeronaves(
         Object.fromEntries(
           [...aeronavesAtivas.aeronaves, ...aeronavesInativas.aeronaves].map((aeronave) => [
@@ -212,7 +225,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [aoAlterarQuantidade]);
 
   useEffect(() => { void carregar(); }, [carregar]);
 

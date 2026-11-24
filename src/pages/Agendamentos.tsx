@@ -132,6 +132,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
   const [dataOperacoes, setDataOperacoes] = useState(hojeBrasilia());
   const [vooHojeSelecionadoId, setVooHojeSelecionadoId] = useState<string | null>(null);
   const [dadosVooAbertoId, setDadosVooAbertoId] = useState<string | null>(null);
+  const [abaAnterior, setAbaAnterior] = useState<AbaAgendamento | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroOperacoes, setFiltroOperacoes] = useState<FiltroOperacoes>("operacao");
   const [visaoAndamento, setVisaoAndamento] = useState<"monitoramento" | "hoje">("hoje");
@@ -286,6 +287,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
 
   const selecionarAba = (proxima: AbaAgendamento) => {
     setMensagensConfirmacaoId(null);
+    setAbaAnterior(null);
     setAba(proxima);
     setSelecionada(null);
     setChecklistAberto(false);
@@ -298,6 +300,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
   };
 
   const abrirSolicitacao = useCallback((item: SolicitacaoVooInterna) => {
+    if (aba !== "voos-hoje") setAbaAnterior(aba);
     if (item.solicitacao_origem_id) {
       const original = agendamentos.find(voo => voo.id === item.solicitacao_origem_id);
       if (!original) return;
@@ -705,6 +708,17 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     setMostrarNovo(false);
     selecionarAba(proxima);
   };
+  const voltarTelaAnterior = () => {
+    if (abaAnterior && abaAnterior !== aba) {
+      selecionarArea(abaAnterior);
+      return;
+    }
+    setSelecionada(null);
+    setChecklistAberto(false);
+    setJornadaAberta(false);
+    if (aba === "voos-hoje") setVooHojeSelecionadoId(null);
+  };
+  const dentroDoAgendamento = aba === "voos-hoje" ? vooHojeSelecionadoId !== null : Boolean(abaLista && selecionada);
   const renderizarDetalhes = (item: SolicitacaoVooInterna, somenteLeitura = false, incorporado = false) => <DetalhesSolicitacao
     key={item.id} incorporado={incorporado} somenteLeitura={somenteLeitura}
     mostrarMensagensConfirmacao={mensagensConfirmacaoId === item.id}
@@ -741,6 +755,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
         </aside>}
         <main className="sb-main">
           <div className="sb-main-heading"><div><h1>{tituloAba[aba]}</h1><p>{descricaoAba[aba]}</p></div><div className="sb-main-actions">
+            {dentroDoAgendamento && <button type="button" className="sb-back" onClick={voltarTelaAnterior}><ChevronLeft size={16}/>Voltar</button>}
             {aba === "calendario" && <button className="sb-new-button" type="button" onClick={() => setMostrarNovo((atual) => !atual)}><Plus size={16}/>{mostrarNovo ? "Fechar formulário" : "Criar agendamento"}</button>}
           </div></div>
           {aba === "calendario" && <div className="sb-subtabs"><button type="button" onClick={() => selecionarAba("calendario")} className={aba === "calendario" ? "active" : ""}>Calendário</button><button type="button" onClick={() => selecionarAba("cronograma")}>Voos de hoje</button><button type="button" onClick={() => selecionarAba("aprovados")}>Confirmados ({confirmados.length})</button><button type="button" onClick={() => selecionarAba("pendentes")}>Pendentes ({pendentes.length})</button></div>}

@@ -13,11 +13,10 @@ const tabs = [
 ] as const;
 
 function texto(row: CtmRegistro | null | undefined, ...keys: string[]) { for (const key of keys) if (row?.[key] !== null && row?.[key] !== undefined && String(row[key]).trim()) return String(row[key]); return "—"; }
-function numero(row: CtmRegistro | null | undefined, ...keys: string[]) { for (const key of keys) { const value = Number(row?.[key]); if (Number.isFinite(value)) return value; } return 0; }
 function dataBr(value: unknown) { if (!value) return "—"; const raw = String(value).slice(0, 10); const date = new Date(`${raw}T00:00:00`); return Number.isNaN(date.getTime()) ? raw : date.toLocaleDateString("pt-BR"); }
 function statusTone(status: string): "green" | "amber" | "red" | "blue" | "neutral" { const value = status.toLowerCase(); if (["ok", "regular", "concluido", "concluida", "aprovado", "conforme", "ativo"].includes(value)) return "green"; if (["urgente", "atencao", "atenção", "pendente", "aguardando_aprovacao", "em_andamento"].includes(value)) return "amber"; if (["vencido", "vencida", "critico", "crítico", "rejeitado", "cancelado", "cancelada"].includes(value)) return "red"; if (["aberto", "aberta", "em_analise"].includes(value)) return "blue"; return "neutral"; }
 function statusLabel(value: unknown) { return String(value || "Sem status").replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()); }
-function coluna(row: CtmRegistro, keys: string[], fallback = "—") { return texto(row, ...keys) || fallback; }
+function coluna(row: CtmRegistro, keys: string[], fallback = "—") { const valor=texto(row,...keys); return valor === "—" ? fallback : valor; }
 
 export default function CTM() {
   const [dados, setDados] = useState<CtmDashboard | null>(null);
@@ -31,7 +30,17 @@ export default function CTM() {
   useEffect(() => { void carregar(); }, [carregar]);
   const aeronave = dados?.aeronave;
   const resumo = dados?.resumo || {};
-  const alertas = useMemo(() => [...(dados?.diretrizes || []).filter(r=>!["complied","not_applicable","conforme"].includes(String(r.status).toLowerCase())).map((item) => ({ ...item, titulo: coluna(item, ["titulo", "descricao", "numero"], "Diretriz técnica"), detalhe: `Vencimento: ${dataBr(item.data_vencimento)}`, status: item.status || (item.data_vencimento && new Date(String(item.data_vencimento)) < new Date() ? "vencido" : "pendente") })), ...(dados?.componentes || []).filter(r=>!["ok","regular"].includes(String(r.status).toLowerCase())).map((item) => ({ ...item, titulo: coluna(item, ["nome", "part_number", "numero_serie"], "Componente"), detalhe: `Vida restante: ${numero(item, "porcentagem_restante", "percentual_vida_restante", "vida_restante").toFixed(0)}%`, status: item.status || "atencao" })), ...(dados?.oas || []).map((item) => ({ ...item, titulo: coluna(item, ["numero","numero_oas", "titulo", "descricao"], "Ordem de serviço"), detalhe: `Entrada: ${dataBr(item.data_entrada)}`, status: item.status || "aberto" }))].slice(0, 8), [dados]);
+  const alertas = useMemo(() => {
+    const hoje=new Date().toLocaleDateString("sv-SE",{timeZone:"America/Sao_Paulo"});
+    const diretrizes=(dados?.diretrizes||[]).filter(r=>!["complied","not_applicable","conforme","cumprida"].includes(String(r.status).toLowerCase())).map(r=>({
+      titulo:texto(r,"titulo","numero"), detalhe:"Vencimento: "+dataBr(r.data_vencimento),
+      status:r.data_vencimento && String(r.data_vencimento).slice(0,10)<hoje?"vencida":"pendente"
+    }));
+    const componentes=(dados?.componentes||[]).filter(r=>(r.data_de_vencimento && r.data_de_vencimento<hoje) || (r.total_horas_de_vida>0 && r.horas_de_vida_atuais!=null && Number(r.horas_de_vida_atuais)>=Number(r.total_horas_de_vida)) || ["urgent","expired","critico","atenção"].includes(String(r.status).toLowerCase())).map(r=>({
+      titulo:texto(r,"nome"), detalhe:"Vencimento: "+dataBr(r.data_de_vencimento), status:"atenção"
+    }));
+    return [...diretrizes,...componentes].sort((a,b)=>Number(b.status==="vencida")-Number(a.status==="vencida"));
+  },[dados]);
   if (carregando) return <div className="flex min-h-[420px] items-center justify-center"><Loader2 className="animate-spin text-primary" size={26} /></div>;
   return <div className="route-enter space-y-5">
     <header className="flex flex-col gap-4 rounded-2xl border border-border bg-card/70 p-5 shadow-sm lg:flex-row lg:items-end lg:justify-between"><div><div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-primary"><Wrench size={14} /> Controle Técnico de Manutenção</div><h1 className="text-2xl font-extrabold tracking-tight">CTM <span className="text-muted-foreground">/ Coordenação de manutenção</span></h1><p className="mt-1 max-w-2xl text-xs text-muted-foreground">Manutenção preventiva, ordens de serviço, componentes e conformidade em uma única operação.</p></div><div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center lg:w-auto"><select value={aeronaveId} onChange={(event) => setAeronaveId(event.target.value)} className="h-10 w-full min-w-0 rounded-lg border border-border bg-background px-3 text-xs font-semibold sm:w-auto sm:min-w-[220px]"><option value="" disabled>Selecione a aeronave</option>{(dados?.aeronaves || []).map((item) => <option key={item.id} value={item.id}>{coluna(item, ["matricula_registro", "matricula"])} · {coluna(item, ["modelo", "fabricante"])}</option>)}</select><Button variant="outline" onClick={() => void carregar(true)} disabled={atualizando} className="h-10 w-full gap-2 text-xs sm:w-auto"><RefreshCw size={14} className={atualizando ? "animate-spin" : ""} /> Atualizar</Button></div></header>

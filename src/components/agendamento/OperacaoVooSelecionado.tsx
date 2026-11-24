@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ClipboardCheck, Clock3, FileText, Flag, Plane } from "lucide-react";
+import { CalendarPlus, ClipboardCheck, Clock3, FileText, Flag, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PernaPlanejada, SolicitacaoVooInterna } from "@/lib/colaborador-api";
 import { calcularProgressoChecklist, obterAcoesAgendamento } from "./agendamentoCardFlow";
@@ -13,13 +13,14 @@ type Props = {
   operacao: SolicitacaoVooInterna;
   aoAbrirAgendamento: (id: string) => void;
   aoAbrirPlano?: (id: string) => void;
+  aoNovoAgendamento: () => void;
   processando: boolean;
   dadosVooAbertos: boolean;
   aoAtualizar: (status?: string) => Promise<void>;
   aoFinalizar: (item: SolicitacaoVooInterna) => void;
 };
 
-export default function OperacaoVooSelecionado({ item, operacao, aoAbrirAgendamento, aoAbrirPlano, processando, dadosVooAbertos, aoAtualizar, aoFinalizar }: Props) {
+export default function OperacaoVooSelecionado({ item, operacao, aoAbrirAgendamento, aoAbrirPlano, processando, dadosVooAbertos, aoNovoAgendamento, aoAtualizar, aoFinalizar }: Props) {
   const [etapa, setEtapa] = useState<"resumo" | "checklist" | "jornada">(operacaoIniciada(item) ? "jornada" : "resumo");
   const [progressoLocal, setProgressoLocal] = useState<number | undefined>();
   const progresso = progressoLocal ?? calcularProgressoChecklist(item);
@@ -42,6 +43,7 @@ export default function OperacaoVooSelecionado({ item, operacao, aoAbrirAgendame
       {operacaoIniciada(item) && <>
         <Button type="button" variant="outline" disabled={processando || !acoes.podeFinalizar} title={!acoes.podeFinalizar ? "Encerre a jornada antes de encerrar a operação." : undefined} onClick={() => aoFinalizar(item)}><Flag size={15} />Encerrar operação</Button>
       </>}
+      <Button type="button" onClick={aoNovoAgendamento}><CalendarPlus size={15} />Novo agendamento</Button>
     </div>
     {!podeAbrirJornada && <p className="sb-operation-help">Conclua o checklist pré-voo para iniciar a operação e registrar os horários.</p>}
     {etapa === "checklist" && <div className="sb-operation-body"><ChecklistPreVoo item={item} aoAtualizarProgresso={setProgressoLocal} aoConcluir={async () => { await aoAtualizar(); }} /></div>}

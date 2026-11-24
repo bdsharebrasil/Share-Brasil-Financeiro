@@ -16,11 +16,14 @@ import {
 } from "@/lib/financeiro-share-api";
 import { buscarAeronavesShare } from "@/lib/colaborador-api";
 import { ModalContaAPagar } from "./ModalContaAPagar";
+import { ControleZoomTabela, useZoomTabela } from "./ControleZoomTabela";
 import { NovoLancamentoShareDialog, type LancamentoEdicao } from "./NovoLancamentoShareDialog";
 import type { ContaAPagar, StatusContaFinanceira } from "./tipos";
 import { createPortal } from "react-dom";
 
 const POR_PAGINA = 12;
+const LARGURAS_COLUNAS = [56, 124, 210, 260, 118, 124, 128, 150];
+const LARGURA_MINIMA_COLUNA = 60;
 
 type AbaSolicitacao = "cotista" | "colaborador";
 type FiltroLista = { id: string; label: string; quantidade?: number };
@@ -233,6 +236,10 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   const [opcoes, setOpcoes] = useState<{ categorias: any[]; fornecedores: Array<{ id: string; nome: string; cidade?: string | null; origem: string }> }>({ categorias: [], fornecedores: [] });
   const [lancamentoEditando, setLancamentoEditando] = useState<LancamentoEdicao | null>(null);
   const tabelaRef = useRef<HTMLDivElement>(null);
+  const { zoom, alterar: alterarZoom, definir: definirZoom } = useZoomTabela("nf-solicitacoes-zoom");
+  const [larguras, setLarguras] = useState<number[]>(LARGURAS_COLUNAS);
+  const pararResizeRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => pararResizeRef.current?.(), []);
   const arrasteRef = useRef<{ x: number; scrollLeft: number; id: number } | null>(null);
 
   const carregar = useCallback(async () => {
@@ -278,6 +285,29 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
     const mover = (movimento: PointerEvent) => { if (arrasteRef.current?.id === movimento.pointerId) container.scrollLeft = arrasteRef.current.scrollLeft - (movimento.clientX - arrasteRef.current.x); };
     const parar = () => { window.removeEventListener("pointermove", mover); window.removeEventListener("pointerup", parar); arrasteRef.current = null; };
     window.addEventListener("pointermove", mover); window.addEventListener("pointerup", parar);
+  }
+
+  function iniciarResize(evento: React.PointerEvent<HTMLSpanElement>, indice: number) {
+    evento.preventDefault();
+    evento.stopPropagation();
+    pararResizeRef.current?.();
+    const inicioX = evento.clientX;
+    const larguraInicial = larguras[indice];
+    const escala = zoom / 100;
+    const mover = (movimento: PointerEvent) => {
+      const nova = Math.max(LARGURA_MINIMA_COLUNA, larguraInicial + (movimento.clientX - inicioX) / escala);
+      setLarguras((atuais) => atuais.map((largura, i) => (i === indice ? Math.round(nova) : largura)));
+    };
+    const parar = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", parar);
+      window.removeEventListener("pointercancel", parar);
+      pararResizeRef.current = null;
+    };
+    pararResizeRef.current = parar;
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", parar);
+    window.addEventListener("pointercancel", parar);
   }
 
   function editarSolicitacao(item: SolicitacaoPagamento | ReembolsoColaborador) {
@@ -451,31 +481,32 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
           <label className="nf-search"><Search /><span className="nf-sr">{placeholderBusca}</span><input type="search" value={busca} onChange={(e) => alterarBusca(e.target.value)} placeholder={placeholderBusca} /></label>
           <select aria-label="Filtrar solicitações" value={filtroAtual} onChange={(e) => alterarFiltro(e.target.value)}>{filtrosAtuais.map((filtro) => <option key={filtro.id} value={filtro.id}>{filtro.label}{filtro.quantidade !== undefined ? ` (${filtro.quantidade})` : ""}</option>)}</select>
         </div>
-        <div className="nf-list-heading">
+        <div className="nf-list-heading" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div>
             <h2>{aba === "cotista" ? "Caixa cliente" : "Reembolsos de colaboradores"}</h2>
             <p>{carregando ? "Carregando…" : `${totalItens} ${aba === "cotista" ? (totalItens === 1 ? "lançamento" : "lançamentos") : (totalItens === 1 ? "título" : "títulos")} encontrados`}{temFiltro && <button className="nf-text-btn" onClick={limparFiltros}>Limpar filtros</button>}</p>
           </div>
+          <ControleZoomTabela zoom={zoom} alterar={alterarZoom} restaurar={() => definirZoom(100)} />
         </div>
         {carregando ? <div className="nf-empty" role="status"><RefreshCw className="nf-spin" /><h3>Carregando solicitações</h3><p>Organizando as informações de pagamento.</p></div>
           : erro ? <div className="nf-empty" role="alert"><TriangleAlert /><h3>Não foi possível carregar</h3><p>{erro}</p><button className="nf-btn" onClick={() => void carregar()}>Tentar novamente</button></div>
           : totalItens === 0 ? <div className="nf-empty"><Search /><h3>{temFiltro ? "Nenhum resultado encontrado" : "Nada por aqui"}</h3><p>{temFiltro ? "Ajuste a busca ou o filtro para encontrar o registro." : aba === "cotista" ? "Não há despesas reembolsáveis no caixa cliente." : "Não há reembolsos pendentes de colaboradores."}</p>{temFiltro && <button className="nf-btn" onClick={limparFiltros}>Limpar filtros</button>}</div>
           : <>
             <div ref={tabelaRef} onPointerDown={iniciarArraste} className="erp-tabela-container nf-table-wrap" role="region" aria-label={aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"} tabIndex={0}>
-              <table className="erp-tabela">
+              <table className="erp-tabela" style={{ zoom: zoom / 100 }}>
                 <caption className="erp-sr-only">{aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"}</caption>
                 <colgroup>
-                  <col style={{ width: 56 }} /><col style={{ width: 124 }} /><col style={{ width: 210 }} /><col style={{ width: 260 }} /><col style={{ width: 118 }} /><col style={{ width: 124 }} /><col style={{ width: 128 }} /><col style={{ width: 150 }} />
+                  {larguras.map((largura, indice) => <col key={indice} style={{ width: largura }} />)}
                 </colgroup>
                 <thead><tr>
                   <th scope="col"><span className="nf-sr">Expandir</span></th>
-                  <th scope="col"><span className="erp-ordenar">Doc / emissão</span></th>
-                  <th scope="col"><span className="erp-ordenar">{aba === "cotista" ? "Cliente" : "Colaborador"}</span></th>
-                  <th scope="col"><span className="erp-ordenar">Descrição</span></th>
-                  <th scope="col"><span className="erp-ordenar">Vencimento</span></th>
-                  <th scope="col"><span className="erp-ordenar">Valor</span></th>
-                  <th scope="col" className="erp-th-status"><span className="erp-ordenar">Status</span></th>
-                  <th scope="col"><span className="erp-ordenar">Ações</span></th>
+                  <th scope="col"><span className="erp-ordenar">Doc / emissão</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 1)} /></th>
+                  <th scope="col"><span className="erp-ordenar">{aba === "cotista" ? "Cliente" : "Colaborador"}</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 2)} /></th>
+                  <th scope="col"><span className="erp-ordenar">Descrição</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 3)} /></th>
+                  <th scope="col"><span className="erp-ordenar">Vencimento</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 4)} /></th>
+                  <th scope="col"><span className="erp-ordenar">Valor</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 5)} /></th>
+                  <th scope="col" className="erp-th-status"><span className="erp-ordenar">Status</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 6)} /></th>
+                  <th scope="col"><span className="erp-ordenar">Ações</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 7)} /></th>
                 </tr></thead>
                 <tbody>
                   {linhas.map((linha) => <Fragment key={linha.chave}>
@@ -633,7 +664,7 @@ const STYLES = `
 .nf-payment-requests .nf-toolbar select{border:1px solid var(--nf-border);border-radius:9px;min-height:42px;padding:8px 32px 8px 12px;background:var(--app-surface);color:var(--app-muted);font-size:12px;max-width:100%}
 .nf-payment-requests .nf-list-heading{padding:4px 22px 18px}.nf-payment-requests .nf-list-heading h2{font-size:15px;font-weight:650}.nf-payment-requests .nf-list-heading p{margin:3px 0 0;color:var(--app-muted);font-size:11px}
 .nf-payment-requests .nf-text-btn,.nf-payment-dialog .nf-text-btn{padding:5px 8px;border:0;background:transparent;color:var(--app-info);font-size:12px;font-weight:600;min-height:36px}
-.nf-payment-requests .nf-table-wrap{width:100%;overflow:auto}.nf-payment-requests .erp-tabela-container{cursor:auto}.nf-payment-requests .erp-linha{cursor:default}.nf-payment-requests .erp-linha-detalhes .nf-detail{margin:12px 16px}
+.nf-payment-requests .nf-table-wrap{width:100%;overflow:auto}.nf-payment-requests .erp-tabela{width:100%;table-layout:fixed}.nf-payment-requests .erp-tabela th{position:relative}.nf-payment-requests .erp-redimensionar{position:absolute;right:-3px;top:0;bottom:0;z-index:1;width:7px;cursor:col-resize;touch-action:none}.nf-payment-requests .erp-redimensionar:hover{background:var(--app-info)}.nf-payment-requests .erp-tabela-container{cursor:auto}.nf-payment-requests .erp-linha{cursor:default}.nf-payment-requests .erp-linha-detalhes .nf-detail{margin:12px 16px}
 .nf-payment-requests .nf-doc-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:30px;height:34px;border:1px solid var(--app-line);border-radius:7px;background:var(--app-soft);color:var(--app-muted)}.nf-payment-requests .nf-doc-icon svg{width:15px;height:15px}
 .nf-payment-requests .nf-amount{font-weight:650;font-variant-numeric:tabular-nums;color:var(--app-text)}
 .nf-payment-requests .nf-detail{display:grid;grid-template-columns:minmax(160px,1fr) minmax(0,3fr);gap:24px;padding:22px;background:var(--app-soft);border:1px solid var(--app-line);border-radius:10px;white-space:normal}.nf-payment-requests .nf-detail h3{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--app-muted);margin-bottom:12px}.nf-payment-requests .nf-detail p{font-size:12px;color:var(--app-muted)}

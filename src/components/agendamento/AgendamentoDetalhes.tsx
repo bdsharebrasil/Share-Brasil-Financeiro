@@ -124,6 +124,7 @@ export function DetalhesSolicitacao({
     data_fim: selecionada.data_fim || selecionada.data_agendada,
     horario_previsto_agendamento: horaParaCampo(selecionada.horario_previsto_agendamento),
     numero_passageiros: Number(selecionada.numero_passageiros) || 1,
+      passageiros: selecionada.passageiros || [],
     piloto_id: selecionada.piloto_id || "",
     copiloto_id: selecionada.copiloto_id || "",
     observacoes: selecionada.observacoes || "",
@@ -140,6 +141,7 @@ export function DetalhesSolicitacao({
       data_fim: selecionada.data_fim || selecionada.data_agendada,
       horario_previsto_agendamento: horaParaCampo(selecionada.horario_previsto_agendamento),
       numero_passageiros: Number(selecionada.numero_passageiros) || 1,
+      passageiros: selecionada.passageiros || [],
       piloto_id: selecionada.piloto_id || "",
       copiloto_id: selecionada.copiloto_id || "",
       observacoes: selecionada.observacoes || "",
@@ -308,6 +310,7 @@ export function DetalhesSolicitacao({
           }}>
             <label className="space-y-1 text-xs">Aeronave<SearchableCombobox items={aeronaves} value={dadosAgendamento.aeronave_id || ""} onChange={(valor) => setDadosAgendamento((atual) => ({ ...atual, aeronave_id: valor }))} placeholder="Selecionar aeronave" /></label>
             {([['origem', 'Origem', 'text'], ['destino', 'Destino', 'text'], ['data_agendada', 'Data de saída', 'date'], ['data_fim', 'Data final', 'date'], ['horario_previsto_agendamento', 'Horário previsto (UTC)', 'time'], ['numero_passageiros', 'Passageiros', 'number']] as const).map(([campo, rotulo, tipo]) => <label key={campo} className="space-y-1 text-xs">{rotulo}<Input type={tipo} value={dadosAgendamento[campo] ?? ""} required={campo !== "horario_previsto_agendamento"} min={campo === "numero_passageiros" ? 1 : campo === "data_fim" ? dadosAgendamento.data_agendada : undefined} max={campo === "numero_passageiros" ? 50 : undefined} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, [campo]: tipo === "number" ? Number(event.target.value) : ['origem', 'destino'].includes(campo) ? event.target.value.toUpperCase() : event.target.value }))} /></label>)}
+            <label className="text-xs sm:col-span-2">Nomes dos passageiros (um por linha)<Textarea value={(dadosAgendamento.passageiros||[]).join("\n")} onChange={e=>setDadosAgendamento(a=>({...a,passageiros:e.target.value?e.target.value.split("\n"):[]}))}/></label>
             {([['piloto_id', 'Comandante'], ['copiloto_id', 'Copiloto']] as const).map(([campo, rotulo]) => <label key={campo} className="space-y-1 text-xs">{rotulo}<SearchableCombobox items={tripulacao.filter((tripulante) => tripulante.id !== dadosAgendamento[campo === "piloto_id" ? "copiloto_id" : "piloto_id"]).map((tripulante) => ({ id: tripulante.id, label: tripulante.nome_completo }))} value={dadosAgendamento[campo] || ""} onChange={(valor) => setDadosAgendamento((atual) => ({ ...atual, [campo]: valor }))} placeholder={`Selecionar ${rotulo.toLowerCase()}`} /></label>)}
             <label className="space-y-1 text-xs sm:col-span-2">Observações<Textarea value={dadosAgendamento.observacoes || ""} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, observacoes: event.target.value }))} /></label>
             <div className="flex gap-2 sm:col-span-2"><Button type="submit" disabled={processando} className="text-xs">{processando ? "Salvando..." : "Salvar alterações"}</Button><Button type="button" variant="outline" disabled={processando} onClick={() => setEditandoAgendamento(false)} className="text-xs">Cancelar</Button></div>

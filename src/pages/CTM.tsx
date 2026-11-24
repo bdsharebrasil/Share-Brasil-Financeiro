@@ -1,60 +1,347 @@
-import { Cadastro, Custos, Reportes, Previsoes } from "@/components/dashboard/operacoes/ctm/Coordenacao";
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { AlertTriangle, ArrowRight, BarChart3, Boxes, CalendarClock, CheckCircle2, ClipboardList, FileCheck2, FileText, Gauge, Loader2, Plane, RefreshCw, Scale, ShieldAlert, Wrench, type LucideIcon } from "lucide-react";
+import { useState } from "react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { motion, useReducedMotion } from "framer-motion";
+import {
+  ArrowRight,
+  BellRing,
+  Boxes,
+  CalendarClock,
+  ChevronRight,
+  ClipboardList,
+  Droplet,
+  FileCheck2,
+  FileText,
+  Gauge,
+  History,
+  Layers3,
+  LayoutGrid,
+  Plane,
+  Plus,
+  RefreshCw,
+  Scale,
+  ShieldAlert,
+  Wallet,
+  Wrench,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { buscarCtmDashboard, type CtmDashboard, type CtmRegistro } from "@/lib/colaborador-api";
-import { CabecalhoSecao, CartaoKpi, EstadoVazio, EtiquetaStatus, formatarMoeda } from "@/components/dashboard/ComponentesDashboard";
+import {
+  Cadastro,
+  Custos,
+  GraficoCustos,
+  Previsoes,
+  Reportes,
+  useReportesCtm,
+} from "@/components/dashboard/operacoes/ctm/Coordenacao";
 import CtmPesoBalanceamento from "@/components/dashboard/operacoes/ctm/ctm_pesoebalanceamento/CtmPesoBalanceamento";
 import CtmDocumentosAeronave from "@/components/dashboard/operacoes/ctm/CtmDocumentosAeronave";
+import { buscarCtmDashboard, colaboradorRequest } from "@/lib/colaborador-api";
 
-const tabs = [
-  ["overview", "Visão geral", Gauge], ["reportes","Reportes da tripulação",AlertTriangle], ["previsoes","Previsões",CalendarClock], ["pecas","Peças trocadas",Boxes], ["oleo","Análise de óleo",Wrench], ["programa", "Programa", CalendarClock], ["oas", "Ordens de serviço", ClipboardList], ["orcamentos", "Orçamentos", FileText], ["componentes", "Componentes", Boxes], ["diretrizes", "Diretrizes", ShieldAlert], ["ras", "RAS", FileCheck2], ["documentos-aeronaves", "Documentos aeronaves", FileCheck2], ["peso", "Peso e balanceamento", Scale], ["rateio", "Rateio e horas", BarChart3],
-] as const;
-
-function texto(row: CtmRegistro | null | undefined, ...keys: string[]) { for (const key of keys) if (row?.[key] !== null && row?.[key] !== undefined && String(row[key]).trim()) return String(row[key]); return "—"; }
-function dataBr(value: unknown) { if (!value) return "—"; const raw = String(value).slice(0, 10); const date = new Date(`${raw}T00:00:00`); return Number.isNaN(date.getTime()) ? raw : date.toLocaleDateString("pt-BR"); }
-function statusTone(status: string): "green" | "amber" | "red" | "blue" | "neutral" { const value = status.toLowerCase(); if (["ok", "regular", "concluido", "concluida", "aprovado", "conforme", "ativo"].includes(value)) return "green"; if (["urgente", "atencao", "atenção", "pendente", "aguardando_aprovacao", "em_andamento"].includes(value)) return "amber"; if (["vencido", "vencida", "critico", "crítico", "rejeitado", "cancelado", "cancelada"].includes(value)) return "red"; if (["aberto", "aberta", "em_analise"].includes(value)) return "blue"; return "neutral"; }
-function statusLabel(value: unknown) { return String(value || "Sem status").replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()); }
-function coluna(row: CtmRegistro, keys: string[], fallback = "—") { const valor=texto(row,...keys); return valor === "—" ? fallback : valor; }
+const secoes = [
+  {
+    nome: "Painel",
+    itens: [
+      { id: "overview", nome: "Visão geral", icon: LayoutGrid },
+      { id: "reportes", nome: "Reportes da tripulação", icon: BellRing },
+      { id: "previsoes", nome: "Previsões e vencimentos", icon: CalendarClock },
+    ],
+  },
+  {
+    nome: "Manutenção",
+    itens: [
+      { id: "oas", nome: "Ordens de serviço", icon: ClipboardList, novo: "Nova ordem de serviço" },
+      { id: "ras", nome: "Relatórios de serviço", icon: History, novo: "Novo RAS" },
+      { id: "programa", nome: "Programa de manutenção", icon: Gauge, novo: "Novo item do programa" },
+      { id: "componentes", nome: "Componentes", icon: Layers3, novo: "Novo componente" },
+      { id: "pecas", nome: "Peças trocadas", icon: Boxes, novo: "Registrar troca de peça" },
+      { id: "oleo", nome: "Análise de óleo", icon: Droplet, novo: "Nova análise de óleo" },
+    ],
+  },
+  {
+    nome: "Aeronave e custos",
+    itens: [
+      { id: "peso", nome: "Peso e balanceamento", icon: Scale },
+      { id: "diretrizes", nome: "Diretrizes AD/SB", icon: ShieldAlert, novo: "Nova diretriz" },
+      { id: "documentos", nome: "Documentos da aeronave", icon: FileCheck2 },
+      { id: "orcamentos", nome: "Orçamentos", icon: FileText, novo: "Novo orçamento" },
+      { id: "rateio", nome: "Custos e rateio", icon: Wallet },
+    ],
+  },
+];
+const modulos = secoes.flatMap(({ itens }) => itens);
 
 export default function CTM() {
-  const [dados, setDados] = useState<CtmDashboard | null>(null);
-  const [aeronaveId, setAeronaveId] = useState("");
+  const cliente = useQueryClient();
+  const reduzirMovimento = useReducedMotion();
+  const [selecao, selecionar] = useState("");
   const [aba, setAba] = useState("overview");
-  const [carregando, setCarregando] = useState(true);
-  const [atualizando, setAtualizando] = useState(false);
-  const [erro, setErro] = useState("");
-  const sequencia=useRef(0);
-  const carregar = useCallback(async (silencioso = false, id = aeronaveId) => { const pedido=++sequencia.current; silencioso ? setAtualizando(true) : setCarregando(true); setErro(""); try { const response = await buscarCtmDashboard(id || undefined); if(pedido!==sequencia.current)return;setDados(response.data); if (!id && response.data.aeronave?.id) setAeronaveId(String(response.data.aeronave.id)); } catch (error) { if(pedido!==sequencia.current)return;setDados(null);setErro(error instanceof Error ? error.message : "Não foi possível carregar o CTM."); } finally { if(pedido===sequencia.current){setCarregando(false); setAtualizando(false);} } }, [aeronaveId]);
-  useEffect(() => { void carregar(); }, [carregar]);
-  const aeronave = dados?.aeronave;
-  const resumo = dados?.resumo || {};
-  const alertas = useMemo(() => {
-    const hoje=new Date().toLocaleDateString("sv-SE",{timeZone:"America/Sao_Paulo"});
-    const diretrizes=(dados?.diretrizes||[]).filter(r=>!["complied","not_applicable","conforme","cumprida"].includes(String(r.status).toLowerCase())).map(r=>({
-      titulo:texto(r,"titulo","numero"), detalhe:"Vencimento: "+dataBr(r.data_vencimento),
-      status:r.data_vencimento && String(r.data_vencimento).slice(0,10)<hoje?"vencida":"pendente"
-    }));
-    const componentes=(dados?.componentes||[]).filter(r=>(r.data_de_vencimento && r.data_de_vencimento<hoje) || (r.total_horas_de_vida>0 && r.horas_de_vida_atuais!=null && Number(r.horas_de_vida_atuais)>=Number(r.total_horas_de_vida)) || ["urgent","expired","critico","atenção"].includes(String(r.status).toLowerCase())).map(r=>({
-      titulo:texto(r,"nome"), detalhe:"Vencimento: "+dataBr(r.data_de_vencimento), status:"atenção"
-    }));
-    return [...diretrizes,...componentes].sort((a,b)=>Number(b.status==="vencida")-Number(a.status==="vencida"));
-  },[dados]);
-  if (carregando) return <div className="flex min-h-[420px] items-center justify-center"><Loader2 className="animate-spin text-primary" size={26} /></div>;
-  return <div className="route-enter space-y-5">
-    <header className="flex flex-col gap-4 rounded-2xl border border-border bg-card/70 p-5 shadow-sm lg:flex-row lg:items-end lg:justify-between"><div><div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-primary"><Wrench size={14} /> Controle Técnico de Manutenção</div><h1 className="text-2xl font-extrabold tracking-tight">CTM <span className="text-muted-foreground">/ Coordenação de manutenção</span></h1><p className="mt-1 max-w-2xl text-xs text-muted-foreground">Manutenção preventiva, ordens de serviço, componentes e conformidade em uma única operação.</p></div><div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center lg:w-auto"><select value={aeronaveId} onChange={(event) => setAeronaveId(event.target.value)} className="h-10 w-full min-w-0 rounded-lg border border-border bg-background px-3 text-xs font-semibold sm:w-auto sm:min-w-[220px]"><option value="" disabled>Selecione a aeronave</option>{(dados?.aeronaves || []).map((item) => <option key={item.id} value={item.id}>{coluna(item, ["matricula_registro", "matricula"])} · {coluna(item, ["modelo", "fabricante"])}</option>)}</select><Button variant="outline" onClick={() => void carregar(true)} disabled={atualizando} className="h-10 w-full gap-2 text-xs sm:w-auto"><RefreshCw size={14} className={atualizando ? "animate-spin" : ""} /> Atualizar</Button></div></header>
-    <Reportes aeronave={aeronaveId} expandido={aba==="reportes"} abrir={()=>setAba("reportes")}/>
-    {erro && <div className="flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-600 dark:text-red-300"><span>{erro}</span><button type="button" className="font-bold underline" onClick={() => void carregar()}>Tentar novamente</button></div>}
-    {dados?.falhas?.length ? <p role="alert">Dados incompletos. Falha ao consultar: {dados.falhas.join(", ")}.</p> : dados && <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"><CartaoKpi label="Manutenção ativa" value={String(resumo.itens_manutencao || 0)} detail="Itens do programa" icon={<CalendarClock size={16} />} /><CartaoKpi label="Itens em acompanhamento" value={String(resumo.proximos_vencimentos || 0)} detail="Requerem acompanhamento" tone="amber" icon={<AlertTriangle size={16} />} /><CartaoKpi label="Diretrizes pendentes" value={String(resumo.diretrizes_pendentes || 0)} detail="ADs, SBs e conformidade" tone="red" icon={<ShieldAlert size={16} />} /><CartaoKpi label="Componentes em atenção" value={String(resumo.componentes_atencao || 0)} detail="Vida ou status crítico" tone="amber" icon={<Boxes size={16} />} /><CartaoKpi label="Ordens abertas" value={String(resumo.ordens_abertas || 0)} detail="OAS em andamento" tone="blue" icon={<ClipboardList size={16} />} /><CartaoKpi label="Total orçado" value={formatarMoeda(Number(resumo.orcamento_total || 0))} detail="Total dos orçamentos" tone="green" icon={<BarChart3 size={16} />} /></section>}
-    <Tabs value={aba} onValueChange={setAba} className="space-y-4"><div className="overflow-x-auto pb-1"><TabsList className="inline-flex min-w-max gap-1 bg-card/80 p-1">{tabs.map(([value, label, Icon]) => <TabsTrigger key={value} value={value} className="gap-1.5 text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Icon size={13} />{label}</TabsTrigger>)}</TabsList></div>
-      <TabsContent value="overview"><div className="grid gap-5 lg:grid-cols-[1.25fr_.75fr]"><section className="rounded-xl border border-border bg-card/65"><CabecalhoSecao icon={<Plane size={15} />} title={aeronave ? `${coluna(aeronave, ["matricula_registro", "matricula"])} · ${coluna(aeronave, ["modelo", "fabricante"])}` : "Visão consolidada da frota"} detail={aeronave ? `Horas atuais: ${coluna(aeronave, ["horas_celula_atual", "horas_atual"], "Não informado")}` : "Selecione uma aeronave para detalhar"} /><div className="grid gap-3 p-4 sm:grid-cols-3"><ResumoCard label="Programa" value={String((dados?.programa || []).length)} detail="Itens cadastrados" /><ResumoCard label="OAS" value={String((dados?.oas || []).length)} detail="Ordens registradas" /><ResumoCard label="Diretrizes" value={String((dados?.diretrizes || []).length)} detail="Registros técnicos" /></div></section><section className="rounded-xl border border-border bg-card/65"><CabecalhoSecao icon={<ArrowRight size={15} />} title="Ações rápidas" detail="Atalhos para a rotina técnica" /><div className="grid grid-cols-2 gap-2 p-4">{([["Nova OAS", "oas", ClipboardList], ["Novo orçamento", "orcamentos", FileText], ["Programa de manutenção", "programa", CheckCircle2], ["Cadastrar componente", "componentes", Boxes], ["Diretriz AD/SB", "diretrizes", ShieldAlert], ["Ficha de peso", "peso", Scale]] as Array<[string, string, LucideIcon]>).map(([label, value, Icon]) => <button key={String(value)} type="button" onClick={() => setAba(String(value))} className="group rounded-lg border border-border bg-background/60 p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/50"><span className="flex items-center justify-between text-primary"><Icon size={16} /><ArrowRight size={12} className="transition group-hover:translate-x-1" /></span><strong className="mt-3 block text-[10px]">{label}</strong><span className="mt-1 block text-[9px] text-muted-foreground">Abrir módulo</span></button>)}</div></section></div><section className="mt-5 rounded-xl border border-border bg-card/65"><CabecalhoSecao icon={<AlertTriangle size={15} />} title="Alertas prioritários" detail="Itens que exigem acompanhamento da equipe" />{alertas.length ? <div className="grid gap-2 p-4 md:grid-cols-2">{alertas.map((item, index) => <div key={`${item.titulo}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background/45 p-3"><div className="min-w-0"><p className="truncate text-xs font-bold">{item.titulo}</p><p className="mt-1 text-[10px] text-muted-foreground">{item.detalhe}</p></div><EtiquetaStatus tone={statusTone(String(item.status))}>{statusLabel(item.status)}</EtiquetaStatus></div>)}</div> : <EstadoVazio label="Nenhum alerta prioritário" />}</section></TabsContent>
-      {tabs.filter(([valor]) => ["programa","oas","orcamentos","componentes","diretrizes","ras","pecas","oleo"].includes(valor)).map(([valor,titulo])=><TabsContent value={valor} key={valor}>{aba===valor && <Cadastro key={aeronaveId} aeronave={aeronaveId} modulo={valor} titulo={titulo} ras={dados?.ras||[]} atualizar={()=>void carregar(true)} />}</TabsContent>)}
-      <TabsContent value="previsoes"><Previsoes aeronave={aeronaveId}/></TabsContent>
-      <TabsContent value="peso"><CtmPesoBalanceamento key={aeronaveId} aeronaveId={aeronaveId || undefined} /></TabsContent>
-      <TabsContent value="documentos-aeronaves" className="mt-0"><CtmDocumentosAeronave key={aeronaveId} aeronaveId={aeronaveId} aeronaves={dados?.aeronaves || []} onSelecionarAeronave={setAeronaveId} /></TabsContent>
-      <TabsContent value="rateio"><Custos key={aeronaveId} aeronave={aeronaveId} ordens={dados?.oas||[]}/></TabsContent>
-    </Tabs>
-  </div>;
+  const [criar, setCriar] = useState(false);
+  const painel = useQuery({
+    queryKey: ["ctm-dashboard", selecao],
+    queryFn: () => buscarCtmDashboard(selecao || undefined),
+    placeholderData: keepPreviousData,
+  });
+  const acesso = useQuery({
+    queryKey: ["ctm-permissoes"],
+    queryFn: () => colaboradorRequest<{ podeEditar: boolean }>("/api/ctm/coordenacao/permissoes"),
+  });
+  const dados = painel.isPlaceholderData ? undefined : painel.data?.data;
+  const aviao = dados?.aeronave;
+  const aeronaveId = selecao || String(aviao?.id ?? "");
+  const reportes = useReportesCtm(aeronaveId);
+  const emAberto = reportes.data?.registros.filter(
+    (item) => String(item.aeronave_id) === aeronaveId && item.status !== "resolved",
+  ).length;
+  const modulo = modulos.find((item) => item.id === aba) ?? modulos[0];
+  const IconeModulo = modulo.icon;
+  const conhecePermissao = acesso.isSuccess;
+  const podeEditar = acesso.data?.podeEditar === true;
+
+  function abrir(id: string, novo = false) {
+    setAba(id);
+    setCriar(novo);
+  }
+  function atualizar() {
+    void cliente.invalidateQueries({ queryKey: ["ctm-dashboard"] });
+    void cliente.invalidateQueries({ predicate: (query) => String(query.queryKey[0]).startsWith("/api/ctm/coordenacao/") });
+  }
+
+  return (
+    <main className="space-y-5">
+      <header className="overflow-hidden rounded-3xl border border-border/70 bg-card shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-5 sm:px-6">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+              <Wrench size={22} />
+            </span>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">CTM</h1>
+              <p className="text-sm text-muted-foreground">Controle Técnico de Manutenção</p>
+            </div>
+          </div>
+          <div className="flex w-full gap-2 sm:w-auto">
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">Selecionar aeronave</span>
+              <select
+                value={aeronaveId}
+                onChange={(e) => {
+                  selecionar(e.target.value);
+                  setCriar(false);
+                }}
+                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary sm:min-w-52"
+              >
+                <option value="" disabled>
+                  Selecionar aeronave
+                </option>
+                {painel.data?.data.aeronaves.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.matricula_registro} · {item.modelo}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-11 w-11 shrink-0 rounded-xl"
+              onClick={atualizar}
+              disabled={painel.isFetching}
+              aria-label="Atualizar CTM"
+            >
+              <RefreshCw size={16} className={painel.isFetching ? "animate-spin" : ""} />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="grid items-start gap-4 lg:grid-cols-[214px_minmax(0,1fr)]">
+        <nav aria-label="Seções do CTM" className="rounded-2xl border border-border/70 bg-card p-3 shadow-sm">
+          <label className="block text-sm lg:hidden">
+            <span className="sr-only">Seção do CTM</span>
+            <select
+              value={aba}
+              onChange={(e) => abrir(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background p-2.5 font-medium"
+            >
+              {secoes.map((secao) => (
+                <optgroup key={secao.nome} label={secao.nome}>
+                  {secao.itens.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.nome}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <div className="hidden space-y-4 lg:block">
+            {secoes.map((secao) => (
+              <div key={secao.nome}>
+                <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {secao.nome}
+                </p>
+                {secao.itens.map(({ id, nome, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => abrir(id)}
+                    aria-current={aba === id ? "page" : undefined}
+                    className="relative mb-0.5 flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-[current=page]:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                  >
+                    {aba === id && (
+                      <motion.span
+                        layoutId="ctm-secao"
+                        transition={{ duration: reduzirMovimento ? 0 : 0.2 }}
+                        className="absolute inset-0 rounded-lg border border-primary/20 bg-primary/10"
+                      />
+                    )}
+                    <Icon size={15} className="relative shrink-0" />
+                    <span className="relative flex-1">{nome}</span>
+                    {id === "reportes" && !!emAberto && (
+                      <span className="relative rounded-md bg-amber-500/15 px-1.5 font-bold text-amber-700 dark:text-amber-300">
+                        {emAberto}
+                      </span>
+                    )}
+                    {aba === id && <ChevronRight size={13} className="relative" />}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </nav>
+
+        <motion.div
+          key={aeronaveId + ":" + aba}
+          initial={reduzirMovimento ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="min-w-0 space-y-4"
+        >
+          {aba !== "overview" && (
+            <div className="flex items-center gap-2.5 px-1">
+              <IconeModulo size={20} className="text-primary" />
+              <h2 className="text-xl font-bold tracking-tight">{modulo.nome}</h2>
+            </div>
+          )}
+          {painel.isError && (
+            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
+              Não foi possível carregar a ficha da aeronave.{" "}
+              <Button variant="link" onClick={() => void painel.refetch()}>
+                Tentar novamente
+              </Button>
+            </div>
+          )}
+          {!aeronaveId && !painel.isError && (
+            <p className="rounded-2xl border bg-card p-5 text-sm text-muted-foreground">
+              {painel.isPending ? "Carregando aeronaves…" : "Nenhuma aeronave disponível no CTM."}
+            </p>
+          )}
+
+          {aeronaveId && aba === "overview" && (
+            <>
+              <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <Plane size={21} />
+                  </span>
+                  <div className="mr-auto">
+                    <h2 className="text-lg font-bold">{aviao?.matricula_registro ?? "Visão geral"}</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {[aviao?.fabricante, aviao?.modelo, aviao?.base].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                  {podeEditar && (
+                    <Button className="gap-2 rounded-xl" onClick={() => abrir("oas", true)}>
+                      <Plus size={16} /> Nova ordem de serviço
+                    </Button>
+                  )}
+                </div>
+                {conhecePermissao && !podeEditar && (
+                  <p className="mt-3 rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+                    Perfil de consulta. A criação e a edição estão disponíveis para CTM, Operações e gestão autorizada.
+                  </p>
+                )}
+                {acesso.isError && (
+                  <p role="alert" className="mt-3 text-sm text-destructive">
+                    A permissão de edição está indisponível.{" "}
+                    <Button variant="link" onClick={() => void acesso.refetch()}>
+                      Tentar novamente
+                    </Button>
+                  </p>
+                )}
+              </section>
+              <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                {[
+                  {
+                    nome: "Ordens em aberto",
+                    id: "oas",
+                    valor: dados?.falhas?.includes("oas") ? undefined : dados?.resumo.ordens_abertas,
+                    icon: ClipboardList,
+                  },
+                  {
+                    nome: "Itens do programa",
+                    id: "programa",
+                    valor: dados?.falhas?.includes("programa") ? undefined : dados?.resumo.itens_manutencao,
+                    icon: Gauge,
+                  },
+                  {
+                    nome: "Diretrizes pendentes",
+                    id: "diretrizes",
+                    valor: dados?.falhas?.includes("diretrizes") ? undefined : dados?.resumo.diretrizes_pendentes,
+                    icon: ShieldAlert,
+                  },
+                  { nome: "Reportes em aberto", id: "reportes", valor: emAberto, icon: BellRing },
+                ].map(({ nome, id, valor, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => abrir(id)}
+                    className="group rounded-2xl border border-border/70 bg-card p-3 text-left shadow-sm transition hover:border-primary/35 sm:p-4"
+                  >
+                    <span className="flex items-center justify-between gap-2 text-primary">
+                      <Icon size={17} />
+                      <ArrowRight
+                        size={14}
+                        className="text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                      />
+                    </span>
+                    <strong className="mt-2 block text-2xl tabular-nums">{valor ?? "—"}</strong>
+                    <span className="text-xs text-muted-foreground">{nome}</span>
+                  </button>
+                ))}
+              </div>
+              <GraficoCustos ordens={dados?.oas ?? []} indisponivel={dados?.falhas?.includes("oas") || painel.isError} />
+              <Previsoes aeronave={aeronaveId} resumido abrirCompleto={() => abrir("previsoes")} />
+            </>
+          )}
+
+          {aeronaveId && modulo.novo && (
+            <Cadastro
+              aeronave={aeronaveId}
+              modulo={aba}
+              titulo={modulo.nome}
+              novo={modulo.novo}
+              matricula={aviao?.matricula_registro}
+              criarAoAbrir={criar}
+              aoAbrirCriacao={() => setCriar(false)}
+              ras={dados?.ras ?? []}
+              atualizar={atualizar}
+            />
+          )}
+          {aeronaveId && aba === "reportes" && <Reportes aeronave={aeronaveId} />}
+          {aeronaveId && aba === "previsoes" && <Previsoes aeronave={aeronaveId} />}
+          {aeronaveId && aba === "rateio" && <Custos aeronave={aeronaveId} ordens={dados?.oas ?? []} />}
+          {aeronaveId && aba === "peso" && (
+            <CtmPesoBalanceamento aeronaveId={aeronaveId} aeronave={aviao} podeEditar={podeEditar} />
+          )}
+          {aeronaveId && aba === "documentos" && (
+            <CtmDocumentosAeronave
+              aeronaveId={aeronaveId}
+              aeronaves={dados?.aeronaves ?? []}
+              onSelecionarAeronave={selecionar}
+              podeEditar={podeEditar}
+            />
+          )}
+        </motion.div>
+      </div>
+    </main>
+  );
 }
-function ResumoCard({ label, value, detail }: { label: string; value: string; detail: string }) { return <div className="rounded-lg border border-border bg-background/40 p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p><strong className="mt-2 block text-xl">{value}</strong><span className="text-[9px] text-muted-foreground">{detail}</span></div>; }

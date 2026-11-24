@@ -1,93 +1,838 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useReducedMotion } from "framer-motion";
+import { BellRing, ClipboardList, History, Plus, Search } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { colaboradorRequest, type CtmRegistro as Linha } from "@/lib/colaborador-api";
 import { formatarMoeda } from "@/components/dashboard/ComponentesDashboard";
 
-const raiz="/api/ctm/coordenacao";
-const nome:Record<string,string>={numero:"Número",oas_numero:"OAS vinculada",os_oficina:"OS da oficina",ordem_servico_id:"RAS vinculado",p_n_instalado:"P/N instalado",s_n_instalado:"S/N instalado",p_n_removido:"P/N removido",s_n_removido:"S/N removido",numero_da_peça:"P/N",numero_de_serie:"S/N",observacoes:"Observações",descricao:"Descrição",tipo_manutencao:"Tipo de manutenção",tipo_rateio:"Critério de rateio",total_pecas:"Custo de peças (R$)",total_mao_obra:"Mão de obra (R$)",relatorio_voo_de:"Uso desde",relatorio_voo_ate:"Uso até",valor_unitario:"Preço unitário (R$)",data_saida:"Saída da oficina",data_leitura:"Data da leitura dos contadores",base_legal:"Referência técnica e revisão",tipo_controle:"Controle",data_de_conformidade:"Data do cumprimento",metodo_de_conformidade:"Referência da execução",data_troca:"Data da troca",percentual:"Cota fixa",horas:"Horas de uso",pending:"Pendente",urgent:"Urgente",complied:"Cumprida",not_applicable:"Não aplicável",open:"Aberto",in_analysis:"Em avaliação",in_maintenance:"Em manutenção",resolved:"Corrigido",low:"Baixa",medium:"Média",high:"Alta",critical:"Crítica"};
-const rotulo=(v:string)=>nome[v]||v.replaceAll("_"," ").replace(/^./,c=>c.toUpperCase());
-const dia=(v:unknown)=>v?String(v).slice(0,10).split("-").reverse().join("/"):"—";
-const num=(v:number)=>v.toLocaleString("pt-BR",{maximumFractionDigits:2});
-const aviso=(e:unknown)=>e instanceof Error?e.message:"Falha ao acessar o CTM.";
-const base=(id:string)=>raiz+"/aeronaves/"+encodeURIComponent(id);
-const select="rounded-md border border-input bg-background p-2 text-sm";
-type Campo={nome:string;tipo:string;opcoes?:string[];obrigatorio:boolean};
-function useDados<T>(path:string,ativo=true,intervalo?:number){
-  return useQuery({queryKey:[path],queryFn:()=>colaboradorRequest<T>(path),enabled:ativo,refetchInterval:intervalo});
+const raiz = "/api/ctm/coordenacao";
+const nome: Record<string, string> = {
+  numero: "Número",
+  oas_numero: "OAS vinculada",
+  os_oficina: "OS da oficina",
+  ordem_servico_id: "RAS vinculado",
+  p_n_instalado: "P/N instalado",
+  s_n_instalado: "S/N instalado",
+  p_n_removido: "P/N removido",
+  s_n_removido: "S/N removido",
+  numero_da_peça: "P/N",
+  numero_de_serie: "S/N",
+  observacoes: "Observações",
+  descricao: "Descrição",
+  tipo_manutencao: "Tipo de manutenção",
+  tipo_rateio: "Critério de rateio",
+  total_pecas: "Custo de peças (R$)",
+  total_mao_obra: "Mão de obra (R$)",
+  relatorio_voo_de: "Uso desde",
+  relatorio_voo_ate: "Uso até",
+  valor_unitario: "Preço unitário (R$)",
+  data_saida: "Saída da oficina",
+  data_leitura: "Data da leitura dos contadores",
+  base_legal: "Referência técnica e revisão",
+  tipo_controle: "Controle",
+  data_de_conformidade: "Data do cumprimento",
+  metodo_de_conformidade: "Referência da execução",
+  data_troca: "Data da troca",
+  percentual: "Cota fixa",
+  horas: "Horas de uso",
+  pending: "Pendente",
+  urgent: "Urgente",
+  complied: "Cumprida",
+  not_applicable: "Não aplicável",
+  open: "Aberto",
+  in_analysis: "Em avaliação",
+  in_maintenance: "Em manutenção",
+  resolved: "Corrigido",
+  low: "Baixa",
+  medium: "Média",
+  high: "Alta",
+  critical: "Crítica",
+};
+const rotulo = (v: string) => nome[v] || v.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+const dia = (v: unknown) => (v ? String(v).slice(0, 10).split("-").reverse().join("/") : "—");
+const num = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+const aviso = (e: unknown) => (e instanceof Error ? e.message : "Falha ao acessar o CTM.");
+const base = (id: string) => raiz + "/aeronaves/" + encodeURIComponent(id);
+const select = "rounded-xl border border-input bg-background p-2 text-sm";
+type Campo = { nome: string; tipo: string; opcoes?: string[]; obrigatorio: boolean };
+function useDados<T>(path: string, ativo = true, intervalo?: number) {
+  return useQuery({
+    queryKey: [path],
+    queryFn: () => colaboradorRequest<T>(path),
+    enabled: ativo,
+    refetchInterval: intervalo,
+  });
 }
-function Historico({path,id}:{path:string;id?:string}){
-  const q=useDados<{eventos:Linha[]}>(path);
-  if(!q.data)return <p>{q.isError?aviso(q.error):"Carregando histórico…"}</p>;
-  const eventos=q.data.eventos.filter(e=>!id||e.registro_id===id);
-  return <div className="space-y-2">{eventos.map(e=><details key={e.registro_id+"-"+e.versao} className="rounded border p-2 text-xs"><summary>{e.data} UTC · {e.acao} · {e.responsavel} · {e.motivo || "Novo registro"}</summary>{[["Antes",e.anterior],["Depois",e.posterior]].map(([k,json])=>json&&<div key={k}><strong>{k}</strong><dl>{Object.entries(JSON.parse(json)).filter(([,v])=>v!=null).map(([campo,v])=><div key={campo}>{rotulo(campo)}: {String(v)}</div>)}</dl></div>)}</details>)}{!eventos.length&&<p>Nenhuma alteração posterior ao cadastro.</p>}</div>;
+function Historico({ path, id }: { path: string; id?: string }) {
+  const q = useDados<{ eventos: Linha[] }>(path);
+  if (!q.data) return <p>{q.isError ? aviso(q.error) : "Carregando histórico…"}</p>;
+  const eventos = q.data.eventos.filter((e) => !id || e.registro_id === id);
+  return (
+    <div className="space-y-2">
+      {eventos.map((e) => (
+        <details key={e.registro_id + "-" + e.versao} className="rounded border p-2 text-xs">
+          <summary>
+            {e.data} UTC · {e.acao} · {e.responsavel} · {e.motivo || "Novo registro"}
+          </summary>
+          {[
+            ["Antes", e.anterior],
+            ["Depois", e.posterior],
+          ].map(
+            ([k, json]) =>
+              json && (
+                <div key={k}>
+                  <strong>{k}</strong>
+                  <dl>
+                    {Object.entries(JSON.parse(json))
+                      .filter(([, v]) => v != null)
+                      .map(([campo, v]) => (
+                        <div key={campo}>
+                          {rotulo(campo)}: {String(v)}
+                        </div>
+                      ))}
+                  </dl>
+                </div>
+              ),
+          )}
+        </details>
+      ))}
+      {!eventos.length && <p>Nenhuma alteração posterior ao cadastro.</p>}
+    </div>
+  );
 }
-export function Cadastro({aeronave,modulo,titulo,ras,atualizar}:{aeronave:string;modulo:string;titulo:string;ras:Linha[];atualizar:()=>void}){
-  const path=base(aeronave)+"/registros/"+modulo;
-  const q=useDados<{registros:Linha[];campos:Campo[];podeEditar:boolean}>(path,!!aeronave);
-  const cliente=useQueryClient();
-  const [row,setRow]=useState<Linha|null>(null),[arquivo,setArquivo]=useState(false),[historico,setHistorico]=useState(false);
-  const [motivo,setMotivo]=useState(""),[erro,setErro]=useState(""),[ocupado,setOcupado]=useState(false);
-  function abrir(r:Linha,excluir=false){setRow({...r});setArquivo(excluir);setMotivo("");setErro("");}
-  async function salvar(){
-    if(!row||ocupado)return;
-    setOcupado(true);setErro("");
-    try{
-      await colaboradorRequest(path+(row.id?"/"+encodeURIComponent(row.id):""),{method:arquivo?"DELETE":row.id?"PATCH":"POST",body:JSON.stringify({dados:row,motivo,versao:row.versao})});
-      setRow(null);await cliente.invalidateQueries({queryKey:[path]});await cliente.invalidateQueries({queryKey:[base(aeronave)+"/historico/"+modulo]});atualizar();
-    }catch(e){setErro(aviso(e));}finally{setOcupado(false);}
+export function Cadastro({
+  aeronave,
+  modulo,
+  titulo,
+  novo,
+  matricula,
+  ras,
+  atualizar,
+  criarAoAbrir,
+  aoAbrirCriacao,
+}: {
+  aeronave: string;
+  modulo: string;
+  titulo: string;
+  novo: string;
+  matricula?: string;
+  ras: Linha[];
+  atualizar: () => void;
+  criarAoAbrir: boolean;
+  aoAbrirCriacao: () => void;
+}) {
+  const path = base(aeronave) + "/registros/" + modulo;
+  const q = useDados<{ registros: Linha[]; campos: Campo[]; podeEditar: boolean }>(path);
+  const [row, setRow] = useState<Linha | null>(null);
+  const [arquivo, setArquivo] = useState(false);
+  const [historico, setHistorico] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const { toast } = useToast();
+  const dados = q.data;
+
+  useEffect(() => {
+    if (!criarAoAbrir || !dados?.podeEditar) return;
+    setRow({});
+    aoAbrirCriacao();
+  }, [criarAoAbrir, dados?.podeEditar, aoAbrirCriacao]);
+
+  function abrir(registro: Linha, arquivar = false) {
+    setRow({ ...registro });
+    setArquivo(arquivar);
+    setMotivo("");
+    setErro("");
   }
-  if(!q.data)return <p role="status">{q.isError?aviso(q.error):"Carregando cadastro…"}</p>;
-  const {registros,campos,podeEditar}=q.data;
-  const leitura=!podeEditar||row?.bloqueado;
-  const resumo=campos.filter(f=>f.nome!=="ordem_servico_id").slice(0,5);
-  return <section className="space-y-3 rounded-xl border bg-card p-4"><header className="flex flex-wrap items-center gap-2"><h2 className="mr-auto font-semibold">{titulo}</h2><Button variant="outline" onClick={()=>setHistorico(!historico)}>Histórico</Button>{podeEditar&&<Button disabled={ocupado} onClick={()=>abrir({})}>Novo registro</Button>}</header>
-    {historico&&<Historico path={base(aeronave)+"/historico/"+modulo}/>}
-    {row&&<form onSubmit={e=>{e.preventDefault();void salvar();}} className="grid gap-3 rounded border p-3 sm:grid-cols-2 lg:grid-cols-3">{campos.map(f=><label key={f.nome} className="grid gap-1 text-xs">{rotulo(f.nome)}{f.obrigatorio?" *":""}
-      {f.opcoes||f.nome==="ordem_servico_id"?<select className={select} required={f.obrigatorio} disabled={leitura||arquivo||ocupado} value={row[f.nome]??""} onChange={e=>setRow({...row,[f.nome]:e.target.value})}><option value="">Selecione</option>{f.nome==="ordem_servico_id"?ras.map(r=><option key={r.id} value={r.id}>{r.numero||r.id}</option>):f.opcoes?.map(v=><option key={v} value={v}>{rotulo(v)}</option>)}</select>:<Input type={f.tipo} disabled={leitura||arquivo||ocupado} required={f.obrigatorio} value={row[f.nome]??""} step="any" min={f.tipo==="number"?0:undefined} onChange={e=>setRow({...row,[f.nome]:e.target.value})}/>}</label>)}
-      {row.id&&!leitura&&<label className="col-span-full text-xs">Motivo da {arquivo?"exclusão da lista ativa":"alteração"}<Input value={motivo} required onChange={e=>setMotivo(e.target.value)}/></label>}
-      {erro&&<p role="alert" className="col-span-full text-destructive">{erro}</p>}<div className="col-span-full flex gap-2"><Button type="button" variant="outline" disabled={ocupado} onClick={()=>setRow(null)}>Fechar</Button>{!leitura&&<Button disabled={ocupado}>{arquivo?"Confirmar arquivamento":"Salvar"}</Button>}</div></form>}
-    <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr>{resumo.map(f=><th className="p-2" key={f.nome}>{rotulo(f.nome)}</th>)}<th>Ações</th></tr></thead><tbody>{registros.map(r=><tr key={r.id} className="border-t">{resumo.map(f=><td className="p-2" key={f.nome}>{f.tipo==="date"?dia(r[f.nome]):String(r[f.nome]??"—")}</td>)}<td className="whitespace-nowrap"><Button size="sm" variant="ghost" disabled={ocupado} onClick={()=>abrir(r)}>{r.bloqueado||!podeEditar?"Detalhar":"Editar"}</Button>{podeEditar&&!r.bloqueado&&<Button size="sm" variant="ghost" disabled={ocupado} onClick={()=>abrir(r,true)}>Arquivar</Button>}</td></tr>)}</tbody></table></div>{!registros.length&&<p>Nenhum registro para esta aeronave.</p>}</section>;
-}
-const proximos:Record<string,string[]>={open:["in_analysis"],in_analysis:["in_analysis","in_maintenance","resolved"],in_maintenance:["in_analysis","in_maintenance","resolved"],resolved:["in_analysis"]};
-export function Reportes({aeronave,expandido,abrir}:{aeronave:string;expandido:boolean;abrir:()=>void}){
-  const q=useDados<{registros:Linha[];podeEditar:boolean}>(raiz+"/reportes",true,60000);
-  const cliente=useQueryClient();
-  const [frota,setFrota]=useState(false),[edit,setEdit]=useState<Linha|null>(null),[hist,setHist]=useState(""),[status,setStatus]=useState(""),[motivo,setMotivo]=useState(""),[erro,setErro]=useState(""),[ocupado,setOcupado]=useState(false);
-  if(!q.data)return <p className="text-xs">{q.isError?aviso(q.error):"Consultando reportes…"}</p>;
-  const pendentes=q.data.registros.filter(r=>r.status!=="resolved");
-  if(!expandido)return pendentes.length?<Button variant="outline" className="max-w-full whitespace-normal border-amber-500/50" onClick={()=>{setFrota(true);abrir();}}>{pendentes.length} reporte(s) em aberto na frota · {pendentes[0].matricula_registro} · Severidade {rotulo(pendentes[0].severidade)}</Button>:null;
-  async function salvar(){
-    if(!edit||ocupado)return;
-    setOcupado(true);setErro("");
-    try{await colaboradorRequest(base(edit.aeronave_id)+"/registros/reportes/"+edit.id,{method:"PATCH",body:JSON.stringify({versao:edit.versao,status,motivo})});setEdit(null);await Promise.all([q.refetch(),cliente.invalidateQueries({queryKey:[base(edit.aeronave_id)+"/historico/reportes"]})]);}catch(e){setErro(aviso(e));}finally{setOcupado(false);}
+  async function salvar() {
+    if (!row || ocupado) return;
+    setOcupado(true);
+    setErro("");
+    try {
+      const valores = Object.fromEntries(
+        dados!.campos.map((campo) => [
+          campo.nome,
+          campo.tipo === "date" && row[campo.nome] ? String(row[campo.nome]).slice(0, 10) : row[campo.nome],
+        ]),
+      );
+      await colaboradorRequest(path + (row.id ? "/" + encodeURIComponent(row.id) : ""), {
+        method: arquivo ? "DELETE" : row.id ? "PATCH" : "POST",
+        body: JSON.stringify({ dados: valores, versao: row.versao, motivo }),
+      });
+      setRow(null);
+      toast({ title: arquivo ? "Registro arquivado" : "Registro salvo" });
+      atualizar();
+    } catch (e) {
+      setErro(aviso(e));
+    } finally {
+      setOcupado(false);
+    }
   }
-  const rows=q.data.registros.filter(r=>frota||r.aeronave_id===aeronave);
-  return <section className="space-y-3 rounded-xl border bg-card p-4"><header className="flex justify-between"><h2 className="font-semibold">Reportes da tripulação</h2><label><input type="checkbox" checked={frota} onChange={e=>setFrota(e.target.checked)}/> Toda a frota</label></header>{!rows.length&&<p>Nenhum reporte para a seleção.</p>}{rows.map(r=><article className="space-y-2 rounded-lg border p-3 text-sm" key={r.id}><strong>{r.matricula_registro} · {rotulo(r.status)} · Severidade {rotulo(r.severidade)}</strong><p>{r.descricao}</p><p>{dia(r.data_relatorio)} · {r.criado_por_nome}</p>{r.acao_corretiva&&<p>Último acompanhamento: {r.acao_corretiva}</p>}<Button size="sm" variant="outline" onClick={()=>setHist(hist===r.id?"":r.id)}>Histórico</Button>{q.data?.podeEditar&&<Button size="sm" variant="ghost" disabled={ocupado} onClick={()=>{setEdit(r);setMotivo("");setErro("");setStatus(proximos[r.status][0]);}}>{r.status==="resolved"?"Reabrir avaliação":"Atualizar acompanhamento"}</Button>}
-    {hist===r.id&&<Historico path={base(r.aeronave_id)+"/historico/reportes"} id={r.id}/>}
-    {edit?.id===r.id&&<form className="grid gap-2" onSubmit={e=>{e.preventDefault();void salvar();}}><label>Situação <select value={status} className={select} onChange={e=>setStatus(e.target.value)}>{proximos[r.status].map(v=><option key={v} value={v}>{rotulo(v)}</option>)}</select></label><label>Avaliação ou ação corretiva<textarea required maxLength={5000} className="block w-full rounded border bg-background p-2" value={motivo} onChange={e=>setMotivo(e.target.value)}/></label>{erro&&<p role="alert">{erro}</p>}<div><Button disabled={ocupado}>Salvar acompanhamento</Button> <Button type="button" variant="outline" disabled={ocupado} onClick={()=>setEdit(null)}>Cancelar</Button></div></form>}</article>)}</section>;
+
+  if (!dados)
+    return (
+      <section className="rounded-2xl border bg-card p-5 text-sm" role="status">
+        {q.isError ? (
+          <>
+            {aviso(q.error)}{" "}
+            <Button variant="link" onClick={() => void q.refetch()}>
+              Tentar novamente
+            </Button>
+          </>
+        ) : (
+          "Carregando registros…"
+        )}
+      </section>
+    );
+
+  const leitura = !dados.podeEditar || row?.bloqueado;
+  const termo = busca.trim().toLocaleLowerCase("pt-BR");
+  const visiveis = dados.registros.filter((registro) =>
+    dados.campos.some((campo) =>
+      String(registro[campo.nome] ?? "")
+        .toLocaleLowerCase("pt-BR")
+        .includes(termo),
+    ),
+  );
+  const resumo = dados.campos.filter((campo) => campo.nome !== "ordem_servico_id").slice(0, 5);
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+      <header className="flex flex-wrap items-center gap-2 border-b border-border/70 p-4">
+        <label className="relative mr-auto min-w-40 flex-1 sm:max-w-xs">
+          <span className="sr-only">Buscar em {titulo.toLowerCase()}</span>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+          <Input
+            className="rounded-xl pl-9"
+            placeholder="Buscar registros"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+        </label>
+        <Button variant="outline" className="gap-2 rounded-xl" onClick={() => setHistorico(true)}>
+          <History size={15} /> Histórico
+        </Button>
+        <Button className="gap-2 rounded-xl" disabled={!dados.podeEditar || ocupado} onClick={() => abrir({})}>
+          <Plus size={16} /> {novo}
+        </Button>
+      </header>
+
+      {!dados.podeEditar && (
+        <p className="bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
+          Perfil de consulta. Para cadastrar ou editar, é preciso ter acesso de CTM, Operações ou gestão autorizada.
+        </p>
+      )}
+
+      {visiveis.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-muted/40 text-xs text-muted-foreground">
+              <tr>
+                {resumo.map((campo) => (
+                  <th scope="col" className="px-4 py-3 font-medium" key={campo.nome}>
+                    {rotulo(campo.nome)}
+                  </th>
+                ))}
+                <th scope="col" className="px-4 py-3 text-right font-medium">
+                  Ações
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {visiveis.map((registro) => (
+                <tr className="border-t border-border/60 transition-colors hover:bg-muted/30" key={registro.id}>
+                  {resumo.map((campo, indice) => (
+                    <td
+                      className={indice === 0 ? "px-4 py-3 font-semibold" : "px-4 py-3 text-muted-foreground"}
+                      key={campo.nome}
+                    >
+                      {campo.tipo === "date"
+                        ? dia(registro[campo.nome])
+                        : campo.opcoes && registro[campo.nome]
+                          ? rotulo(registro[campo.nome])
+                          : String(registro[campo.nome] ?? "—")}
+                    </td>
+                  ))}
+                  <td className="whitespace-nowrap px-3 text-right">
+                    <Button size="sm" variant="ghost" onClick={() => abrir(registro)}>
+                      {registro.bloqueado || !dados.podeEditar ? "Detalhes" : "Editar"}
+                    </Button>
+                    {dados.podeEditar && !registro.bloqueado && (
+                      <Button size="sm" variant="ghost" onClick={() => abrir(registro, true)}>
+                        Arquivar
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="grid justify-items-center gap-2 px-5 py-10 text-center">
+          <span className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <ClipboardList size={22} />
+          </span>
+          <h3 className="font-semibold">{termo ? "Nenhum resultado encontrado" : "Nenhum registro para esta aeronave"}</h3>
+          {termo ? (
+            <Button variant="link" onClick={() => setBusca("")}>
+              Limpar busca
+            </Button>
+          ) : (
+            dados.podeEditar && (
+              <Button variant="link" onClick={() => abrir({})}>
+                Cadastrar primeiro registro
+              </Button>
+            )
+          )}
+        </div>
+      )}
+
+      <Dialog open={historico} onOpenChange={setHistorico}>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-2xl sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Histórico · {titulo}</DialogTitle>
+            <DialogDescription>{matricula || "Aeronave selecionada"}</DialogDescription>
+          </DialogHeader>
+          <Historico path={base(aeronave) + "/historico/" + modulo} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(row)}
+        onOpenChange={(aberto) => {
+          if (!aberto && !ocupado) setRow(null);
+        }}
+      >
+        {row && (
+          <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-2xl sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>
+                {arquivo ? "Arquivar registro" : row.id ? (leitura ? "Detalhes do registro" : "Editar registro") : novo}
+              </DialogTitle>
+              <DialogDescription>
+                {matricula || "Aeronave selecionada"}
+                {arquivo && " · O registro ficará disponível no histórico."}
+              </DialogDescription>
+            </DialogHeader>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void salvar();
+              }}
+              className="grid gap-3 sm:grid-cols-2"
+            >
+              {!arquivo &&
+                dados.campos.map((campo) => {
+                  const chave = campo.nome;
+                  const desabilitado = leitura || ocupado;
+                  const valor = row[chave] ?? "";
+                  const alterar = (valor: string) => setRow({ ...row, [chave]: valor });
+                  const opcoes =
+                    chave === "ordem_servico_id"
+                      ? ras.map((relatorio) => ({ id: relatorio.id, nome: relatorio.numero || relatorio.id }))
+                      : campo.opcoes?.map((opcao) => ({ id: opcao, nome: rotulo(opcao) }));
+                  const longo = ["observacoes", "descricao", "notas", "aplicabilidade", "metodo_de_conformidade"].includes(
+                    chave,
+                  );
+                  return (
+                    <label key={chave} className={longo ? "grid gap-1.5 text-sm sm:col-span-2" : "grid gap-1.5 text-sm"}>
+                      <span>
+                        {rotulo(chave)} {campo.obrigatorio && <span className="text-primary">*</span>}
+                      </span>
+                      {opcoes ? (
+                        <select
+                          className={select + " h-10 w-full"}
+                          required={campo.obrigatorio}
+                          disabled={desabilitado}
+                          value={valor}
+                          onChange={(e) => alterar(e.target.value)}
+                        >
+                          <option value="">Selecione</option>
+                          {valor && !opcoes.some((opcao) => opcao.id === valor) && (
+                            <option value={valor}>{rotulo(String(valor))}</option>
+                          )}
+                          {opcoes.map((opcao) => (
+                            <option key={opcao.id} value={opcao.id}>
+                              {opcao.nome}
+                            </option>
+                          ))}
+                        </select>
+                      ) : longo ? (
+                        <Textarea
+                          className="rounded-xl"
+                          value={valor}
+                          disabled={desabilitado}
+                          required={campo.obrigatorio}
+                          onChange={(e) => alterar(e.target.value)}
+                        />
+                      ) : (
+                        <Input
+                          className="rounded-xl"
+                          type={campo.tipo}
+                          value={campo.tipo === "date" ? String(valor).slice(0, 10) : valor}
+                          disabled={desabilitado}
+                          required={campo.obrigatorio}
+                          step="any"
+                          min={campo.tipo === "number" ? 0 : undefined}
+                          onChange={(e) => alterar(e.target.value)}
+                        />
+                      )}
+                    </label>
+                  );
+                })}
+              {row.id && !leitura && (
+                <label className="grid gap-1.5 text-sm sm:col-span-2">
+                  Motivo {arquivo ? "do arquivamento" : "da alteração"}
+                  <Textarea className="rounded-xl" value={motivo} required onChange={(e) => setMotivo(e.target.value)} />
+                </label>
+              )}
+              {erro && (
+                <p role="alert" className="text-sm text-destructive sm:col-span-2">
+                  {erro}
+                </p>
+              )}
+              <DialogFooter className="border-t pt-3 sm:col-span-2">
+                <Button type="button" variant="outline" disabled={ocupado} onClick={() => setRow(null)}>
+                  Fechar
+                </Button>
+                {!leitura && (
+                  <Button type="submit" disabled={ocupado}>
+                    {ocupado ? "Salvando…" : arquivo ? "Confirmar arquivamento" : "Salvar registro"}
+                  </Button>
+                )}
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        )}
+      </Dialog>
+    </section>
+  );
 }
-function Grade({titulos,linhas}:{titulos:string[];linhas:(string|number)[][]}){
-  return <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr>{titulos.map(t=><th key={t} className="p-2">{t}</th>)}</tr></thead><tbody>{linhas.map((row,i)=><tr className="border-t" key={i}>{row.map((v,j)=><td className="p-2" key={j}>{v}</td>)}</tr>)}</tbody></table>{!linhas.length&&<p className="p-2">Nenhum registro.</p>}</div>;
+const proximos: Record<string, string[]> = {
+  open: ["in_analysis"],
+  in_analysis: ["in_analysis", "in_maintenance", "resolved"],
+  in_maintenance: ["in_analysis", "in_maintenance", "resolved"],
+  resolved: ["in_analysis"],
+};
+export function useReportesCtm(aeronave: string) {
+  return useDados<{ registros: Linha[]; podeEditar: boolean }>(
+    raiz + "/reportes?aeronave_id=" + encodeURIComponent(aeronave),
+    !!aeronave,
+    60000,
+  );
 }
-export function Previsoes({aeronave}:{aeronave:string}){
-  const q=useDados<{horas:number|null;media:number|null;itens:Linha[]}>(base(aeronave)+"/previsoes",!!aeronave);
-  if(!q.data)return <p>{q.isError?aviso(q.error):"Carregando previsões…"}</p>;
-  return <section className="space-y-2 rounded-xl border bg-card p-4"><h2 className="font-semibold">Próximas manutenções e trocas</h2><p>Horas de célula: {q.data.horas??"Sem leitura"} · Utilização média nos últimos 90 dias: {q.data.media==null?"Sem base":num(q.data.media)+" h/dia"}</p><Grade titulos={["Item","Próxima data","Horas restantes","Ciclos restantes","Limite em ciclos","Limite em pousos"]} linhas={q.data.itens.map(r=>[r.item,r.data?dia(r.data)+(r.estimada?" (estimada por uso)":" (calendário)"):"Sem previsão",r.saldo==null?"—":num(r.saldo),r.ciclos??"—",r.limite_ciclos??"—",r.limite_pousos??"—"])}/></section>;
+
+export function Reportes({ aeronave }: { aeronave: string }) {
+  const q = useReportesCtm(aeronave);
+  const cliente = useQueryClient();
+  const [edit, setEdit] = useState<Linha | null>(null);
+  const [historico, setHistorico] = useState<Linha | null>(null);
+  const [status, setStatus] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const { toast } = useToast();
+  const linhas = q.data?.registros.filter((registro) => String(registro.aeronave_id) === aeronave);
+  const path = base(aeronave) + "/historico/reportes";
+
+  async function salvar() {
+    if (!edit || ocupado) return;
+    setOcupado(true);
+    setErro("");
+    try {
+      await colaboradorRequest(base(aeronave) + "/registros/reportes/" + encodeURIComponent(edit.id), {
+        method: "PATCH",
+        body: JSON.stringify({ versao: edit.versao, status, motivo }),
+      });
+      setEdit(null);
+      toast({ title: "Acompanhamento atualizado" });
+      void q.refetch();
+      void cliente.invalidateQueries({ queryKey: [path] });
+    } catch (e) {
+      setErro(aviso(e));
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <section className="space-y-3">
+      {q.isError && (
+        <p role="alert" className="rounded-xl border bg-card p-4 text-sm">
+          {aviso(q.error)}{" "}
+          <Button variant="link" onClick={() => void q.refetch()}>
+            Tentar novamente
+          </Button>
+        </p>
+      )}
+      {q.isPending && (
+        <p role="status" className="rounded-xl border bg-card p-4 text-sm">
+          Carregando reportes…
+        </p>
+      )}
+      {linhas?.length === 0 && (
+        <div className="grid justify-items-center gap-3 rounded-2xl border bg-card p-10 text-center">
+          <span className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <BellRing size={22} />
+          </span>
+          <h3 className="font-semibold">Nenhum reporte para esta aeronave</h3>
+        </div>
+      )}
+      {linhas?.map((registro) => (
+        <article key={registro.id} className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+              {rotulo(registro.status)}
+            </span>
+            <span
+              className={
+                ["high", "critical"].includes(registro.severidade)
+                  ? "rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive"
+                  : "rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"
+              }
+            >
+              Severidade {rotulo(registro.severidade)}
+            </span>
+            <span className="ml-auto text-xs text-muted-foreground">{dia(registro.data_relatorio)}</span>
+          </div>
+          <p className="mt-3 whitespace-pre-wrap break-words text-sm font-medium">{registro.descricao}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{registro.criado_por_nome}</p>
+          {registro.acao_corretiva && (
+            <blockquote className="mt-3 rounded-r-xl border-l-2 border-primary/40 bg-muted/30 p-3 text-sm">
+              {registro.acao_corretiva}
+            </blockquote>
+          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {q.data?.podeEditar && proximos[registro.status] && (
+              <Button
+                size="sm"
+                className="rounded-lg"
+                onClick={() => {
+                  setEdit(registro);
+                  setMotivo("");
+                  setErro("");
+                  setStatus(proximos[registro.status][0]);
+                }}
+              >
+                {registro.status === "resolved" ? "Reabrir avaliação" : "Atualizar acompanhamento"}
+              </Button>
+            )}
+            <Button size="sm" variant="outline" className="gap-1.5 rounded-lg" onClick={() => setHistorico(registro)}>
+              <History size={14} /> Histórico
+            </Button>
+          </div>
+        </article>
+      ))}
+      <Dialog
+        open={Boolean(historico)}
+        onOpenChange={(aberto) => {
+          if (!aberto) setHistorico(null);
+        }}
+      >
+        {historico && (
+          <DialogContent className="max-h-[90dvh] overflow-auto rounded-2xl">
+            <DialogHeader>
+              <DialogTitle>Histórico do reporte</DialogTitle>
+              <DialogDescription>{historico.matricula_registro}</DialogDescription>
+            </DialogHeader>
+            <Historico path={path} id={historico.id} />
+          </DialogContent>
+        )}
+      </Dialog>
+      <Dialog
+        open={Boolean(edit)}
+        onOpenChange={(aberto) => {
+          if (!aberto && !ocupado) setEdit(null);
+        }}
+      >
+        {edit && (
+          <DialogContent className="rounded-2xl">
+            <DialogHeader>
+              <DialogTitle>Atualizar acompanhamento</DialogTitle>
+              <DialogDescription>{edit.matricula_registro}</DialogDescription>
+            </DialogHeader>
+            <form
+              className="grid gap-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void salvar();
+              }}
+            >
+              <label className="grid gap-1.5 text-sm">
+                Situação
+                <select className={select} value={status} onChange={(e) => setStatus(e.target.value)}>
+                  {proximos[edit.status].map((opcao) => (
+                    <option key={opcao} value={opcao}>
+                      {rotulo(opcao)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1.5 text-sm">
+                Avaliação ou ação corretiva
+                <Textarea
+                  required
+                  maxLength={5000}
+                  className="rounded-xl"
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                />
+              </label>
+              {erro && (
+                <p role="alert" className="text-sm text-destructive">
+                  {erro}
+                </p>
+              )}
+              <DialogFooter>
+                <Button type="submit" disabled={ocupado}>
+                  Salvar acompanhamento
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        )}
+      </Dialog>
+    </section>
+  );
 }
-export function Custos({aeronave,ordens}:{aeronave:string;ordens:Linha[]}){
-  const [sel,setSel]=useState(""),[cat,setCat]=useState("");const id=sel||ordens[0]?.id;
-  const divisao=useDados<Linha>(base(aeronave)+"/rateio/"+id,!!id);
-  const financeiro=useDados<{registros:Linha[]}>(base(aeronave)+"/financeiro",!!aeronave);
-  const pecas=useDados<{registros:Linha[]}>(base(aeronave)+"/registros/pecas",!!aeronave);
-  const categorias=[...new Set((financeiro.data?.registros||[]).map(r=>String(r.categoria_nome||"Sem categoria")))].sort();
-  const categoria=cat||categorias.find(c=>/manuten/i.test(c))||"";
-  const meses=new Map<string,{pecas:number;servicos:number}>();
-  for(const o of ordens){if(!o.data_entrada || o.total_pecas==null && o.total_mao_obra==null)continue;const k=String(o.data_entrada).slice(0,7),v=meses.get(k)||{pecas:0,servicos:0};v.pecas+=Number(o.total_pecas||0);v.servicos+=Number(o.total_mao_obra||0);meses.set(k,v);}
-  const max=Math.max(1,...[...meses.values()].map(m=>Math.max(m.pecas,m.servicos)));
-  return <div className="space-y-4"><section className="rounded-xl border bg-card p-4"><h2 className="font-semibold">Custos por mês de entrada na oficina</h2>{!meses.size&&<p>Nenhuma OAS com custos informados.</p>}{[...meses].sort(([a],[b])=>b.localeCompare(a)).map(([k,m])=><div key={k} className="my-3 text-xs"><strong>{k}</strong>{([["Peças",m.pecas],["Mão de obra",m.servicos]] as const).map(([l,v])=><div key={l} className="grid grid-cols-[6rem_1fr_7rem] items-center gap-2"><span>{l}</span><div className="h-2 rounded bg-muted"><div className={l==="Peças"?"h-2 rounded bg-primary":"h-2 rounded bg-emerald-500"} style={{width:(v/max*100)+"%"}}/></div>{formatarMoeda(v)}</div>)}</div>)}</section>
-    <section className="rounded-xl border bg-card p-4"><h2 className="font-semibold">Histórico de preços das peças</h2>{pecas.isError?<p>{aviso(pecas.error)}</p>:<Grade titulos={["Troca","Peça","P/N instalado","Fornecedor","Quantidade","Unitário","Total"]} linhas={(pecas.data?.registros||[]).map(r=>[dia(r.data_troca),r.descricao,r.p_n_instalado||"—",r.fornecedor||"—",r.quantidade??"—",r.valor_unitario==null?"—":formatarMoeda(r.valor_unitario),r.valor_unitario==null||r.quantidade==null?"—":formatarMoeda(r.quantidade*r.valor_unitario)])}/>}</section>
-    <section className="rounded-xl border bg-card p-4"><h2 className="font-semibold">Prévia do rateio com as cotas ativas</h2><select className={select} aria-label="Selecionar OAS" value={id||""} onChange={e=>setSel(e.target.value)}>{ordens.map(o=><option value={o.id} key={o.id}>OAS {o.numero} · {o.objetivo}</option>)}</select>{divisao.isError?<p>{aviso(divisao.error)}</p>:divisao.data?.linhas?<Grade titulos={["Cotista",divisao.data.uso?"Horas no período":"Cota fixa (%)","Participação (%)","Valor previsto"]} linhas={divisao.data.linhas.map((r:Linha)=>[r.nome,num(divisao.data!.uso?r.base/60:r.base),num(r.percentual),formatarMoeda(r.centavos/100)])}/>:<p>{divisao.data?.aviso}</p>}</section>
-    <section className="rounded-xl border bg-card p-4"><h2 className="font-semibold">Rateios registrados no Financeiro</h2><label>Categoria <select className={select} value={categoria} onChange={e=>setCat(e.target.value)}><option value="">Selecione</option>{categorias.map(c=><option key={c}>{c}</option>)}</select></label>{financeiro.isError?<p>{aviso(financeiro.error)}</p>:<Grade titulos={["Emissão","Cotista","Origem","Despesa","Situação","Valor rateado"]} linhas={(financeiro.data?.registros||[]).filter(r=>String(r.categoria_nome||"Sem categoria")===categoria).map(r=>[dia(r.competencia),r.cotista,String(r.dominio).startsWith("HOLD")?"Holding":"Cliente",r.descricao_despesa,r.status,formatarMoeda(r.valor_rateado_centavos/100)])}/>}</section></div>;
+function Grade({ titulos, linhas }: { titulos: string[]; linhas: (string | number)[][] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-xs">
+        <thead>
+          <tr>
+            {titulos.map((t) => (
+              <th key={t} className="p-2">
+                {t}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {linhas.map((row, i) => (
+            <tr className="border-t transition-colors hover:bg-muted/30" key={i}>
+              {row.map((v, j) => (
+                <td className="p-2" key={j}>
+                  {v}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!linhas.length && <p className="p-2">Nenhum registro.</p>}
+    </div>
+  );
+}
+export function Previsoes({
+  aeronave,
+  resumido = false,
+  abrirCompleto,
+}: {
+  aeronave: string;
+  resumido?: boolean;
+  abrirCompleto?: () => void;
+}) {
+  const q = useDados<{ horas: number | null; media: number | null; itens: Linha[] }>(
+    base(aeronave) + "/previsoes",
+    !!aeronave,
+  );
+  if (!q.data) return <p>{q.isError ? aviso(q.error) : "Carregando previsões…"}</p>;
+  return (
+    <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-semibold">Próximas manutenções e trocas</h2>
+        {abrirCompleto && (
+          <Button variant="outline" size="sm" className="rounded-lg" onClick={abrirCompleto}>
+            Ver previsões
+          </Button>
+        )}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Horas de célula: {q.data.horas ?? "Sem leitura"} · Utilização média nos últimos 90 dias:{" "}
+        {q.data.media == null ? "Sem base" : num(q.data.media) + " h/dia"}
+      </p>
+      <Grade
+        titulos={["Item", "Próxima data", "Horas restantes", "Ciclos restantes", "Limite em ciclos", "Limite em pousos"]}
+        linhas={(resumido ? q.data.itens.slice(0, 4) : q.data.itens).map((r) => [
+          r.item,
+          r.data ? dia(r.data) + (r.estimada ? " (estimada por uso)" : " (calendário)") : "Sem previsão",
+          r.saldo == null ? "—" : num(r.saldo),
+          r.ciclos ?? "—",
+          r.limite_ciclos ?? "—",
+          r.limite_pousos ?? "—",
+        ])}
+      />
+    </section>
+  );
+}
+export function Custos({ aeronave, ordens }: { aeronave: string; ordens: Linha[] }) {
+  const [sel, setSel] = useState(""),
+    [cat, setCat] = useState("");
+  const id = sel || ordens[0]?.id;
+  const divisao = useDados<Linha>(base(aeronave) + "/rateio/" + id, !!id);
+  const financeiro = useDados<{ registros: Linha[] }>(base(aeronave) + "/financeiro", !!aeronave);
+  const pecas = useDados<{ registros: Linha[] }>(base(aeronave) + "/registros/pecas", !!aeronave);
+  const categorias = [
+    ...new Set((financeiro.data?.registros || []).map((r) => String(r.categoria_nome || "Sem categoria"))),
+  ].sort();
+  const categoria = cat || categorias.find((c) => /manuten/i.test(c)) || "";
+  return (
+    <div className="space-y-4">
+      <GraficoCustos ordens={ordens} />
+      <section className="rounded-xl border bg-card p-4">
+        <h2 className="font-semibold">Histórico de preços das peças</h2>
+        {pecas.isError ? (
+          <p>{aviso(pecas.error)}</p>
+        ) : (
+          <Grade
+            titulos={["Troca", "Peça", "P/N instalado", "Fornecedor", "Quantidade", "Unitário", "Total"]}
+            linhas={(pecas.data?.registros || []).map((r) => [
+              dia(r.data_troca),
+              r.descricao,
+              r.p_n_instalado || "—",
+              r.fornecedor || "—",
+              r.quantidade ?? "—",
+              r.valor_unitario == null ? "—" : formatarMoeda(r.valor_unitario),
+              r.valor_unitario == null || r.quantidade == null ? "—" : formatarMoeda(r.quantidade * r.valor_unitario),
+            ])}
+          />
+        )}
+      </section>
+      <section className="rounded-xl border bg-card p-4">
+        <h2 className="font-semibold">Prévia do rateio com as cotas ativas</h2>
+        <select className={select} aria-label="Selecionar OAS" value={id || ""} onChange={(e) => setSel(e.target.value)}>
+          {ordens.map((o) => (
+            <option value={o.id} key={o.id}>
+              OAS {o.numero} · {o.objetivo}
+            </option>
+          ))}
+        </select>
+        {divisao.isError ? (
+          <p>{aviso(divisao.error)}</p>
+        ) : divisao.data?.linhas ? (
+          <Grade
+            titulos={[
+              "Cotista",
+              divisao.data.uso ? "Horas no período" : "Cota fixa (%)",
+              "Participação (%)",
+              "Valor previsto",
+            ]}
+            linhas={divisao.data.linhas.map((r: Linha) => [
+              r.nome,
+              num(divisao.data!.uso ? r.base / 60 : r.base),
+              num(r.percentual),
+              formatarMoeda(r.centavos / 100),
+            ])}
+          />
+        ) : (
+          <p>{divisao.data?.aviso}</p>
+        )}
+      </section>
+      <section className="rounded-xl border bg-card p-4">
+        <h2 className="font-semibold">Rateios registrados no Financeiro</h2>
+        <label>
+          Categoria{" "}
+          <select className={select} value={categoria} onChange={(e) => setCat(e.target.value)}>
+            <option value="">Selecione</option>
+            {categorias.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </label>
+        {financeiro.isError ? (
+          <p>{aviso(financeiro.error)}</p>
+        ) : (
+          <Grade
+            titulos={["Emissão", "Cotista", "Origem", "Despesa", "Situação", "Valor rateado"]}
+            linhas={(financeiro.data?.registros || [])
+              .filter((r) => String(r.categoria_nome || "Sem categoria") === categoria)
+              .map((r) => [
+                dia(r.competencia),
+                r.cotista,
+                String(r.dominio).startsWith("HOLD") ? "Holding" : "Cliente",
+                r.descricao_despesa,
+                r.status,
+                formatarMoeda(r.valor_rateado_centavos / 100),
+              ])}
+          />
+        )}
+      </section>
+    </div>
+  );
+}
+
+export function GraficoCustos({ ordens, indisponivel }: { ordens: Linha[]; indisponivel?: boolean }) {
+  const reduzirMovimento = useReducedMotion();
+  const meses = new Map<string, { mes: string; pecas: number; servicos: number }>();
+  for (const ordem of ordens) {
+    if (!ordem.data_entrada || (ordem.total_pecas == null && ordem.total_mao_obra == null)) continue;
+    const chave = String(ordem.data_entrada).slice(0, 7);
+    const mes = meses.get(chave) ?? { mes: chave.split("-").reverse().join("/"), pecas: 0, servicos: 0 };
+    mes.pecas += Number(ordem.total_pecas ?? 0);
+    mes.servicos += Number(ordem.total_mao_obra ?? 0);
+    meses.set(chave, mes);
+  }
+  const dados = [...meses]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-12)
+    .map(([, mes]) => mes);
+  return (
+    <section className="min-w-0 rounded-2xl border border-border/70 bg-card p-5 shadow-sm">
+      <h2 className="font-semibold">Custos de manutenção</h2>
+      <p className="mt-1 text-xs text-muted-foreground">Peças e mão de obra por mês de entrada na oficina</p>
+      {indisponivel || !dados.length ? (
+        <p className="mt-4 rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">
+          {indisponivel
+            ? "Custos indisponíveis no momento."
+            : "Informe o custo de peças ou mão de obra em uma ordem de serviço para preencher o gráfico."}
+        </p>
+      ) : (
+        <div className="mt-4 h-64 min-w-0" aria-label="Gráfico de custos mensais em reais">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={dados} margin={{ left: 4, right: 6 }}>
+              <CartesianGrid vertical={false} stroke="currentColor" strokeOpacity={0.12} strokeDasharray="4 4" />
+              <XAxis dataKey="mes" axisLine={false} tickLine={false} fontSize={11} />
+              <YAxis
+                width={55}
+                axisLine={false}
+                tickLine={false}
+                fontSize={11}
+                tickFormatter={(valor) => Intl.NumberFormat("pt-BR", { notation: "compact" }).format(valor)}
+              />
+              <Tooltip
+                formatter={(valor) => formatarMoeda(Number(valor))}
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12 }}
+              />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+              <Bar
+                dataKey="pecas"
+                name="Peças"
+                fill="#258fd0"
+                radius={[5, 5, 0, 0]}
+                maxBarSize={36}
+                isAnimationActive={!reduzirMovimento}
+              />
+              <Bar
+                dataKey="servicos"
+                name="Mão de obra"
+                fill="#57b498"
+                radius={[5, 5, 0, 0]}
+                maxBarSize={36}
+                isAnimationActive={!reduzirMovimento}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </section>
+  );
 }

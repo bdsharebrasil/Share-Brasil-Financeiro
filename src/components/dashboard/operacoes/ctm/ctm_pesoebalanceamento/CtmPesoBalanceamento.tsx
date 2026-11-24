@@ -1,50 +1,180 @@
-import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, Loader2, RefreshCw, Scale } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { ClipboardList, Loader2, Pencil, Plus, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { buscarOpcoesAgendamento, buscarPainelAgendamento, type AeronaveAgendamento, type SolicitacaoVooInterna } from "@/lib/colaborador-api";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  buscarPainelAgendamento,
+  type AeronaveAgendamento,
+  type CtmRegistro,
+  type SolicitacaoVooInterna,
+} from "@/lib/colaborador-api";
 import { usePesoBalanceamento } from "./hooks/usePesoBalanceamento";
 import { useFichaPesoBalanceamento } from "./hooks/useFichaPesoBalanceamento";
-import ListaPesoBalanceamentoAeronave from "./aeronave/ListaPesoBalanceamentoAeronave";
 import FormularioPesoBalanceamento from "./aeronave/FormularioPesoBalanceamento";
 import ListaFichasPesoBalanceamento from "./fichas/ListaFichasPesoBalanceamento";
+import { GraficoEnvelope, pontosEnvelope } from "./componentes/GraficoEnvelope";
 
-type Props = { aeronaveId?: string };
+const formatar = (valor: unknown, unidade: string) =>
+  valor != null && Number.isFinite(Number(valor))
+    ? Number(valor).toLocaleString("pt-BR", { maximumFractionDigits: 3 }) + " " + unidade
+    : "—";
 
-export default function CtmPesoBalanceamento({ aeronaveId }: Props) {
-  const [aba, setAba] = useState<"aeronave" | "fichas">("aeronave");
-  const [formulario, setFormulario] = useState<any>(null);
-  const [aeronaves, setAeronaves] = useState<AeronaveAgendamento[]>([]);
+export default function CtmPesoBalanceamento({
+  aeronaveId,
+  aeronave,
+  podeEditar,
+}: {
+  aeronaveId: string;
+  aeronave?: CtmRegistro | null;
+  podeEditar: boolean;
+}) {
+  const [aba, setAba] = useState("aeronave");
+  const [formulario, setFormulario] = useState(false);
   const [voos, setVoos] = useState<SolicitacaoVooInterna[]>([]);
   const [carregandoVoos, setCarregandoVoos] = useState(true);
   const [erroVoos, setErroVoos] = useState("");
   const peso = usePesoBalanceamento(aeronaveId);
   const fichas = useFichaPesoBalanceamento();
+  const configuracao = peso.configuracoes.find((item) => item.aeronave_id === aeronaveId);
+  const pontos = pontosEnvelope(configuracao ?? null);
+  const matricula = aeronave?.matricula_registro || configuracao?.matricula_registro;
+  const aeronaves = aeronave && aeronave.id === aeronaveId ? [aeronave as AeronaveAgendamento] : [];
 
-  const carregarVoos = async () => {
+  const carregarVoos = useCallback(async () => {
     setCarregandoVoos(true);
     setErroVoos("");
     try {
-      const [opcoes, painel] = await Promise.all([buscarOpcoesAgendamento(), buscarPainelAgendamento()]);
-      setAeronaves(opcoes.aeronaves);
-      setVoos(painel.agendamentos);
-    } catch (causa) {
-      setErroVoos(causa instanceof Error ? causa.message : "Não foi possível carregar os agendamentos.");
+      const painel = await buscarPainelAgendamento();
+      setVoos(painel.agendamentos.filter((item) => item.aeronave_id === aeronaveId));
+    } catch (erro) {
+      setErroVoos(erro instanceof Error ? erro.message : "Não foi possível carregar os agendamentos.");
     } finally {
       setCarregandoVoos(false);
     }
-  };
-  useEffect(() => { void carregarVoos(); }, []);
+  }, [aeronaveId]);
 
-  const aeronavesVisiveis = useMemo(() => aeronaveId ? aeronaves.filter((item) => item.id === aeronaveId) : aeronaves, [aeronaves, aeronaveId]);
-  const configuracoesVisiveis = useMemo(() => aeronaveId ? peso.configuracoes.filter((item) => item.aeronave_id === aeronaveId) : peso.configuracoes, [peso.configuracoes, aeronaveId]);
-  const voosVisiveis = useMemo(() => aeronaveId ? voos.filter((item) => item.aeronave_id === aeronaveId) : voos, [voos, aeronaveId]);
-  const fichasVisiveis = useMemo(() => aeronaveId ? fichas.fichas.filter((item) => item.aeronave_id === aeronaveId) : fichas.fichas, [fichas.fichas, aeronaveId]);
-  const aeronavesComConfig = useMemo(() => aeronavesVisiveis.filter((aeronave) => !configuracoesVisiveis.some((item) => item.aeronave_id === aeronave.id)), [aeronavesVisiveis, configuracoesVisiveis]);
+  useEffect(() => {
+    if (aba === "fichas") void carregarVoos();
+  }, [aba, carregarVoos]);
+  const metricas = [
+    { nome: "Peso básico vazio", valor: configuracao?.peso_vazio_padrao, unidade: "kg" },
+    { nome: "Peso máx. de decolagem", valor: configuracao?.peso_maximo_decolagem, unidade: "kg" },
+    { nome: "Peso máx. de pouso", valor: configuracao?.peso_maximo_pouso, unidade: "kg" },
+    { nome: "Peso máx. sem combustível", valor: configuracao?.peso_maximo_sem_combustivel, unidade: "kg" },
+  ];
 
-  return <div className="route-enter space-y-5">
-    <header className="flex flex-col gap-4 rounded-2xl border border-border bg-card/70 p-5 shadow-sm lg:flex-row lg:items-end lg:justify-between"><div><div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-primary"><Scale size={14} /> CTM · Operações técnicas</div><h1 className="text-2xl font-extrabold tracking-tight">Peso e Balanceamento</h1><p className="mt-1 max-w-2xl text-xs text-muted-foreground">Configuração técnica da aeronave e fichas vinculadas aos voos agendados.</p></div><Button variant="outline" onClick={() => { void peso.recarregar(); void fichas.recarregar(); void carregarVoos(); }} className="h-9 gap-2 text-xs"><RefreshCw size={14} /> Atualizar dados</Button></header>
-    {(peso.erro || fichas.erro || erroVoos) && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">{peso.erro || fichas.erro || erroVoos}</div>}
-    <div className="grid gap-3 sm:grid-cols-2"><button type="button" onClick={() => setAba("aeronave")} className={`rounded-xl border p-4 text-left transition ${aba === "aeronave" ? "border-primary/50 bg-primary/10" : "border-border bg-card/50 hover:border-primary/30"}`}><span className="flex items-center gap-2 text-primary"><Scale size={17} /><strong className="text-sm">Peso e Balanceamento da Aeronave</strong></span><span className="mt-2 block text-[10px] text-muted-foreground">Manutenção · {configuracoesVisiveis.length} configuração(ões)</span></button><button type="button" onClick={() => setAba("fichas")} className={`rounded-xl border p-4 text-left transition ${aba === "fichas" ? "border-primary/50 bg-primary/10" : "border-border bg-card/50 hover:border-primary/30"}`}><span className="flex items-center gap-2 text-primary"><ClipboardList size={17} /><strong className="text-sm">Fichas de Voo</strong></span><span className="mt-2 block text-[10px] text-muted-foreground">Operação · {fichasVisiveis.length} ficha(s)</span></button></div>
-    {aba === "aeronave" ? <>{formulario && <FormularioPesoBalanceamento aeronaves={aeronavesComConfig.concat(formulario.inicial?.aeronave_id ? aeronaves.filter((item) => item.id === formulario.inicial.aeronave_id) : [])} inicial={formulario.inicial} salvar={peso.salvar} fechar={() => setFormulario(null)} />}<ListaPesoBalanceamentoAeronave configuracoes={configuracoesVisiveis} aeronaves={aeronavesVisiveis} abrir={(config) => setFormulario(config ? { inicial: config } : { inicial: null })} /></> : <section className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card/65 p-4"><div><p className="text-[9px] font-bold uppercase tracking-[.14em] text-primary">Fluxo operacional</p><h2 className="text-sm font-extrabold">Nova ficha de peso e balanceamento</h2><p className="mt-1 text-[10px] text-muted-foreground">Selecione um agendamento para carregar aeronave, matrícula, rota e horários automaticamente.</p></div></div>{carregandoVoos || fichas.carregando ? <div className="flex min-h-32 items-center justify-center"><Loader2 className="animate-spin text-primary" size={24} /></div> : <ListaFichasPesoBalanceamento fichas={fichasVisiveis} voos={voosVisiveis} />}</section>}
-  </div>;
+  return (
+    <Tabs value={aba} onValueChange={setAba} className="space-y-4">
+      <TabsList className="h-auto flex-wrap gap-1 rounded-xl p-1">
+        <TabsTrigger value="aeronave" className="gap-2 rounded-lg px-3 py-2">
+          <Scale size={15} /> Base da aeronave
+        </TabsTrigger>
+        <TabsTrigger value="fichas" className="gap-2 rounded-lg px-3 py-2">
+          <ClipboardList size={15} /> Fichas de voo
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="aeronave" className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card p-4 shadow-sm">
+          <div>
+            <h3 className="font-semibold">{matricula || "Aeronave selecionada"}</h3>
+            <p className="text-sm text-muted-foreground">
+              {configuracao?.numero_relatorio_pesagem || "Documentação de peso e balanceamento"}
+            </p>
+          </div>
+          <Button
+            className="gap-2 rounded-xl"
+            disabled={!podeEditar || !aeronaves.length || peso.carregando || !!peso.erro}
+            onClick={() => setFormulario(true)}
+          >
+            {configuracao ? <Pencil size={15} /> : <Plus size={16} />}
+            {configuracao ? "Editar configuração" : "Cadastrar configuração"}
+          </Button>
+          {!podeEditar && (
+            <p className="w-full text-xs text-muted-foreground">
+              Perfil de consulta. O cadastro está disponível para CTM, Operações e gestão autorizada.
+            </p>
+          )}
+        </div>
+        {peso.erro && (
+          <p role="alert" className="rounded-xl border bg-card p-4 text-sm text-destructive">
+            {peso.erro}{" "}
+            <Button variant="link" onClick={() => void peso.recarregar()}>
+              Tentar novamente
+            </Button>
+          </p>
+        )}
+        {peso.carregando ? (
+          <div role="status" className="flex items-center gap-2 rounded-2xl border bg-card p-5 text-sm">
+            <Loader2 className="animate-spin" size={16} /> Carregando configuração…
+          </div>
+        ) : (
+          !peso.erro && (
+            <>
+              <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                {metricas.map(({ nome, valor, unidade }) => (
+                  <div key={nome} className="rounded-xl border bg-card p-3">
+                    <span className="text-xs text-muted-foreground">{nome}</span>
+                    <strong className="mt-1 block text-lg tabular-nums">{formatar(valor, unidade)}</strong>
+                  </div>
+                ))}
+              </div>
+              <GraficoEnvelope
+                pontos={pontos}
+                avaliavel={configuracao?.validado === true || configuracao?.validado === 1}
+                pesoVazio={
+                  configuracao && configuracao.braco_cg_padrao != null
+                    ? { cg: Number(configuracao.braco_cg_padrao), peso: Number(configuracao.peso_vazio_padrao) }
+                    : undefined
+                }
+              />
+            </>
+          )
+        )}
+        <Dialog open={formulario} onOpenChange={setFormulario}>
+          {formulario && (
+            <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-2xl sm:max-w-4xl">
+              <DialogHeader>
+                <DialogTitle>Configuração de peso e balanceamento</DialogTitle>
+                <DialogDescription>{matricula}</DialogDescription>
+              </DialogHeader>
+              <FormularioPesoBalanceamento
+                aeronaveFixa={aeronaveId}
+                aeronaves={aeronaves}
+                inicial={configuracao}
+                salvar={peso.salvar}
+                fechar={() => setFormulario(false)}
+              />
+            </DialogContent>
+          )}
+        </Dialog>
+      </TabsContent>
+      <TabsContent value="fichas" className="space-y-3">
+        {(fichas.erro || erroVoos) && (
+          <p role="alert" className="rounded-xl border bg-card p-4 text-sm text-destructive">
+            {fichas.erro || erroVoos}{" "}
+            <Button
+              variant="link"
+              onClick={() => {
+                void fichas.recarregar();
+                void carregarVoos();
+              }}
+            >
+              Tentar novamente
+            </Button>
+          </p>
+        )}
+        {carregandoVoos || fichas.carregando ? (
+          <div role="status" className="flex items-center gap-2 rounded-2xl border bg-card p-5 text-sm">
+            <Loader2 className="animate-spin" size={16} /> Carregando fichas de voo…
+          </div>
+        ) : (
+          <ListaFichasPesoBalanceamento
+            fichas={fichas.fichas.filter((item) => item.aeronave_id === aeronaveId)}
+            voos={voos}
+          />
+        )}
+      </TabsContent>
+    </Tabs>
+  );
 }

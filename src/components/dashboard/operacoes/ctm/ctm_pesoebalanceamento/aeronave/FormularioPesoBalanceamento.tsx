@@ -16,7 +16,7 @@ const campos = [
 ] as const;
 const entrada = "h-10 w-full rounded-lg border border-border bg-background px-3 text-xs outline-none transition focus:border-primary";
 type LinhaEnvelope = { peso_kg: string; cg_estacao: string };
-type Props = { aeronaves: AeronaveAgendamento[]; inicial?: ConfiguracaoPesoBalanceamento | null; salvar: (dados: Partial<ConfiguracaoPesoBalanceamento> & { aeronave_id: string }) => Promise<unknown>; fechar: () => void };
+type Props = { aeronaveFixa?: string; aeronaves: AeronaveAgendamento[]; inicial?: ConfiguracaoPesoBalanceamento | null; salvar: (dados: Partial<ConfiguracaoPesoBalanceamento> & { aeronave_id: string }) => Promise<unknown>; fechar: () => void };
 
 function carregarPontos(config?: ConfiguracaoPesoBalanceamento | null): LinhaEnvelope[] {
   let valor: unknown = config?.envelope_pontos ?? config?.envelope_pontos_json;
@@ -27,19 +27,19 @@ function carregarPontos(config?: ConfiguracaoPesoBalanceamento | null): LinhaEnv
   return valor.map((ponto) => ({ peso_kg: String(ponto?.peso_kg ?? ""), cg_estacao: String(ponto?.cg_estacao ?? "") }));
 }
 
-export default function FormularioPesoBalanceamento({ aeronaves, inicial, salvar, fechar }: Props) {
-  const [dados, setDados] = useState<Record<string, unknown>>({ aeronave_id: inicial?.aeronave_id || "", ...inicial });
+export default function FormularioPesoBalanceamento({ aeronaves, inicial, salvar, fechar, aeronaveFixa }: Props) {
+  const [dados, setDados] = useState<Record<string, unknown>>({ aeronave_id: inicial?.aeronave_id || aeronaveFixa || "", ...inicial });
   const [pontos, setPontos] = useState<LinhaEnvelope[]>(() => carregarPontos(inicial));
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
   const [revisado, setRevisado] = useState(inicial?.validado === true || inicial?.validado === 1);
 
   useEffect(() => {
-    setDados({ aeronave_id: inicial?.aeronave_id || "", ...inicial });
+    setDados({ aeronave_id: inicial?.aeronave_id || aeronaveFixa || "", ...inicial });
     setPontos(carregarPontos(inicial));
     setErro("");
     setRevisado(inicial?.validado === true || inicial?.validado === 1);
-  }, [inicial]);
+  }, [inicial, aeronaveFixa]);
 
   const alterar = (campo: string, valor: string) => { setRevisado(false); setDados((atual) => ({ ...atual, [campo]: valor === "" ? null : valor })); };
   const alterarPonto = (indice: number, campo: keyof LinhaEnvelope, valor: string) => { setRevisado(false); setPontos((atuais) => atuais.map((ponto, i) => i === indice ? { ...ponto, [campo]: valor } : ponto)); };
@@ -84,8 +84,8 @@ export default function FormularioPesoBalanceamento({ aeronaves, inicial, salvar
   };
 
   return <form onSubmit={enviar} className="space-y-4 rounded-xl border border-border bg-card/70 p-4">
-    <div className="flex items-start justify-between gap-3"><div><p className="text-[9px] font-bold uppercase tracking-[.14em] text-primary">Manutenção · cadastro por matrícula</p><h3 className="text-base font-extrabold">{inicial ? "Atualizar configuração técnica" : "Novo peso e balanceamento"}</h3><p className="mt-1 text-[10px] text-muted-foreground">Registre parâmetros específicos da aeronave; salvar alterações deixa a configuração pendente de validação técnica.</p></div><button type="button" onClick={fechar} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary" aria-label="Fechar"><X size={16} /></button></div>
-    <label className="block space-y-1"><span className="text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Aeronave / matrícula</span><select className={entrada} value={String(dados.aeronave_id || "")} onChange={(e) => alterar("aeronave_id", e.target.value)} disabled={Boolean(inicial)}><option value="">Selecione...</option>{aeronaves.map((aeronave) => <option key={aeronave.id} value={aeronave.id}>{aeronave.matricula_registro} · {aeronave.modelo}</option>)}</select></label>
+    {!aeronaveFixa && (<div className="flex items-start justify-between gap-3"><div><p className="text-[9px] font-bold uppercase tracking-[.14em] text-primary">Manutenção · cadastro por matrícula</p><h3 className="text-base font-extrabold">{inicial ? "Atualizar configuração técnica" : "Novo peso e balanceamento"}</h3><p className="mt-1 text-[10px] text-muted-foreground">Registre parâmetros específicos da aeronave; salvar alterações deixa a configuração pendente de validação técnica.</p></div><button type="button" onClick={fechar} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary" aria-label="Fechar"><X size={16} /></button></div>)}
+    <label className="block space-y-1"><span className="text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Aeronave / matrícula</span><select className={entrada} value={String(dados.aeronave_id || "")} onChange={(e) => alterar("aeronave_id", e.target.value)} disabled={Boolean(inicial || aeronaveFixa)}><option value="">Selecione...</option>{aeronaves.map((aeronave) => <option key={aeronave.id} value={aeronave.id}>{aeronave.matricula_registro} · {aeronave.modelo}</option>)}</select></label>
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{campos.map(([campo, rotulo]) => <label key={campo} className="space-y-1"><span className="text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">{rotulo}</span><input className={entrada} type="number" min="0.0001" step="any" value={String(dados[campo] ?? "")} onChange={(e) => alterar(campo, e.target.value)} required /></label>)}</div>
     <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1"><span className="text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Combustível utilizável (kg)</span><input className={entrada} type="number" min="0" step="any" value={String(dados.capacidade_combustivel_util ?? "")} onChange={(e) => alterar("capacidade_combustivel_util", e.target.value)} /></label><label className="space-y-1"><span className="text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Responsável técnico</span><input className={entrada} value={String(dados.responsavel_tecnico ?? "")} onChange={(e) => alterar("responsavel_tecnico", e.target.value)} placeholder="Nome do responsável" /></label><label className="space-y-1 sm:col-span-2"><span className="text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Referência do relatório/manual aprovado</span><input className={entrada} value={String(dados.numero_relatorio_pesagem ?? "")} onChange={(e) => alterar("numero_relatorio_pesagem", e.target.value)} placeholder="Documento e revisão específicos desta matrícula" /></label></div>
     <label className="block text-xs">Data da pesagem<input required={revisado} className={entrada} type="date" value={String(dados.data_ultima_pesagem??"").slice(0,10)} onChange={e=>alterar("data_ultima_pesagem",e.target.value)}/></label>

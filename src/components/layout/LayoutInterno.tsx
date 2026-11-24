@@ -53,6 +53,7 @@ export default function LayoutInterno() {
   const [usuarioPontoId, setUsuarioPontoId] = useState<string | null>(null);
   const [nomeColaborador, setNomeColaborador] = useState<string | null>(null);
   const [exibirBoasVindas, setExibirBoasVindas] = useState(false);
+  const [planoAgendamentoId, setPlanoAgendamentoId] = useState<string>();
   const [menuAtivo, setMenuAtivo] = useState(navegacaoInicial.menuAtivo);
   const [tema, setTema] = useState<Tema>(() => (localStorage.getItem("share-brasil-theme") as Tema) || "dark");
   const [menuAberto, setMenuAberto] = useState(false);
@@ -110,6 +111,7 @@ export default function LayoutInterno() {
   const selecionarMenu = (menu: string, aba?: string) => {
     if (ambiente === "gestor" && menu === "gestor" && !podeAcessarMenuGestor) return;
     navegacaoManual.current = true;
+    setPlanoAgendamentoId(undefined);
     setMenuAtivo(menu);
     if (menu === "enviar-pagamento") { setAmbiente("financeiro"); navegar("/financeiro/enviar-pagamento"); }
     else if (menu === "movimentacoes") { setAmbiente("financeiro"); navegar("/financeiro/movimentacoes"); }
@@ -125,8 +127,8 @@ export default function LayoutInterno() {
 
   const renderConteudo = () => {
     if (menuAtivo === "perfil") return <Perfil tema={tema} onAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} />;
-    if (ambiente === "operacoes" && menuAtivo === "agendamentos") return <Agendamentos />;
-    if (ambiente === "operacoes" && menuAtivo === "plano-de-voo") return <PlanoDeVoo />;
+    if (ambiente === "operacoes" && menuAtivo === "agendamentos") return <Agendamentos aoAbrirPlano={(id) => { setPlanoAgendamentoId(id); setMenuAtivo("plano-de-voo"); }} />;
+    if (ambiente === "operacoes" && menuAtivo === "plano-de-voo") return <PlanoDeVoo agendamentoInicialId={planoAgendamentoId} />;
     if (ambiente === "operacoes" && menuAtivo === "diario-de-bordo") return <DiarioBordo aoVoltar={() => setMenuAtivo("overview")} aoAbrirAerodromos={() => setMenuAtivo("aerodromos")} />;
     if (ambiente === "operacoes" && menuAtivo === "aerodromos") return <Aerodromos aoVoltar={() => setMenuAtivo("diario-de-bordo")} />;
     if (ambiente === "operacoes" && menuAtivo === "tripulacao") return <GestaoTripulacao aoVoltar={() => setMenuAtivo("overview")} />;

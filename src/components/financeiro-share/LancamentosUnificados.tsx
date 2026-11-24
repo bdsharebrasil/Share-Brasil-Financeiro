@@ -59,6 +59,7 @@ import { ModalContaAPagar } from "./ModalContaAPagar";
 import { ModalContaAReceber } from "./ModalContaAReceber";
 import { NovoLancamentoShareDialog, type LancamentoEdicao } from "./NovoLancamentoShareDialog";
 import { AbaSolicitacoesPagamento } from "./AbaSolicitacoesPagamento";
+import { ControleZoomTabela, useZoomTabela } from "./ControleZoomTabela";
 
 /** Campos opcionais: conecte aos nomes reais do seu backend via obterDetalhes. */
 export type DetalhesLancamento = {
@@ -413,6 +414,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const suppressClickRef = useRef(false);
   const pararResizeRef = useRef<(() => void) | null>(null);
   const [arrastandoTabela, setArrastandoTabela] = useState(false);
+  const { zoom, alterar: alterarZoom, definir: definirZoom } = useZoomTabela("erp-lancamentos-zoom");
 
   const lancamentos = useMemo(() => (
     ehEntrada ? linhasDeContasAReceber(receber.contas) : linhasDeContasAPagar(pagar.contas)
@@ -763,8 +765,9 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     if (!cabecalho) return;
     pararResizeRef.current?.();
     const inicio = evento.clientX;
-    const larguraInicial = cabecalho.getBoundingClientRect().width;
-    const mover = (e: PointerEvent) => setLarguras((atuais) => ({ ...atuais, [chave]: Math.max(110, larguraInicial + e.clientX - inicio) }));
+    const escala = zoom / 100;
+    const larguraInicial = cabecalho.getBoundingClientRect().width / escala;
+    const mover = (e: PointerEvent) => setLarguras((atuais) => ({ ...atuais, [chave]: Math.max(110, larguraInicial + (e.clientX - inicio) / escala) }));
     const parar = () => {
       window.removeEventListener("pointermove", mover);
       window.removeEventListener("pointerup", parar);
@@ -865,6 +868,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                 </div>
               )}
             </div>
+            <span className="erp-divisor" aria-hidden="true" />
+            <ControleZoomTabela zoom={zoom} alterar={alterarZoom} restaurar={() => definirZoom(100)} />
           </div>
 
           <div className="erp-periodo" ref={periodoRef}>
@@ -923,7 +928,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
             }
           }}
         >
-          <table className="erp-tabela">
+          <table className="erp-tabela" style={{ zoom: zoom / 100 }}>
             <caption className="erp-sr-only">{titulo} — {periodo}</caption>
             <colgroup><col style={{ width: 110 }} />{colunasExibidas.map((coluna) => (
               <col key={coluna.chave} style={{ width: larguras[coluna.chave] ?? coluna.largura }} />

@@ -1403,17 +1403,37 @@ function normalizarOpcoesLancamento(payload: Partial<OpcoesLancamento> | null | 
 
 }
 
+type LancamentoBalancoBruto = LancamentoEconomico & {
+  data_emissao?: string | null;
+  documento_numero?: string | null;
+  numero_doc?: string | null;
+  numero_nf?: string | null;
+  numero_recibo?: string | null;
+  numero_boleto?: string | null;
+  numero_demonstrativo?: string | null;
+};
+
 function normalizarBalanco(payload: Partial<BalancoEconomico> | null | undefined): BalancoEconomico {
 
   return {
 
-    lancamentos: Array.isArray(payload?.lancamentos) ? payload.lancamentos.map((item) => ({
+    lancamentos: Array.isArray(payload?.lancamentos) ? payload.lancamentos.map((item: LancamentoBalancoBruto) => ({
 
       ...item,
 
-      dataEmissao: item.dataEmissao ?? (item as LancamentoEconomico & { data_emissao?: string | null }).data_emissao ?? item.data,
+      dataEmissao: item.dataEmissao ?? item.data_emissao ?? item.data,
 
-      documentoNumero: item.documentoNumero ?? (item as LancamentoEconomico & { documento_numero?: string | null }).documento_numero ?? null,
+      documentoNumero: item.documentoNumero ?? item.documento_numero ?? null,
+
+      numeroDoc: item.numeroDoc ?? item.numero_doc ?? null,
+
+      numeroNf: item.numeroNf ?? item.numero_nf ?? null,
+
+      numeroRecibo: item.numeroRecibo ?? item.numero_recibo ?? null,
+
+      numeroBoleto: item.numeroBoleto ?? item.numero_boleto ?? null,
+
+      numeroDemonstrativo: item.numeroDemonstrativo ?? item.numero_demonstrativo ?? null,
 
       reembolsavel: flagFinanceira(item.reembolsavel),
 

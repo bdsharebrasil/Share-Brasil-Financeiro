@@ -14,11 +14,12 @@ type Props = {
   aoAbrirAgendamento: (id: string) => void;
   aoAbrirPlano?: (id: string) => void;
   processando: boolean;
+  dadosVooAbertos: boolean;
   aoAtualizar: (status?: string) => Promise<void>;
   aoFinalizar: (item: SolicitacaoVooInterna) => void;
 };
 
-export default function OperacaoVooSelecionado({ item, operacao, aoAbrirAgendamento, aoAbrirPlano, processando, aoAtualizar, aoFinalizar }: Props) {
+export default function OperacaoVooSelecionado({ item, operacao, aoAbrirAgendamento, aoAbrirPlano, processando, dadosVooAbertos, aoAtualizar, aoFinalizar }: Props) {
   const [etapa, setEtapa] = useState<"resumo" | "checklist" | "jornada">(operacaoIniciada(item) ? "jornada" : "resumo");
   const [progressoLocal, setProgressoLocal] = useState<number | undefined>();
   const progresso = progressoLocal ?? calcularProgressoChecklist(item);
@@ -34,9 +35,9 @@ export default function OperacaoVooSelecionado({ item, operacao, aoAbrirAgendame
       <span className={`sb-pill ${operacaoIniciada(item) ? "live" : "confirmed"}`}>{rotuloOperacao(item.status)}</span>
     </header>
     <div className="sb-operation-actions" aria-label="Ações da operação">
-      <Button type="button" variant="outline" aria-pressed={etapa === "checklist"} onClick={() => setEtapa("checklist")}><ClipboardCheck size={15} />{acoes.checklistConcluido ? "Ver checklist" : "Checklist pré-voo"}</Button>
-      {aoAbrirPlano && <Button type="button" variant="outline" onClick={() => aoAbrirPlano(item.id)}><FileText size={15} />Plano de voo</Button>}
-      {acoes.checklistConcluido && <PesoBalanceamentoFicha key={item.id} item={item} rotuloBotao="Peso e balanceamento" />}
+      {dadosVooAbertos && <Button type="button" variant="outline" aria-pressed={etapa === "checklist"} onClick={() => setEtapa("checklist")}><ClipboardCheck size={15} />{acoes.checklistConcluido ? "Ver checklist" : "Checklist pré-voo"}</Button>}
+      {dadosVooAbertos && aoAbrirPlano && <Button type="button" variant="outline" onClick={() => aoAbrirPlano(item.id)}><FileText size={15} />Plano de voo</Button>}
+      {dadosVooAbertos && acoes.checklistConcluido && <PesoBalanceamentoFicha key={item.id} item={item} rotuloBotao="Peso e balanceamento" />}
       <Button type="button" disabled={!podeAbrirJornada} aria-pressed={etapa === "jornada"} onClick={() => setEtapa("jornada")}><Clock3 size={15} />{agendamento ? "Registrar horários" : operacaoIniciada(item) ? "Horários e jornada" : "Iniciar operação"}</Button>
       {operacaoIniciada(item) && <>
         <Button type="button" variant="outline" disabled={processando || !acoes.podeFinalizar} title={!acoes.podeFinalizar ? "Encerre a jornada antes de encerrar a operação." : undefined} onClick={() => aoFinalizar(item)}><Flag size={15} />Encerrar operação</Button>

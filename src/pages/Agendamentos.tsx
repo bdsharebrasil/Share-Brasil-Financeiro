@@ -131,6 +131,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
   const [selecionada, setSelecionada] = useState<SolicitacaoVooInterna | null>(null);
   const [dataOperacoes, setDataOperacoes] = useState(hojeBrasilia());
   const [vooHojeSelecionadoId, setVooHojeSelecionadoId] = useState<string | null>(null);
+  const [dadosVooAbertoId, setDadosVooAbertoId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroOperacoes, setFiltroOperacoes] = useState<FiltroOperacoes>("operacao");
   const [visaoAndamento, setVisaoAndamento] = useState<"monitoramento" | "hoje">("hoje");
@@ -752,13 +753,13 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
               <button type="button" aria-pressed={visaoAndamento === "monitoramento"} className={visaoAndamento === "monitoramento" ? "active" : ""} onClick={() => setVisaoAndamento("monitoramento")}><Radio size={14} />Monitoramento Voos</button>
             </div>
             {vooOperacional && operacaoSelecionada ? <>
-              {visaoAndamento === "hoje" ? <OperacaoVooSelecionado key={vooOperacional.id} item={vooOperacional} operacao={operacaoSelecionada} processando={processando}
+              {visaoAndamento === "hoje" ? <OperacaoVooSelecionado key={vooOperacional.id} item={vooOperacional} operacao={operacaoSelecionada} processando={processando} dadosVooAbertos={dadosVooAbertoId === vooOperacional.id}
                 aoAbrirAgendamento={(id) => { const agendamento = agendaCompleta.find(item => item.id === id); if (agendamento) abrirSolicitacao(agendamento); }}
                 aoAbrirPlano={aoAbrirPlano}
                 aoAtualizar={async (status) => { await carregar(true); if (status && status !== "aprovada") { setVooHojeSelecionadoId(operacaoSelecionada.id); setFiltroOperacoes("operacao"); } }}
                 aoFinalizar={(item) => void finalizar(item)} />
                 : <VoosDeHoje key={operacaoSelecionada.id} item={operacaoSelecionada} voosEmOperacao={voosAoVivo} carregandoAoVivo={carregandoAoVivo} erroAoVivo={erroAoVivo} atualizadoAoVivo={atualizadoAoVivo} />}
-              <details key={`dados-${vooOperacional.id}`} className="sb-flight-details" aria-label="Detalhes do voo selecionado"><summary>Dados do voo <span>{visaoAndamento === "monitoramento" ? "Expandir para consultar" : "Expandir para consultar e editar"}</span><ChevronDown size={16} /></summary><div className="sb-flight-details-body">{renderizarDetalhes(vooOperacional, visaoAndamento === "monitoramento", true)}</div></details>
+              <details key={`dados-${vooOperacional.id}`} className="sb-flight-details" aria-label="Detalhes do voo selecionado" open={dadosVooAbertoId === vooOperacional.id} onToggle={(evento) => setDadosVooAbertoId(evento.currentTarget.open ? vooOperacional.id : null)}><summary>Dados do voo <span>{visaoAndamento === "monitoramento" ? "Expandir para consultar" : "Expandir para consultar e editar"}</span><ChevronDown size={16} /></summary><div className="sb-flight-details-body">{renderizarDetalhes(vooOperacional, visaoAndamento === "monitoramento", true)}</div></details>
             </> : <section className="sb-empty">{carregando ? "Carregando voos..." : visaoAndamento === "monitoramento" ? "Nenhuma operação ativa para monitorar." : "Selecione um dos filtros à esquerda para consultar os voos."}</section>}
           </>}
           {abaLista && aba !== "voos-hoje" && !selecionada && <section className="sb-content-card"><Cronograma titulo={tituloAba[aba]} detalhe={descricaoAba[aba]} mostrarFiltros={false} selecionada={null} progressoChecklistPorId={progressoChecklistPorId} checklistAberto={checklistAberto} solicitacoes={solicitacoesFiltradas} nomesTripulantes={nomesTripulantes} busca={busca} filtroStatus={filtroCronograma} visao={visaoCronograma} aoMudarBusca={setBusca} aoMudarFiltroStatus={setFiltroStatus} aoMudarVisao={setVisaoCronograma} aoAbrir={abrirSolicitacao} aoHistorico={(item) => abrirJornada(item, "historico")} aoConfirmar={confirmarSolicitacao} aoVoltar={() => setSelecionada(null)} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={abrirJornada} aoFinalizar={(item) => void finalizar(item)} aoExcluir={(item) => excluir(item)}/></section>}

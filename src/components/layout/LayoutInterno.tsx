@@ -110,6 +110,7 @@ export default function LayoutInterno() {
   const trocarAmbiente = (proximo: Ambiente) => { if (proximo === "gestor" && !podeAcessarGestor) return; navegacaoManual.current = true; setAmbiente(proximo); setMenuAtivo(menuInicial(proximo)); if (rotaRecibo || rotaFinanceiroShare || rotaFinanceiroCotista || rotaEnviarPagamento || rotaMovimentacoes) navegar("/"); setMenuAberto(false); };
   const selecionarMenu = (menu: string, aba?: string) => {
     if (ambiente === "gestor" && menu === "gestor" && !podeAcessarMenuGestor) return;
+    if (ambiente === "gestor" && menu === "gestao-ponto" && !podeAcessarMenuGestor) return;
     navegacaoManual.current = true;
     setPlanoAgendamentoId(undefined);
     setMenuAtivo(menu);
@@ -134,7 +135,7 @@ export default function LayoutInterno() {
     if (ambiente === "operacoes" && menuAtivo === "tripulacao") return <GestaoTripulacao aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "operacoes" && menuAtivo === "abastecimentos") return <ControleAbastecimento aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "operacoes" && menuAtivo === "ctm") return <CTM />;
-    if (ambiente === "gestor" && menuAtivo === "gestao-ponto") return <PontoShareBrasil gestaoInicial />;
+    if (ambiente === "gestor" && menuAtivo === "gestao-ponto" && podeAcessarMenuGestor) return <PontoShareBrasil gestaoInicial />;
     if (ambiente === "gestor" && menuAtivo === "ferias") return <Ferias />;
     if (ambiente === "gestor" && menuAtivo === "gestor" && podeAcessarMenuGestor) return <MenuGestor />;
     if (ambiente === "gestor" && menuAtivo === "financeiro-cotista") return <FinanceiroCotista />;

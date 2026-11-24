@@ -36,7 +36,7 @@ function agruparMenus(itens: ItemMenu[]) {
 export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMenuGestor, aoFechar, aoAlternarRecolhimento, aoSelecionar }: PropriedadesSidebar) {
   const [gruposAbertos, setGruposAbertos] = useState(gruposFixos);
   const [dados, setDados] = useState<PerfilColaboradorResponse | null>(null);
-  const itens = useMemo(() => menusPorAmbiente[ambiente].filter((item) => item.id !== "gestor" || podeAcessarMenuGestor).map((item) => ({ ...item, badge: undefined })), [ambiente, podeAcessarMenuGestor]);
+  const itens = useMemo(() => menusPorAmbiente[ambiente].filter((item) => (item.id !== "gestor" && item.id !== "gestao-ponto") || podeAcessarMenuGestor).map((item) => ({ ...item, badge: undefined })), [ambiente, podeAcessarMenuGestor]);
   const grupos = useMemo(() => agruparMenus(itens), [itens]);
 
   useEffect(() => {

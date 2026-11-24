@@ -414,7 +414,7 @@ export function solicitarFerias(dataInicio: string, dataFim: string, observacoes
 export type PernaPlanejada = {
   id: string; solicitacao_id: string; data_prevista: string; origem: string; destino: string;
   horario_previsto: string | null; numero_passageiros: number;
-  status: "PLANEJADA" | "INICIADA" | "CANCELADA"; perna_jornada_id: string | null;
+  status: "PLANEJADA" | "INICIADA" | "CANCELADA";
   criado_em: string; atualizado_em: string;
 };
 export function planejarPernaVoo(solicitacaoId: string, dados: { data_prevista: string; origem: string; destino: string; numero_passageiros: number; horario_previsto?: string; chave_reenvio: string }) {
@@ -425,8 +425,7 @@ export function cancelarPernaPlanejada(solicitacaoId: string, planejadaId: strin
 }
 
 export type SolicitacaoVooInterna = {
-  solicitacao_id?: string;
-  perna_planejada_id?: string;
+  solicitacao_origem_id?: string | null;
   pernas_planejadas?: PernaPlanejada[];
   preparacao_pendencias?: number | null;
   id: string;
@@ -544,7 +543,6 @@ export type VinculoCotistaAgendamento = { id: string; cliente_id: string | null;
 export type OpcoesAgendamentoResponse = { clientes: OpcaoClienteAgendamento[]; socios: OpcaoSocioAgendamento[]; aeronaves: AeronaveAgendamento[]; vinculos: VinculoCotistaAgendamento[] };
 
 export type PainelAgendamentoResponse = {
-  pernas_planejadas?: PernaPlanejada[];
   inicio: string;
   fim: string;
   agendamentos: SolicitacaoVooInterna[];

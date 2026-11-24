@@ -1,14 +1,27 @@
-import type { SolicitacaoVooInterna } from "@/lib/colaborador-api";
+import type { PernaPlanejada, SolicitacaoVooInterna } from "@/lib/colaborador-api";
 
-/** Ocorrências de calendário: todas mantêm a solicitação e o número do voo. */
-export function agendamentosComPernasPlanejadas(agendamentos: SolicitacaoVooInterna[]): SolicitacaoVooInterna[] {
-  return agendamentos.flatMap(item => [item, ...(item.pernas_planejadas || [])
-    .filter(perna => perna.status === "PLANEJADA")
-    .map(perna => ({
-      ...item, id: `${item.id}:planejada:${perna.id}`, solicitacao_id: item.id,
-      perna_planejada_id: perna.id, origem: perna.origem, destino: perna.destino,
-      data_agendada: perna.data_prevista, data_fim: perna.data_prevista, dias_duracao: 1,
-      horario_previsto_agendamento: perna.horario_previsto, numero_passageiros: perna.numero_passageiros,
-      status: "aprovada",
-    }))]);
+/** Associa os agendamentos confirmados à operação para listar suas próximas pernas. */
+export function vincularPlanejamentos(agendamentos: SolicitacaoVooInterna[]): SolicitacaoVooInterna[] {
+  const porSolicitacao = new Map<string, PernaPlanejada[]>();
+  for (const item of agendamentos) {
+    if (!item.solicitacao_origem_id || item.status !== "aprovada") continue;
+    const pernas = porSolicitacao.get(item.solicitacao_origem_id) || [];
+    pernas.push({
+      id: item.id,
+      solicitacao_id: item.solicitacao_origem_id,
+      data_prevista: item.data_agendada,
+      origem: item.origem,
+      destino: item.destino,
+      horario_previsto: item.horario_previsto_agendamento || null,
+      numero_passageiros: item.numero_passageiros ?? 0,
+      status: "PLANEJADA",
+      criado_em: item.criado_em || "",
+      atualizado_em: item.atualizado_em || "",
+    });
+    porSolicitacao.set(item.solicitacao_origem_id, pernas);
+  }
+  return agendamentos.map(item => {
+    const pernas = porSolicitacao.get(item.id);
+    return pernas ? { ...item, pernas_planejadas: pernas } : item;
+  });
 }

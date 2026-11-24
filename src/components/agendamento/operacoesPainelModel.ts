@@ -8,6 +8,7 @@ export function statusOperacao(status: string): string {
 }
 
 export function operacaoIniciada(voo: SolicitacaoVooInterna): boolean {
+  if (voo.solicitacao_origem_id) return false;
   const status = statusOperacao(voo.status);
   if (["encerrada", "concluida", "cancelada", "reprovada", "pendente"].includes(status)) return false;
   return ["acionado", "decolado", "em_solo", "em_voo", "em_rota"].includes(status)
@@ -20,7 +21,7 @@ export function operacaoIniciada(voo: SolicitacaoVooInterna): boolean {
 export function filtrarOperacoes(voos: SolicitacaoVooInterna[], filtro: FiltroOperacoes, data: string): SolicitacaoVooInterna[] {
   return voos.filter((voo) => filtro === "operacao"
     ? operacaoIniciada(voo)
-    : (Boolean(voo.perna_planejada_id) || (statusOperacao(voo.status) === "aprovada" && !operacaoIniciada(voo))) && operacaoNaData(voo, data));
+    : statusOperacao(voo.status) === "aprovada" && !operacaoIniciada(voo) && operacaoNaData(voo, data));
 }
 
 export function selecionarOperacao(voos: SolicitacaoVooInterna[], selecionadoId: string | null): SolicitacaoVooInterna | null {

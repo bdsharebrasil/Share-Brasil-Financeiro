@@ -141,7 +141,8 @@ export function FechamentoBalancoReferencia({
       && norm(item.fluxo) === "SAIDA"
       && !["CANCELADO", "CANCELADA"].includes(norm(item.status)))
     .slice()
-    .sort((a, z) => (a.dataEmissao || a.data).localeCompare(z.dataEmissao || z.data));
+    .sort((a, z) => compararDocumentos(numeroDocLancamento(a), numeroDocLancamento(z))
+      || (a.dataEmissao || a.data).localeCompare(z.dataEmissao || z.data));
   const categorias = [...new Set(lancamentos.map((item) => item.categoria || "Sem categoria"))].sort((a, z) => a.localeCompare(z, "pt-BR"));
   const lancamentosFiltrados = lancamentos.filter((origem) =>
     (categoria === "Todas" || (origem.categoria || "Sem categoria") === categoria)
@@ -423,7 +424,7 @@ export function FechamentoBalancoReferencia({
                   <span><small>Vencimento</small><b>{formatarDataSemAno(origem.prazo)}</b></span>
                 </div>
               </td>
-              <td className="fb-doc">{documentoDoLancamento(origem) || "—"}</td>
+              <td className="fb-doc">{numeroDocLancamento(origem) || "—"}</td>
               <td className="fb-desc"><span className="fb-desc-content" title={origem.descricao || undefined}>{origem.descricao || "—"}</span></td>
               <td>{nomeFornecedorLancamento(origem, fornecedores) || "Fornecedor não informado"}</td>
               <td>{origem.categoria || "Sem categoria"}</td>
@@ -590,6 +591,17 @@ function Vazio({ children }: { children: ReactNode }) {
 
 function formatarDataSemAno(valor: string | null | undefined) {
   return formatarData(valor).replace(/\/\d{4}$/, "");
+}
+
+type LancamentoDoBalanco = DashboardBalanco["lancamentos"][number];
+
+function numeroDocLancamento(lancamento: LancamentoDoBalanco) {
+  return lancamento.numeroNf || documentoDoLancamento(lancamento) || null;
+}
+
+function compararDocumentos(a: string | null, z: string | null) {
+  if (!a || !z) return a ? -1 : z ? 1 : 0;
+  return a.localeCompare(z, "pt-BR", { numeric: true });
 }
 
 function tomStatus(status: string | null | undefined) {

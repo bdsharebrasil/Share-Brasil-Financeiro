@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, Check, ChevronLeft, Copy, Pencil, Plane, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import {
 } from "@/lib/colaborador-api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { conflitosDoTripulante, montarBlocos } from "@/lib/escala-tempo";
+import type { DisponibilidadeTripulacao, EscalaAgendamento } from "@/lib/colaborador-api";
 
 function dataIso(data: Date) {
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
@@ -60,6 +62,7 @@ type EdicaoConfirmacao = {
   emprestimo: boolean;
   cliente_emprestimo_id: string;
   socio_emprestimo_id: string;
+  observacoes: string;
 };
 
 function criarEdicaoConfirmacao(selecionada: SolicitacaoVooInterna): EdicaoConfirmacao {
@@ -72,6 +75,7 @@ function criarEdicaoConfirmacao(selecionada: SolicitacaoVooInterna): EdicaoConfi
     emprestimo: selecionada.voo_emprestado === "sim" || Boolean(selecionada.cliente_emprestimo_id || selecionada.socio_emprestimo_id),
     cliente_emprestimo_id: selecionada.cliente_emprestimo_id || "",
     socio_emprestimo_id: selecionada.socio_emprestimo_id || "",
+    observacoes: selecionada.observacoes || "",
   };
 }
 
@@ -94,9 +98,15 @@ export function DetalhesSolicitacao({
   aoReprovar,
   somenteLeitura = false,
   incorporado = false,
+  escala,
+  disponibilidades,
+  focarMotivoReprovacao = false,
 }: {
   somenteLeitura?: boolean;
   incorporado?: boolean;
+  escala: EscalaAgendamento[];
+  disponibilidades: DisponibilidadeTripulacao[];
+  focarMotivoReprovacao?: boolean;
   acoes: ReactNode;
   mostrarMensagensConfirmacao: boolean;
   selecionada: SolicitacaoVooInterna;
@@ -116,6 +126,7 @@ export function DetalhesSolicitacao({
 }) {
   const [edicao, setEdicao] = useState<EdicaoConfirmacao>(() => criarEdicaoConfirmacao(selecionada));
   const [editandoAgendamento, setEditandoAgendamento] = useState(false);
+  const motivoRef = useRef<HTMLTextAreaElement>(null);
   const [dadosAgendamento, setDadosAgendamento] = useState<AtualizacaoAgendamento>(() => ({
     aeronave_id: selecionada.aeronave_id || "",
     origem: selecionada.origem,
@@ -147,6 +158,24 @@ export function DetalhesSolicitacao({
       observacoes: selecionada.observacoes || "",
     });
   }, [selecionada]);
+
+  const blocosEscala = useMemo(() => montarBlocos(escala.filter((item) => item.id !== selecionada.id), disponibilidades.filter((item) => item.status !== "disponivel"), tripulacao), [escala, disponibilidades, tripulacao, selecionada.id]);
+  const inicioCandidato = useMemo(() => {
+    const data = edicao.data_agendada || selecionada.data_agendada;
+    const horario = edicao.horario ? horarioUtc(data, edicao.horario) : undefined;
+    const voo: EscalaAgendamento = { id: selecionada.id, data_agendada: data, data_fim: edicao.data_fim || data, numero_voo: selecionada.numero_voo, origem: selecionada.origem, destino: selecionada.destino, piloto_id: pilotoId || selecionada.piloto_id || null, piloto_nome: selecionada.piloto_nome || null, copiloto_id: copilotoId || selecionada.copiloto_id || null, copiloto_nome: selecionada.copiloto_nome || null, status: selecionada.status, horario_previsto_agendamento: horario || null };
+    return montarBlocos([voo], [], tripulacao);
+  }, [edicao.data_agendada, edicao.data_fim, edicao.horario, selecionada, pilotoId, copilotoId, tripulacao]);
+  const conflitosTripulacao = useMemo(() => ([
+    { id: pilotoId || selecionada.piloto_id, funcao: "Comandante" },
+    { id: copilotoId || selecionada.copiloto_id, funcao: "Copiloto" },
+  ].filter((tripulante): tripulante is { id: string; funcao: string } => Boolean(tripulante.id)).flatMap(({ id, funcao }) => {
+    const candidato = inicioCandidato.find((bloco) => bloco.tripulanteId === id);
+    return candidato ? [{ id, funcao, nome: tripulacao.find((item) => item.id === id)?.nome_completo || candidato.tripulanteNome, quantidade: conflitosDoTripulante(blocosEscala, id, candidato.inicio, candidato.fim).length }] : [];
+  })), [pilotoId, copilotoId, selecionada.piloto_id, selecionada.copiloto_id, inicioCandidato, blocosEscala, tripulacao]);
+  useEffect(() => {
+    if (focarMotivoReprovacao) motivoRef.current?.focus();
+  }, [focarMotivoReprovacao, selecionada.id]);
 
   const clienteTitularId = selecionada.cliente_id || opcoes.socios.find((s) => s.id === selecionada.socio_id)?.cliente_id;
   const aeronaveDoTitular = Boolean(
@@ -476,8 +505,9 @@ export function DetalhesSolicitacao({
             <Label className="text-xs font-semibold text-foreground">Observações</Label>
             <Textarea
               readOnly={!podeConfirmar}
-              value={selecionada.observacoes || "Sem observações registradas."}
-              placeholder="Observações operacionais..."
+              value={podeConfirmar ? edicao.observacoes : selecionada.observacoes || ""}
+              onChange={(event) => setEdicao((atual) => ({ ...atual, observacoes: event.target.value }))}
+              placeholder="Sem observações registradas."
               className="mt-1.5 min-h-[72px] rounded-lg border-border text-xs text-foreground"
             />
           </div>
@@ -534,17 +564,17 @@ export function DetalhesSolicitacao({
             </div>
 
             {/* Alerta de Conflito de Escala (Box Âmbar do Wireframe) */}
-            <div className="flex items-start gap-2.5 rounded-xl border border-[#f1b950]/40 bg-amber-400/10 p-3 text-xs text-[#935a0d]">
-              <AlertTriangle size={16} className="shrink-0 text-[#d97706] mt-0.5" />
-              <span>
-                Possível conflito de escala — {comandanteNome} já tem 1 compromisso sobreposto neste horário (aviso por toast, não bloqueia).
-              </span>
-            </div>
+            {conflitosTripulacao.filter((item) => item.quantidade > 0).map((item) => <div key={`${item.id}-${item.funcao}`} role="status" className="flex items-start gap-2.5 rounded-xl border border-[var(--app-warning-line)] bg-[var(--app-warning-soft)] p-3 text-xs text-foreground">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0 text-[var(--app-warning)]" />
+              <span>{item.funcao} {item.nome}: {item.quantidade} {item.quantidade === 1 ? "conflito" : "conflitos"} de escala no período selecionado.</span>
+            </div>)}
+            {pilotoId && conflitosTripulacao.length > 0 && conflitosTripulacao.every((item) => item.quantidade === 0) && <div role="status" className="flex items-start gap-2.5 rounded-xl border border-[var(--app-success-line)] bg-[var(--app-success-soft)] p-3 text-xs text-foreground"><Check size={16} className="mt-0.5 shrink-0 text-[var(--app-success)]" /><span>Tripulação livre na escala para este período.</span></div>}
 
             {/* Motivo da Reprovação */}
             <div>
               <Label className="text-xs font-semibold text-foreground">Motivo da reprovação</Label>
               <Textarea
+                ref={motivoRef}
                 value={motivo}
                 onChange={(e) => aoMotivo(e.target.value)}
                 placeholder="Obrigatório apenas ao reprovar..."
@@ -565,7 +595,10 @@ export function DetalhesSolicitacao({
 
               <button
                 type="button"
-                onClick={aoReprovar}
+                onClick={() => {
+                  if (!motivo.trim()) { motivoRef.current?.focus(); return; }
+                  aoReprovar();
+                }}
                 disabled={processando}
                 className="w-full flex h-10 items-center justify-center gap-2 rounded-xl border border-[#bf5260]/40 bg-card font-semibold text-xs text-[#bf5260] transition-colors hover:bg-red-400/10 disabled:opacity-50"
               >
@@ -596,6 +629,7 @@ export function DetalhesSolicitacao({
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Copiloto</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">{selecionada.copiloto_nome || tripulacao.find((t) => t.id === (selecionada.copiloto_id || copilotoId))?.nome_completo || "Não escalado"}</p>
               </div>
+              {selecionada.passageiros?.length ? <div className="border-t border-border pt-3"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Manifesto de passageiros</p><div className="mt-2 flex flex-wrap gap-2">{selecionada.passageiros.map((passageiro, indice) => <span key={`${indice}-${passageiro}`} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs text-foreground">{passageiro}</span>)}</div></div> : null}
               {(selecionada.perna_atual_horario_corte || selecionada.horario_corte) && (
                 <div className="border-t border-border pt-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Último corte registrado · UTC</p>

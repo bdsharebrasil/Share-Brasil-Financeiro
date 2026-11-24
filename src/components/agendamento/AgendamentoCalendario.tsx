@@ -44,7 +44,7 @@ type CalendarioAgendamentoProps = {
 };
 
 export type VisaoEscala = "semanal" | "mensal";
-type FiltroPeriodoAgenda = "Hoje" | "Amanhã" | "Próximos dias" | "Semana";
+type FiltroPeriodoAgenda = "Hoje" | "Amanhã" | "Próximos 7 dias" | "Todos";
 
 const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const nomesDias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
@@ -58,6 +58,15 @@ function formatarHora(valor: string | null | undefined) {
   const texto = String(valor).trim();
   const parte = texto.match(/(?:T|\s|^)(\d{1,2}):(\d{2})/);
   return parte ? `${parte[1].padStart(2, "0")}:${parte[2]}` : texto.slice(0, 5);
+}
+
+function expandirDatasIntervalo(dataAgendada: string, dataFim?: string | null) {
+  const inicio = Date.parse(`${dataAgendada.slice(0, 10)}T00:00:00Z`);
+  const fimInformado = Date.parse(`${(dataFim || dataAgendada).slice(0, 10)}T00:00:00Z`);
+  if (!Number.isFinite(inicio)) return [] as string[];
+  const fim = Number.isFinite(fimInformado) && fimInformado >= inicio ? fimInformado : inicio;
+  const total = Math.min(60, Math.floor((fim - inicio) / 86_400_000) + 1);
+  return Array.from({ length: total }, (_, indice) => new Date(inicio + indice * 86_400_000).toISOString().slice(0, 10));
 }
 
 function formatarData(valor: string | null | undefined) {
@@ -85,40 +94,48 @@ export function CalendarioAgendamento({
   const [modoExibicao, setModoExibicao] = useState<"lista-periodos" | "grade-calendario">("lista-periodos");
   const [periodoFiltro, setPeriodoFiltro] = useState<FiltroPeriodoAgenda>("Hoje");
   const [diaAberto, setDiaAberto] = useState<Date | null>(null);
+  const [matriculaFiltro, setMatriculaFiltro] = useState("todas");
+  const matriculas = [...new Set(aeronaves.map((aeronave) => aeronave.matricula_registro).filter((matricula): matricula is string => Boolean(matricula)))];
 
   const hoje = dataIso(new Date());
   const amanhaDate = new Date();
   amanhaDate.setDate(amanhaDate.getDate() + 1);
   const amanha = dataIso(amanhaDate);
-
-  const semanaFimDate = new Date();
-  semanaFimDate.setDate(semanaFimDate.getDate() + 7);
-  const semanaFim = dataIso(semanaFimDate);
+  const seteDiasDate = new Date();
+  seteDiasDate.setDate(seteDiasDate.getDate() + 7);
+  const seteDias = dataIso(seteDiasDate);
 
   const todosVoos = useMemo(() => {
-    return [...confirmados, ...pendentes];
-  }, [confirmados, pendentes]);
-
-  // Filtro por período conforme imagem de referência
-  const voosDoPeriodo = useMemo(() => {
-    return todosVoos.filter((v) => {
-      const dataVoo = v.data_agendada;
-      if (periodoFiltro === "Hoje") return dataVoo === hoje;
-      if (periodoFiltro === "Amanhã") return dataVoo === amanha;
-      if (periodoFiltro === "Próximos dias") return dataVoo >= amanha && dataVoo <= semanaFim;
-      if (periodoFiltro === "Semana") return dataVoo >= hoje && dataVoo <= semanaFim;
-      return true;
+    const busca = buscaVoo.trim().toLocaleLowerCase("pt-BR");
+    return [...confirmados, ...pendentes].filter((voo) => {
+      if (matriculaFiltro !== "todas" && voo.matricula_registro !== matriculaFiltro) return false;
+      if (!busca) return true;
+      const texto = [voo.numero_voo, voo.matricula_registro, voo.origem, voo.destino, voo.socio_nome, voo.cliente_razao_social, voo.piloto_nome, voo.copiloto_nome].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
+      return texto.includes(busca);
     });
-  }, [todosVoos, periodoFiltro, hoje, amanha, semanaFim]);
+  }, [confirmados, pendentes, matriculaFiltro, buscaVoo]);
 
-  // Mapa de eventos por dia para o calendário tradicional
+  const voosDoPeriodo = useMemo(() => todosVoos.filter((voo) => {
+    const datas = expandirDatasIntervalo(voo.data_agendada, voo.data_fim);
+    if (periodoFiltro === "Hoje") return datas.includes(hoje);
+    if (periodoFiltro === "Amanhã") return datas.includes(amanha);
+    if (periodoFiltro === "Próximos 7 dias") return datas.some((data) => data >= amanha && data <= seteDias);
+    return true;
+  }), [todosVoos, periodoFiltro, hoje, amanha, seteDias]);
+
   const eventosPorDia = useMemo(() => {
     const mapa = new Map<string, SolicitacaoVooInterna[]>();
-    todosVoos.forEach((item) => {
-      mapa.set(item.data_agendada, [...(mapa.get(item.data_agendada) || []), item]);
-    });
+    todosVoos.forEach((item) => expandirDatasIntervalo(item.data_agendada, item.data_fim).forEach((data) => {
+      mapa.set(data, [...(mapa.get(data) || []), item]);
+    }));
     return mapa;
   }, [todosVoos]);
+
+  const posicaoPorVooDia = (item: SolicitacaoVooInterna, dia: string) => {
+    const datas = expandirDatasIntervalo(item.data_agendada, item.data_fim);
+    const diaIndex = datas.indexOf(dia);
+    return { diaIndex: diaIndex + 1, totalDias: datas.length };
+  };
 
   const diasVisao = visao === "semanal"
     ? Array.from({ length: 7 }, (_, i) => new Date(semana.getFullYear(), semana.getMonth(), semana.getDate() + i))
@@ -142,6 +159,13 @@ export function CalendarioAgendamento({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-border bg-secondary/40 p-1" role="group" aria-label="Filtrar por matrícula">
+              <button type="button" aria-pressed={matriculaFiltro === "todas"} onClick={() => setMatriculaFiltro("todas")} className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-[11px] font-semibold ${matriculaFiltro === "todas" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>Todas ({confirmados.length + pendentes.length})</button>
+              {matriculas.map((matricula) => <button key={matricula} type="button" aria-pressed={matriculaFiltro === matricula} onClick={() => setMatriculaFiltro(matricula)} className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-[11px] font-semibold ${matriculaFiltro === matricula ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{matricula}</button>)}
+            </div>
+            <div className="relative"><Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/><Input aria-label="Buscar voo" value={buscaVoo} onChange={(event) => aoMudarBuscaVoo(event.target.value)} placeholder="Buscar voo, rota, cliente ou comandante" className="h-9 w-[min(19rem,75vw)] rounded-lg border-border pl-9 text-xs"/></div>
+          </div>
           {/* Alternador de Modo: Períodos vs Calendário Mensal */}
           <button
             type="button"
@@ -164,7 +188,7 @@ export function CalendarioAgendamento({
           {/* Filtro por Período Segmentado (Hoje, Amanhã, Próximos dias, Semana) */}
           {modoExibicao === "lista-periodos" && (
             <div className="flex items-center gap-1 rounded-xl border border-border bg-secondary p-1 text-xs font-semibold text-muted-foreground">
-              {(["Hoje", "Amanhã", "Próximos dias", "Semana"] as FiltroPeriodoAgenda[]).map((periodo) => (
+              {(["Hoje", "Amanhã", "Próximos 7 dias", "Todos"] as FiltroPeriodoAgenda[]).map((periodo) => (
                 <button
                   key={periodo}
                   type="button"
@@ -367,7 +391,7 @@ export function CalendarioAgendamento({
                         onClick={() => aoAbrir(item)}
                         className="w-full truncate rounded bg-secondary px-1.5 py-0.5 text-left font-mono text-[10px] text-foreground hover:bg-[#3867ed]/15"
                       >
-                        {item.numero_voo || item.origem} · {formatarData(item.data_agendada)} → {item.destino}
+                        {item.numero_voo || item.origem} {posicaoPorVooDia(item, chave).totalDias > 1 ? `[${posicaoPorVooDia(item, chave).diaIndex}/${posicaoPorVooDia(item, chave).totalDias}] ` : ""}· {item.origem} → {item.destino}
                       </button>
                     ))}
                     {eventos.length > 2 && (
@@ -400,7 +424,9 @@ export function CalendarioAgendamento({
           </DialogHeader>
           <div className="mt-4 space-y-2">
             {diaAberto &&
-              (eventosPorDia.get(dataIso(diaAberto)) || []).map((v) => (
+              (eventosPorDia.get(dataIso(diaAberto)) || []).map((v) => {
+                const posicaoDia = posicaoPorVooDia(v, dataIso(diaAberto));
+                return (
                 <button
                   key={v.id}
                   type="button"
@@ -412,7 +438,7 @@ export function CalendarioAgendamento({
                 >
                   <div>
                     <strong className="block text-xs font-bold text-foreground">
-                      {v.numero_voo || "Voo a gerar"} · {formatarData(v.data_agendada)} · {v.origem} → {v.destino}
+                      {v.numero_voo || "Voo a gerar"} {posicaoDia.totalDias > 1 ? `[${posicaoDia.diaIndex}/${posicaoDia.totalDias}] ` : ""}· {formatarData(v.data_agendada)} · {v.origem} → {v.destino}
                     </strong>
                     <span className="text-[11px] text-muted-foreground">
                       {v.socio_nome || v.cliente_razao_social || "Cotista"} · {formatarHora(v.horario_previsto_agendamento)} UTC
@@ -420,7 +446,8 @@ export function CalendarioAgendamento({
                   </div>
                   <ChevronRight size={16} className="text-muted-foreground" />
                 </button>
-              ))}
+                );
+              })}
           </div>
         </DialogContent>
       </Dialog>
@@ -459,6 +486,8 @@ export function Escala({
   }, [semanaInicio]);
 
   const periodoRotulo = `${diasSemana[0].getDate()} – ${diasSemana[6].getDate()} ${nomesMeses[diasSemana[6].getMonth()].slice(0, 3)}`;
+  const navegarSemana = (delta: number) => setSemanaInicio((atual) => new Date(atual.getFullYear(), atual.getMonth(), atual.getDate() + delta * 7));
+  const irParaHoje = () => { const hoje = new Date(); hoje.setDate(hoje.getDate() - ((hoje.getDay() + 6) % 7)); setSemanaInicio(hoje); };
 
   // Exibe somente voos e disponibilidades registrados na API. Ausência de registro permanece vazia.
   const tripulantesComEscala = useMemo(() => tripulacao.map((t) => {
@@ -490,6 +519,11 @@ export function Escala({
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <Button type="button" variant="outline" size="sm" aria-label="Semana anterior" onClick={() => navegarSemana(-1)}><ChevronLeft size={14}/></Button>
+            <Button type="button" variant="outline" size="sm" onClick={irParaHoje}>Hoje</Button>
+            <Button type="button" variant="outline" size="sm" aria-label="Próxima semana" onClick={() => navegarSemana(1)}><ChevronRight size={14}/></Button>
+          </div>
           {/* Legenda Exata da Imagem */}
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -539,8 +573,7 @@ export function Escala({
                   {/* 7 Dias da Semana */}
                   {trip.turnos.map((turno, idx) => (
                     <td key={idx} className="p-2 text-center">
-                      <span
-                        className={`inline-block w-full max-w-[100px] truncate rounded-lg py-1.5 px-1 text-center font-mono text-[11px] font-semibold transition-all ${
+                      {turno.tipo === "voo" ? <button type="button" onClick={() => aoAbrirVoo(turno.vooId!)} title="Abrir detalhes do voo" className={`inline-block w-full max-w-[100px] truncate rounded-lg py-1.5 px-1 text-center font-mono text-[11px] font-semibold transition-all hover:ring-2 hover:ring-primary/30 ${
                           turno.tipo === "voo"
                             ? "border border-[#3867ed]/30 bg-[#3867ed]/10 text-[#3867ed]"
                             : turno.tipo === "vazio"
@@ -549,7 +582,7 @@ export function Escala({
                         }`}
                       >
                         {turno.label}
-                      </span>
+                      </button> : <span className={`inline-block w-full max-w-[100px] truncate rounded-lg py-1.5 px-1 text-center font-mono text-[11px] font-semibold transition-all ${turno.tipo === "vazio" ? "border border-dashed border-border text-muted-foreground bg-transparent" : "border border-amber-500/30 bg-amber-500/10 text-amber-700"}`}>{turno.label}</span>}
                     </td>
                   ))}
 

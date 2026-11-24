@@ -42,9 +42,10 @@ type PropsCronograma = {
   aoMudarVisao: (visao: VisaoCronograma) => void;
   aoAbrir: (item: SolicitacaoVooInterna) => void;
   aoHistorico: (item: SolicitacaoVooInterna) => void;
-  aoConfirmar: (item: SolicitacaoVooInterna) => void;
+  aoConfirmar: (item: SolicitacaoVooInterna, focarMotivo?: boolean) => void;
   aoVoltar: () => void;
   aoChecklist: (item: SolicitacaoVooInterna) => void;
+  aoAbrirPesoBalanceamento: (item: SolicitacaoVooInterna) => void;
   aoJornada: (item: SolicitacaoVooInterna) => void;
   aoFinalizar: (item: SolicitacaoVooInterna) => void;
   aoExcluir: (item: SolicitacaoVooInterna) => void;
@@ -83,6 +84,7 @@ export function Cronograma({
   aoConfirmar,
   aoVoltar,
   aoChecklist,
+  aoAbrirPesoBalanceamento,
   aoJornada,
   aoFinalizar,
   aoExcluir,
@@ -192,6 +194,7 @@ export function Cronograma({
               aoJornada={aoJornada}
               aoFinalizar={aoFinalizar}
               aoExcluir={aoExcluir}
+              aoAbrirPesoBalanceamento={(voo) => aoAbrirPesoBalanceamento(voo)}
             />
           ))}
         </div>
@@ -246,6 +249,7 @@ function LinhaSolicitacao({
   aoJornada,
   aoFinalizar,
   aoExcluir,
+  aoAbrirPesoBalanceamento,
   progressoChecklist,
   checklistAberto,
 }: {
@@ -253,11 +257,12 @@ function LinhaSolicitacao({
   nomesTripulantes: Map<string, string>;
   aoAbrir: (item: SolicitacaoVooInterna) => void;
   aoHistorico: (item: SolicitacaoVooInterna) => void;
-  aoConfirmar: (item: SolicitacaoVooInterna) => void;
+  aoConfirmar: (item: SolicitacaoVooInterna, focarMotivo?: boolean) => void;
   aoChecklist: (item: SolicitacaoVooInterna) => void;
   aoJornada: (item: SolicitacaoVooInterna) => void;
   aoFinalizar: (item: SolicitacaoVooInterna) => void;
   aoExcluir: (item: SolicitacaoVooInterna) => void;
+  aoAbrirPesoBalanceamento: (item: SolicitacaoVooInterna) => void;
   progressoChecklist: number;
   checklistAberto: boolean;
 }) {
@@ -272,7 +277,7 @@ function LinhaSolicitacao({
   const copilotoNome = item.copiloto_nome || (item.copiloto_id ? nomesTripulantes.get(item.copiloto_id) : null);
 
   return (
-    <article className="flex flex-col gap-4 p-5 transition-colors hover:bg-secondary/40 sm:flex-row sm:items-center sm:justify-between">
+    <article role="button" tabIndex={0} onClick={() => aoAbrir(item)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); aoAbrir(item); } }} className="flex cursor-pointer flex-col gap-4 p-5 transition-colors hover:bg-secondary/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary sm:flex-row sm:items-center sm:justify-between">
       {/* Coluna Esquerda: Identificação e Cliente */}
       <div className="min-w-[190px]">
         <span className="font-mono text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
@@ -314,9 +319,9 @@ function LinhaSolicitacao({
       </div>
 
       {/* Coluna Direita: Ações ou Tripulação */}
-      <div className="flex items-center justify-end gap-3">
+      <div className="flex items-center justify-end gap-3" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
         {pendente ? (
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Clock3 size={13} />
               <span>
@@ -325,7 +330,7 @@ function LinhaSolicitacao({
             </div>
             <button
               type="button"
-              onClick={() => aoConfirmar(item)}
+              onClick={() => aoConfirmar(item, true)}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#bf5260]/30 bg-card px-3.5 text-xs font-semibold text-[#bf5260] transition-colors hover:bg-red-400/10"
             >
               <X size={14} /> Recusar
@@ -370,6 +375,7 @@ function LinhaSolicitacao({
 
 export function AcoesDetalhe({
   item,
+  aoAbrirPesoBalanceamento,
   aoChecklist,
   aoJornada,
   aoFinalizar,
@@ -377,6 +383,7 @@ export function AcoesDetalhe({
   checklistAberto,
 }: {
   item: SolicitacaoVooInterna;
+  aoAbrirPesoBalanceamento: (item: SolicitacaoVooInterna) => void;
   aoChecklist: (item: SolicitacaoVooInterna) => void;
   aoJornada: (item: SolicitacaoVooInterna) => void;
   aoFinalizar: (item: SolicitacaoVooInterna) => void;
@@ -394,6 +401,7 @@ export function AcoesDetalhe({
 
   return (
     <div className="mt-4 flex flex-wrap items-center gap-3">
+      {!acoes.historico && status !== "encerrada" && status !== "concluida" && <Button type="button" variant="outline" onClick={() => aoAbrirPesoBalanceamento(item)} className="h-10 gap-2 rounded-lg text-xs font-bold"><Plane size={14}/>Peso &amp; Balanceamento</Button>}
       {acoes.mostrarChecklist && (
         <Button
           type="button"

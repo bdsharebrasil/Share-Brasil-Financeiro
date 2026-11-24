@@ -6,7 +6,6 @@ import {
   BellRing,
   Boxes,
   CalendarClock,
-  ChevronRight,
   ClipboardList,
   Droplet,
   FileCheck2,
@@ -153,55 +152,36 @@ export default function CTM() {
         </div>
       </header>
 
-      <div className="grid items-start gap-4 lg:grid-cols-[214px_minmax(0,1fr)]">
-        <nav aria-label="Seções do CTM" className="rounded-2xl border border-border/70 bg-card p-3 shadow-sm">
-          <label className="block text-sm lg:hidden">
-            <span className="sr-only">Seção do CTM</span>
-            <select
-              value={aba}
-              onChange={(e) => abrir(e.target.value)}
-              className="w-full rounded-xl border border-border bg-background p-2.5 font-medium"
-            >
-              {secoes.map((secao) => (
-                <optgroup key={secao.nome} label={secao.nome}>
-                  {secao.itens.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nome}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </label>
-          <div className="hidden space-y-4 lg:block">
-            {secoes.map((secao) => (
-              <div key={secao.nome}>
-                <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {secao.nome}
-                </p>
+      <div className="space-y-4">
+        <nav aria-label="Seções do CTM" className="rounded-2xl border border-border/70 bg-card p-1.5 shadow-sm">
+          <div role="tablist" className="flex items-center gap-1 overflow-x-auto [scrollbar-width:thin]">
+            {secoes.map((secao, indice) => (
+              <div key={secao.nome} className="flex shrink-0 items-center gap-1">
+                {indice > 0 && <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />}
                 {secao.itens.map(({ id, nome, icon: Icon }) => (
                   <button
                     key={id}
                     type="button"
-                    onClick={() => abrir(id)}
+                    role="tab"
+                    aria-selected={aba === id}
                     aria-current={aba === id ? "page" : undefined}
-                    className="relative mb-0.5 flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-[current=page]:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                    onClick={() => abrir(id)}
+                    className="relative flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-[current=page]:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                   >
                     {aba === id && (
                       <motion.span
                         layoutId="ctm-secao"
                         transition={{ duration: reduzirMovimento ? 0 : 0.2 }}
-                        className="absolute inset-0 rounded-lg border border-primary/20 bg-primary/10"
+                        className="absolute inset-0 rounded-xl border border-primary/20 bg-primary/10"
                       />
                     )}
                     <Icon size={15} className="relative shrink-0" />
-                    <span className="relative flex-1">{nome}</span>
+                    <span className="relative">{nome}</span>
                     {id === "reportes" && !!emAberto && (
                       <span className="relative rounded-md bg-amber-500/15 px-1.5 font-bold text-amber-700 dark:text-amber-300">
                         {emAberto}
                       </span>
                     )}
-                    {aba === id && <ChevronRight size={13} className="relative" />}
                   </button>
                 ))}
               </div>

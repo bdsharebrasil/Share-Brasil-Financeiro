@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Building2, Loader2, Plus, UserRound } from "lucide-react";
+import { Building2, Loader2, Plus, UserRound, X, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { criarDespesa, editarLancamento, emitirReceita, type CategoriaCaixaShare, type FornecedorLancamento } from "@/lib/financeiro-share-api";
+import { anexarDocumentoLancamento, criarDespesa, editarLancamento, emitirReceita, type CategoriaCaixaShare, type FornecedorLancamento } from "@/lib/financeiro-share-api";
+import { buscarOpcoesNotasSaida, enviarAnexoDocumentoSaida, type CategoriaDespesaOpcao } from "@/lib/nfSaidaApi";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
+import { API_BASE } from "@/lib/api";
 import type { Lancamento } from "@/components/financeiro-share/tipos";
 
 export type LancamentoEdicao = {
@@ -25,6 +27,8 @@ export type LancamentoEdicao = {
   fornecedor?: string | null;
   numeroDoc?: string | null;
   observacoes?: string | null;
+  categoriaClienteId?: string | null;
+  anexos?: Array<{ id?: string; nome: string; url: string; tipo?: string | null }>;
 };
 
 type Props = {
@@ -53,6 +57,15 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
   const [fornecedorId, setFornecedorId] = useState("");
   const [numeroDoc, setNumeroDoc] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [categoriaClienteId, setCategoriaClienteId] = useState("");
+  const [categoriasCliente, setCategoriasCliente] = useState<CategoriaDespesaOpcao[]>([]);
+  const [imagens, setImagens] = useState<File[]>([]);
+  const [inputImagemKey, setInputImagemKey] = useState(0);
+
+  useEffect(() => {
+    if (!aberto) return;
+    void buscarOpcoesNotasSaida().then((opcoes) => setCategoriasCliente(opcoes.categoriasDespesa ?? [])).catch(() => setCategoriasCliente([]));
+  }, [aberto]);
 
   useEffect(() => {
     if (somenteDespesa) setFluxo("saida");
@@ -72,6 +85,8 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
     setFornecedor(lancamentoInicial.fornecedor ?? "");
     setNumeroDoc(lancamentoInicial.numeroDoc ?? "");
     setObservacoes(lancamentoInicial.observacoes ?? "");
+    setCategoriaClienteId(lancamentoInicial.categoriaClienteId ?? "");
+    setImagens([]);
     if (lancamentoInicial.grupoCategoria) setGrupoDespesa(lancamentoInicial.grupoCategoria);
   }, [aberto, fluxoInicial, lancamentoInicial]);
 
@@ -88,7 +103,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
   const limpar = () => {
     setFluxo("saida"); setGrupoDespesa("DESPESAS EMPRESA"); setDescricao(""); setCategoriaId(""); setValor("");
     setDataEmissao(new Date().toISOString().slice(0, 10)); setDataVencimento("");
-    setFornecedor(""); setFornecedorId(""); setNumeroDoc(""); setObservacoes("");
+    setFornecedor(""); setFornecedorId(""); setNumeroDoc(""); setObservacoes(""); setCategoriaClienteId(""); setImagens([]);
   };
 
   const salvar = async () => {
@@ -114,14 +129,24 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
         data_vencimento: dataVencimento || null,
         fornecedor_id: fornecedorId || null,
         fornecedor: (fornecedorSelecionado?.nome ?? fornecedor).trim() || null,
+        fornecedor_nome: (fornecedorSelecionado?.nome ?? fornecedor).trim() || null,
         numero_doc: numeroDoc.trim() || null,
         periodicidade: categoria.classificacao,
         observacoes: observacoes.trim() || null,
+        categoria_cliente_id: categoriaClienteId || null,
       };
       const lancamento = editando
         ? await editarLancamento(lancamentoInicial!.id, { ...payload, valor_centavos: Math.round(valorNumerico * 100), data: dataEmissao || null, data_vencimento: dataVencimento || null, categoria_id: categoria.id })
         : await (fluxo === "entrada" ? emitirReceita : criarDespesa)(payload);
-      toast.success(editando ? "Lançamento atualizado." : "Lançamento do caixa Share registrado.");
+      const errosUpload: string[] = [];
+      for (const imagem of imagens) {
+        try {
+          const enviado = await enviarAnexoDocumentoSaida(imagem, imagem.name, { origem: "lancamento", documentoId: lancamento.id });
+          await anexarDocumentoLancamento(lancamento.id, { nome: imagem.name, url: enviado.url, tipo: imagem.type || "image/*" });
+        } catch { errosUpload.push(imagem.name); }
+      }
+      if (errosUpload.length) toast.error(`Lançamento salvo, mas não foi possível anexar: ${errosUpload.join(", ")}. Edite o lançamento para tentar novamente.`);
+      else toast.success(editando ? "Lançamento atualizado." : "Lançamento do caixa Share registrado.");
       aoCriar(lancamento);
       limpar();
       aoFechar();
@@ -206,8 +231,29 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
           </div>
 
           <div className="space-y-2 sm:col-span-2">
+            <Label>Categoria do cliente</Label>
+            <Select value={categoriaClienteId || "nenhuma"} onValueChange={(value) => setCategoriaClienteId(value === "nenhuma" ? "" : value)}>
+              <SelectTrigger><SelectValue placeholder="Selecione uma categoria do cliente (opcional)" /></SelectTrigger>
+              <SelectContent className="max-h-[320px]"><SelectItem value="nenhuma">Sem categoria de cliente</SelectItem>
+                {categoriasCliente.map((item) => <SelectItem key={item.id} value={item.id}>{item.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
             <Label>Documento / NF</Label>
             <Input value={numeroDoc} onChange={(evento) => setNumeroDoc(evento.target.value)} placeholder="Número do documento" />
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Imagens e documentos</Label>
+            {lancamentoInicial?.anexos?.length ? <div className="flex flex-wrap gap-2">{lancamentoInicial.anexos.map((anexo, index) => <a key={anexo.id ?? `${anexo.url}-${index}`} href={anexo.url.startsWith("/") ? `${API_BASE}${anexo.url}` : anexo.url} target="_blank" rel="noreferrer" className="rounded-md border px-2 py-1 text-xs underline">{anexo.nome}</a>)}</div> : null}
+            {imagens.map((arquivo, index) => <div key={`${arquivo.name}-${arquivo.lastModified}-${index}`} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"><span className="truncate">{arquivo.name}</span><Button type="button" variant="ghost" size="icon" aria-label={`Remover ${arquivo.name}`} onClick={() => setImagens((atuais) => atuais.filter((_, i) => i !== index))}><X size={15} /></Button></div>)}
+            <div className="flex items-center gap-2">
+              <input key={inputImagemKey} type="file" accept="image/*" multiple className="sr-only" id="imagens-lancamento" onChange={(evento) => { const novos = Array.from(evento.target.files ?? []); const invalidos = novos.filter((arquivo) => !arquivo.type.startsWith("image/") || arquivo.size > 20 * 1024 * 1024); if (invalidos.length) toast.error("Selecione imagens de até 20 MB cada."); setImagens((atuais) => [...atuais, ...novos.filter((arquivo) => arquivo.type.startsWith("image/") && arquivo.size <= 20 * 1024 * 1024)]); setInputImagemKey((key) => key + 1); }} />
+              <Button type="button" variant="outline" className="gap-2" onClick={() => document.getElementById("imagens-lancamento")?.click()}><ImagePlus size={16} />{imagens.length ? "Adicionar mais imagens" : "Adicionar imagem"}<Plus size={15} /></Button>
+              <span className="text-xs text-muted-foreground">JPG, PNG, WebP etc. · até 20 MB por imagem</span>
+            </div>
           </div>
 
           <div className="space-y-2 sm:col-span-2">

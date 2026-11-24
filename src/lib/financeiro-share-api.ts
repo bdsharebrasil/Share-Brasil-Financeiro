@@ -403,6 +403,7 @@ function normalizarLancamentoCaixa(row: any): Lancamento {
     fornecedor: row.fornecedor ?? row.fornecedor_nome ?? null, fornecedorId: row.fornecedorId ?? row.fornecedor_id ?? row.fornecedores_favoritos_id ?? null,
 
     categoria: String(row.categoria ?? row.categoria_nome ?? "SEM CATEGORIA"), categoriaId: row.categoriaId ?? row.categoria_share_id ?? row.categoria_id ?? null,
+    categoriaClienteId: row.categoriaClienteId ?? row.categoria_cliente_id ?? null,
 
     grupoCategoria: String(row.grupoCategoria ?? row.grupo_categoria ?? ""), tipo: row.tipo ?? row.tipo_despesa ?? null,
 

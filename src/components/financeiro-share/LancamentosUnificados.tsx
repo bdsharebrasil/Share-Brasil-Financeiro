@@ -704,8 +704,10 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       categoria: linha.categoria, grupoCategoria: String(raw.grupoCategoria ?? raw.grupo_categoria ?? "") || null,
       valorCentavos: Math.round(linha.valor * 100), data: linha.dataLancamento, prazo: linha.dataVencimento,
       fornecedorId: String(raw.fornecedorId ?? raw.fornecedor_id ?? raw.fornecedores_favoritos_id ?? "") || null,
-      fornecedor: linha.fornecedor ?? linha.favorecido, numeroDoc: linha.documento,
+      fornecedor: linha.fornecedor ?? linha.favorecido, numeroDoc: String(raw.numeroDoc ?? raw.numero_doc ?? raw.numero_nf ?? linha.documento ?? "") || null,
       observacoes: String(raw.observacoes ?? "") || null,
+      categoriaClienteId: String(raw.categoriaClienteId ?? raw.categoria_cliente_id ?? "") || null,
+      anexos: (() => { const valor = raw.anexos ?? raw.anexos_json; try { const itens = Array.isArray(valor) ? valor : valor ? JSON.parse(String(valor)) : []; return Array.isArray(itens) ? itens.filter((item) => item && item.url).map((item) => ({ id: item.id, nome: String(item.nome ?? "Documento"), url: String(item.url), tipo: item.tipo ?? null })) : []; } catch { return []; } })(),
     });
   }
 

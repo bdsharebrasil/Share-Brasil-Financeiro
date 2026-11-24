@@ -31,6 +31,7 @@ function comoContaAPagar(lancamento: Lancamento): ContaAPagar {
     dataVencimento: lancamento.prazo || "",
     valor: lancamento.valorCentavos / 100,
     categoriaId: lancamento.categoriaId,
+    categoriaClienteId: lancamento.categoriaClienteId ?? null,
     categoriaNome: lancamento.categoria,
     descricao: lancamento.descricao,
     criadoPor: lancamento.criadoPor,
@@ -96,6 +97,8 @@ export function useContasAPagar(filtros: FiltrosContasAPagar = {}): RetornoUseCo
           : conta;
         return {
           ...contaComBanco,
+          categoriaClienteId: conta.categoriaClienteId ?? lancamento?.categoriaClienteId ?? null,
+          anexos: conta.anexos?.length ? conta.anexos : lancamento?.anexos ?? [],
           url_demonstrativo: conta.url_demonstrativo ?? lancamento?.url_demonstrativo ?? null,
           url_nf: conta.url_nf ?? lancamento?.url_nf ?? null,
           url_recibo: conta.url_recibo ?? lancamento?.url_recibo ?? null,

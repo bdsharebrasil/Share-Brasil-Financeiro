@@ -461,8 +461,9 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
 
   const linhas = aba === "cotista" ? linhasEnvio : linhasReembolso;
 
-  function celulaAcoes(linha: LinhaExibida) {
-    return <DropdownMenu open={menuAberto === linha.chave} onOpenChange={(aberto) => setMenuAberto(aberto ? linha.chave : null)} modal={false}>
+  function celulaAcoes(linha: LinhaExibida, apresentacao: "tabela" | "mobile") {
+    const chaveMenu = `${apresentacao}:${linha.chave}`;
+    return <DropdownMenu open={menuAberto === chaveMenu} onOpenChange={(aberto) => setMenuAberto(aberto ? chaveMenu : null)} modal={false}>
       <DropdownMenuTrigger asChild><button type="button" className="nf-icon" aria-label={`Ações de ${linha.secundaria || linha.principal}`}><MoreVertical /></button></DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-44">
         {linha.acoes.map((acao, indice) => <DropdownMenuItem key={indice} disabled={acao.desabilitada} title={acao.titulo} onSelect={acao.aoClicar}>{acao.rotulo}</DropdownMenuItem>)}
@@ -518,7 +519,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
                 <tbody>
                   {linhas.map((linha) => <Fragment key={linha.chave}>
                     <tr className={`erp-linha${linha.expandida ? " erp-linha-aberta" : ""}`}>
-                      <td className="erp-td-acoes"><div className="erp-celula-selecao"><button type="button" className="erp-expandir" aria-expanded={linha.expandida} aria-label={`${linha.expandida ? "Recolher" : "Expandir"} ${linha.secundaria || linha.principal}`} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}</button>{celulaAcoes(linha)}</div></td>
+                      <td className="erp-td-acoes"><div className="erp-celula-selecao"><button type="button" className="erp-expandir" aria-expanded={linha.expandida} aria-label={`${linha.expandida ? "Recolher" : "Expandir"} ${linha.secundaria || linha.principal}`} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}</button>{celulaAcoes(linha, "tabela")}</div></td>
                       <td><span className="erp-documento">{linha.documento}</span><span className="erp-texto-secundario">Emissão {linha.dataEmissao}</span></td>
                       <td>{aba === "cotista" ? linha.cliente : linha.colaborador}</td>
                       <td><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.secundaria || linha.principal}>{linha.secundaria || linha.principal}</strong></div>{linha.secundaria && <span className="erp-texto-secundario">{linha.principal}</span>}</td>
@@ -535,7 +536,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
               {linhas.map((linha) => <article className={`nf-mobile-doc${linha.expandida ? " expanded" : ""}`} key={linha.chave}>
                 <header><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div><StatusSolicitacao status={linha.status} /></header>
                 <dl><div><dt>{aba === "cotista" ? "Cliente" : "Colaborador"}</dt><dd>{aba === "cotista" ? linha.cliente : linha.colaborador}</dd></div><div><dt>Descrição</dt><dd>{linha.secundaria || linha.principal}{linha.secundaria && <small>{linha.principal}</small>}</dd></div><div><dt>Vencimento</dt><dd>{linha.vencimento}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
-                <footer>{celulaAcoes(linha)}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
+                <footer>{celulaAcoes(linha, "mobile")}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
                 {linha.detalhe}
               </article>)}
             </div>

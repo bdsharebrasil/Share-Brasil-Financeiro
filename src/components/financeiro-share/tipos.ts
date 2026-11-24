@@ -34,6 +34,7 @@ export interface Lancamento {
   fornecedorId: string | null; // FK -> fornecedores_favoritos
   categoria: string; // texto livre, usado quando categoriaId é nulo
   categoriaId: string | null; // FK -> categoria_movimentacao_share
+  categoriaClienteId?: string | null;
   grupoCategoria: string;
   tipo: string | null;
   prazo: string | null;
@@ -69,6 +70,7 @@ export interface ContaAPagar {
   dataVencimento: string;
   valor: number;
   categoriaId: string | null;
+  categoriaClienteId?: string | null;
   categoriaNome: string | null;
   descricao: string | null;
   criadoPor: string | null;
@@ -113,6 +115,7 @@ export interface ContaAReceber {
   dataVencimento: string;
   valor: number;
   categoriaId: string | null;
+  categoriaClienteId?: string | null;
   categoriaNome: string | null;
   descricao: string | null;
   criadoPor: string | null;

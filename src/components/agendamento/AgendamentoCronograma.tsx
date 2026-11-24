@@ -3,6 +3,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { calcularProgressoChecklist, obterAcoesAgendamento } from "@/components/agendamento/agendamentoCardFlow";
+import { CLASSE_TOM_STATUS, podeExcluirAgendamento, rotuloStatusAgenda, urgenciaVoo } from "@/components/agendamento/agendamentoFluxo";
+import { hojeBrasilia } from "@/lib/agendamentos-hoje";
 import { cn } from "@/lib/utils";
 import type { SolicitacaoVooInterna } from "@/lib/colaborador-api";
 import {
@@ -42,10 +44,10 @@ type PropsCronograma = {
   aoMudarVisao: (visao: VisaoCronograma) => void;
   aoAbrir: (item: SolicitacaoVooInterna) => void;
   aoHistorico: (item: SolicitacaoVooInterna) => void;
-  aoConfirmar: (item: SolicitacaoVooInterna, focarMotivo?: boolean) => void;
+  aoConfirmar: (item: SolicitacaoVooInterna) => void;
+  aoRecusar: (item: SolicitacaoVooInterna) => void;
   aoVoltar: () => void;
   aoChecklist: (item: SolicitacaoVooInterna) => void;
-  aoAbrirPesoBalanceamento: (item: SolicitacaoVooInterna) => void;
   aoJornada: (item: SolicitacaoVooInterna) => void;
   aoFinalizar: (item: SolicitacaoVooInterna) => void;
   aoExcluir: (item: SolicitacaoVooInterna) => void;
@@ -82,9 +84,9 @@ export function Cronograma({
   aoAbrir,
   aoHistorico,
   aoConfirmar,
+  aoRecusar,
   aoVoltar,
   aoChecklist,
-  aoAbrirPesoBalanceamento,
   aoJornada,
   aoFinalizar,
   aoExcluir,
@@ -190,11 +192,11 @@ export function Cronograma({
               aoAbrir={aoAbrir}
               aoHistorico={aoHistorico}
               aoConfirmar={aoConfirmar}
+              aoRecusar={aoRecusar}
               aoChecklist={aoChecklist}
               aoJornada={aoJornada}
               aoFinalizar={aoFinalizar}
               aoExcluir={aoExcluir}
-              aoAbrirPesoBalanceamento={(voo) => aoAbrirPesoBalanceamento(voo)}
             />
           ))}
         </div>
@@ -245,11 +247,11 @@ function LinhaSolicitacao({
   aoAbrir,
   aoHistorico,
   aoConfirmar,
+  aoRecusar,
   aoChecklist,
   aoJornada,
   aoFinalizar,
   aoExcluir,
-  aoAbrirPesoBalanceamento,
   progressoChecklist,
   checklistAberto,
 }: {
@@ -257,12 +259,12 @@ function LinhaSolicitacao({
   nomesTripulantes: Map<string, string>;
   aoAbrir: (item: SolicitacaoVooInterna) => void;
   aoHistorico: (item: SolicitacaoVooInterna) => void;
-  aoConfirmar: (item: SolicitacaoVooInterna, focarMotivo?: boolean) => void;
+  aoConfirmar: (item: SolicitacaoVooInterna) => void;
+  aoRecusar: (item: SolicitacaoVooInterna) => void;
   aoChecklist: (item: SolicitacaoVooInterna) => void;
   aoJornada: (item: SolicitacaoVooInterna) => void;
   aoFinalizar: (item: SolicitacaoVooInterna) => void;
   aoExcluir: (item: SolicitacaoVooInterna) => void;
-  aoAbrirPesoBalanceamento: (item: SolicitacaoVooInterna) => void;
   progressoChecklist: number;
   checklistAberto: boolean;
 }) {
@@ -272,36 +274,39 @@ function LinhaSolicitacao({
       : item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Cliente não informado";
 
   const pendente = String(item.status || "").trim().toLowerCase() === "pendente";
-  const acoes = obterAcoesAgendamento(item, progressoChecklist, checklistAberto);
   const pilotoNome = item.piloto_nome || (item.piloto_id ? nomesTripulantes.get(item.piloto_id) : null);
   const copilotoNome = item.copiloto_nome || (item.copiloto_id ? nomesTripulantes.get(item.copiloto_id) : null);
+  const { rotulo: rotuloStatus, tom } = rotuloStatusAgenda(item.status);
+  const urgencia = pendente ? urgenciaVoo(item.data_agendada, hojeBrasilia()) : null;
+  const dataCompleta = new Date(`${item.data_agendada}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 
   return (
-    <article role="button" tabIndex={0} onClick={() => aoAbrir(item)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); aoAbrir(item); } }} className="flex cursor-pointer flex-col gap-4 p-5 transition-colors hover:bg-secondary/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary sm:flex-row sm:items-center sm:justify-between">
-      {/* Coluna Esquerda: Identificação e Cliente */}
-      <div className="min-w-[190px]">
-        <span className="font-mono text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
-          {item.numero_voo || (pendente ? `SOL-${item.id.slice(0, 4).toUpperCase()}` : item.matricula_registro || "Voo a definir")} · {new Date(`${item.data_agendada}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}
-        </span>
-        <strong className="mt-0.5 block text-sm font-bold text-foreground">{cliente}</strong>
+    <article className="flex flex-col gap-4 p-5 transition-colors hover:bg-secondary/40 lg:flex-row lg:items-center lg:justify-between">
+      {/* 1) QUEM e QUANDO: identificação, titular, aeronave e situação */}
+      <div className="min-w-[220px] lg:max-w-[300px]">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            {item.numero_voo || (pendente ? `SOL-${item.id.slice(0, 4).toUpperCase()}` : "Voo a definir")} · {dataCompleta}
+          </span>
+          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${CLASSE_TOM_STATUS[tom]}`}>{rotuloStatus}</span>
+        </div>
+        <strong className="mt-1 block truncate text-sm font-bold text-foreground" title={cliente}>{cliente}</strong>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {item.matricula_registro || "Aeronave a definir"} · {item.numero_passageiros || 1} pax
+        </p>
         {item.solicitacao_origem_id && <span className="text-[10px] font-semibold text-primary">Agendamento da mesma operação</span>}
-        {pendente && (
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {formatarData(item.data_agendada)} · {item.numero_passageiros || 1} pax · {item.matricula_registro || "Aeronave a definir"}
-          </p>
-        )}
       </div>
 
-      {/* Coluna Central: Trajeto com Avião */}
-      <div className="flex items-center justify-center gap-4 py-2 sm:py-0">
+      {/* 2) ONDE: rota com horário previsto (UTC) e, quando houver, pouso e corte */}
+      <div className="flex items-center justify-center gap-4 py-2 lg:py-0">
         <div className="text-center">
           <strong className="block font-mono text-sm font-bold text-foreground">
-            {formatarHora(item.horario_previsto_agendamento)}
+            {formatarHora(item.horario_previsto_agendamento)}<small className="ml-0.5 text-[9px] font-semibold text-muted-foreground">UTC</small>
           </strong>
-          <span className="font-mono text-[11px] font-semibold text-muted-foreground uppercase">{item.perna_atual_origem || item.origem}</span>
+          <span className="font-mono text-[11px] font-semibold uppercase text-muted-foreground">{item.perna_atual_origem || item.origem}</span>
         </div>
 
-        <div className="relative flex w-28 items-center justify-center border-t-2 border-dashed border-border sm:w-36">
+        <div className="relative flex w-24 items-center justify-center border-t-2 border-dashed border-border sm:w-32">
           <div className="rounded-full bg-card px-2 text-muted-foreground">
             <Plane size={15} className="rotate-45 text-muted-foreground" />
           </div>
@@ -311,26 +316,25 @@ function LinhaSolicitacao({
           <strong className="block font-mono text-sm font-bold text-foreground">
             {item.perna_atual_horario_pouso ? formatarHora(item.perna_atual_horario_pouso) : "--:--"}
           </strong>
-          <span className="font-mono text-[11px] font-semibold text-muted-foreground uppercase">{item.perna_atual_destino || item.destino}</span>
+          <span className="font-mono text-[11px] font-semibold uppercase text-muted-foreground">{item.perna_atual_destino || item.destino}</span>
           {(item.perna_atual_horario_corte || item.horario_corte) && (
             <span className="mt-0.5 block font-mono text-[10px] text-muted-foreground">COR {formatarHora(item.perna_atual_horario_corte || item.horario_corte)}</span>
           )}
         </div>
       </div>
 
-      {/* Coluna Direita: Ações ou Tripulação */}
-      <div className="flex items-center justify-end gap-3" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+      {/* 3) O QUE FAZER: decidir (pendente) ou abrir (demais) */}
+      <div className="flex items-center justify-end gap-2">
         {pendente ? (
-          <div className="flex flex-wrap items-center gap-3" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock3 size={13} />
-              <span>
-                Prazo <strong className="text-foreground">{formatarData(item.data_agendada)}</strong>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {urgencia && (
+              <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${urgencia.urgente ? CLASSE_TOM_STATUS.vermelho : CLASSE_TOM_STATUS.neutro}`}>
+                {urgencia.rotulo}
               </span>
-            </div>
+            )}
             <button
               type="button"
-              onClick={() => aoConfirmar(item, true)}
+              onClick={() => aoRecusar(item)}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#bf5260]/30 bg-card px-3.5 text-xs font-semibold text-[#bf5260] transition-colors hover:bg-red-400/10"
             >
               <X size={14} /> Recusar
@@ -340,34 +344,41 @@ function LinhaSolicitacao({
               onClick={() => aoConfirmar(item)}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#3867ed] px-4 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#2959df]"
             >
-              <Check size={14} /> Aprovar
+              <Check size={14} /> Analisar e aprovar
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => aoAbrir(item)}
-              className="flex items-center gap-1.5 text-left text-xs transition-colors hover:text-[#3867ed]"
-            >
-              <div className="min-w-0 max-w-[270px] text-left">
-                <span className="block text-[10px] text-muted-foreground">Tripulação</span>
-                <span className="block truncate text-[11px] font-bold text-foreground" title={pilotoNome || "Comandante a definir"}>CMTE · {pilotoNome || "A definir"}</span>
-                <span className="mt-1 block truncate text-[11px] font-semibold text-muted-foreground" title={copilotoNome || "Copiloto não escalado"}>COP· {copilotoNome || "Não escalado"}</span>
-              </div>
-              <ChevronRight size={16} className="text-muted-foreground" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => aoAbrir(item)}
+            aria-label={`Abrir detalhes do voo ${item.numero_voo || ""}`.trim()}
+            className="flex items-center gap-2 rounded-lg border border-transparent px-2 py-1 text-left text-xs transition-colors hover:border-border hover:bg-secondary"
+          >
+            <div className="min-w-0 max-w-[250px] text-left">
+              <span className="block text-[10px] text-muted-foreground">Tripulação</span>
+              <span className="block truncate text-[11px] font-bold text-foreground" title={pilotoNome || "Comandante a definir"}>CMTE · {pilotoNome || "A definir"}</span>
+              <span className="mt-1 block truncate text-[11px] font-semibold text-muted-foreground" title={copilotoNome || "Copiloto não escalado"}>COPI · {copilotoNome || "Não escalado"}</span>
+            </div>
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary">Abrir<ChevronRight size={15} /></span>
+          </button>
         )}
 
-        {!item.solicitacao_origem_id && <button
-          type="button"
-          onClick={() => aoExcluir(item)}
-          title="Excluir agendamento"
-          className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
-        >
-          <Trash2 size={14} />
-        </button>}
+        {/* Ações destrutivas ficam num menu, longe do botão principal. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" aria-label="Mais ações" className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+              <MoreVertical size={16} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => aoAbrir(item)}>Abrir detalhes</DropdownMenuItem>
+            {podeExcluirAgendamento(item) && (
+              <DropdownMenuItem onSelect={() => aoExcluir(item)} className="text-red-600 focus:text-red-700">
+                <Trash2 size={14} className="mr-2" /> Excluir agendamento
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </article>
   );
@@ -375,7 +386,6 @@ function LinhaSolicitacao({
 
 export function AcoesDetalhe({
   item,
-  aoAbrirPesoBalanceamento,
   aoChecklist,
   aoJornada,
   aoFinalizar,
@@ -383,7 +393,6 @@ export function AcoesDetalhe({
   checklistAberto,
 }: {
   item: SolicitacaoVooInterna;
-  aoAbrirPesoBalanceamento: (item: SolicitacaoVooInterna) => void;
   aoChecklist: (item: SolicitacaoVooInterna) => void;
   aoJornada: (item: SolicitacaoVooInterna) => void;
   aoFinalizar: (item: SolicitacaoVooInterna) => void;
@@ -401,7 +410,6 @@ export function AcoesDetalhe({
 
   return (
     <div className="mt-4 flex flex-wrap items-center gap-3">
-      {!acoes.historico && status !== "encerrada" && status !== "concluida" && <Button type="button" variant="outline" onClick={() => aoAbrirPesoBalanceamento(item)} className="h-10 gap-2 rounded-lg text-xs font-bold"><Plane size={14}/>Peso &amp; Balanceamento</Button>}
       {acoes.mostrarChecklist && (
         <Button
           type="button"

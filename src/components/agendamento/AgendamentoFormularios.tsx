@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Calendar as CalendarIcon, Check, Plane, Plus, Search, Users, X, ArrowLeftRight } from "lucide-react";
+import { Calendar as CalendarIcon, Check, Plane, Plus, Search, Users, X } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { DayPicker, type DateRange } from "react-day-picker";
 
@@ -18,7 +18,17 @@ function dataIso(data: Date) {
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
 }
 
+/** O sistema trabalha em UTC, mas quem agenda pensa em Brasília: mostramos os dois. */
+function horaBrasilia(data: string, hora?: string) {
+  if (!data || !hora) return "";
+  const instante = new Date(`${data}T${hora}:00Z`);
+  if (!Number.isFinite(instante.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(instante);
+}
+
 export type FormularioAgendamentoProps = {
+  /** Quando exibido dentro de um modal: sem borda/sombra própria e sem botão de fechar duplicado. */
+  emDialogo?: boolean;
   novo: NovoAgendamento;
   opcoes: OpcoesAgendamentoResponse;
   titulares: { id: string; label: string }[];
@@ -31,7 +41,7 @@ export type FormularioAgendamentoProps = {
   aoEnviar: (event: FormEvent<HTMLFormElement>) => void;
 };
 
-export function FormularioAgendamento({ novo, opcoes, titulares, aerodromos, aerodromosCarregando, tripulacao, atualizando, atualizar, aoCancelar, aoEnviar }: FormularioAgendamentoProps) {
+export function FormularioAgendamento({ emDialogo = false, novo, opcoes, titulares, aerodromos, aerodromosCarregando, tripulacao, atualizando, atualizar, aoCancelar, aoEnviar }: FormularioAgendamentoProps) {
   const aeronavesAtivas = opcoes.aeronaves.filter((aeronave) => ["ativa", "ativo", "active"].includes(String(aeronave.status || "").trim().toLowerCase()));
   const aeronaveSelecionada = aeronavesAtivas.find((aeronave) => aeronave.id === novo.aeronave_id);
   const titularSelecionado = novo.cliente_id ? `cliente:${novo.cliente_id}` : novo.socio_id ? `socio:${novo.socio_id}` : "";
@@ -100,34 +110,34 @@ export function FormularioAgendamento({ novo, opcoes, titulares, aerodromos, aer
   const aeronaveItems = aeronavesAtivas.map((item) => ({ id: item.id, label: `${item.matricula_registro} · ${[item.fabricante, item.modelo].filter(Boolean).join(" ")}` }));
 
   return (
-    <section className="agendamento-form overflow-visible rounded-2xl border border-primary/25 bg-card shadow-xl shadow-black/5">
-      <CabecalhoSecao icon={<Plus size={15} />} title="Novo agendamento" detail="O número do voo será gerado somente após a confirmação" action={<button type="button" onClick={aoCancelar} aria-label="Fechar novo agendamento" className="rounded-md p-1 text-muted-foreground hover:bg-secondary"><X size={16} /></button>} />
-      <form onSubmit={aoEnviar} className="grid grid-cols-1 gap-4 p-4 sm:gap-5 sm:p-6">
-        <fieldset className="grid grid-cols-1 gap-3 rounded-xl border border-border p-3 sm:grid-cols-2">
-          <legend className="px-1 text-xs font-semibold text-foreground">Titular &amp; Aeronave</legend>
-          <div className="space-y-1.5"><Label className="text-[10px]">Cliente / sócio</Label><SearchableCombobox items={titulares} value={titularSelecionado} onChange={mudarTitular} placeholder="Selecione o cliente ou sócio" searchPlaceholder="Digite para buscar cliente ou sócio" emptyMessage="Nenhum cliente ou sócio encontrado." icon={<Users size={14} />} /></div>
-          <div className="space-y-1.5"><Label className="text-[10px]">Aeronave</Label><SearchableCombobox items={aeronaveItems} value={novo.aeronave_id} onChange={selecionarAeronave} placeholder={titularSelecionado ? "Selecione a aeronave" : "Selecione o titular ao lado primeiro"} searchPlaceholder="Digite matrícula, fabricante ou modelo" emptyMessage="Nenhuma aeronave ativa encontrada." icon={<Plane size={14} />} disabled={!titularSelecionado} />{!titularSelecionado && <p className="text-[10px] text-muted-foreground">Selecione o titular ao lado primeiro.</p>}</div>
-          {aeronaveEmprestada && <div className="space-y-3 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3 sm:col-span-2"><div><p className="text-[10px] font-bold">Essa aeronave não está vinculada ao titular selecionado. Esse voo é emprestado?</p><p className="mt-1 text-[9px] text-muted-foreground">Confirme para registrar quem está cedendo a aeronave neste agendamento.</p></div><div className="flex flex-wrap gap-2"><Button type="button" variant={novo.voo_emprestimo_confirmado === true ? "default" : "outline"} onClick={() => atualizar("voo_emprestimo_confirmado", true)} className="h-8 text-[10px]">Sim, é emprestado</Button><Button type="button" variant={novo.voo_emprestimo_confirmado === false ? "default" : "outline"} onClick={() => { atualizar("voo_emprestimo_confirmado", false); atualizar("cliente_emprestimo_id", undefined); atualizar("socio_emprestimo_id", undefined); atualizar("aeronave_id", ""); }} className="h-8 text-[10px]">Não</Button></div>{novo.voo_emprestimo_confirmado === true && <div className="space-y-1.5"><Label className="text-[10px]">Cliente ou sócio que está emprestando</Label><SearchableCombobox items={cedentes.filter((item) => item.id !== titularSelecionado)} value={novo.cliente_emprestimo_id ? `cliente:${novo.cliente_emprestimo_id}` : novo.socio_emprestimo_id ? `socio:${novo.socio_emprestimo_id}` : ""} onChange={selecionarCedente} placeholder="Selecione quem está emprestando" searchPlaceholder="Digite o nome do cedente" emptyMessage="Nenhum cotista vinculado a esta aeronave." icon={<Users size={14} />} /></div>}</div>}
-        </fieldset>
-        <fieldset className="grid grid-cols-1 gap-3 rounded-xl border border-border p-3 sm:grid-cols-2 xl:grid-cols-4">
-          <legend className="px-1 text-xs font-semibold text-foreground">Rota &amp; Período</legend>
-          <div className="space-y-1.5"><Label className="text-[10px]">Origem</Label><SearchableCombobox items={aerodromoItems} value={novo.origem} onChange={(value) => atualizar("origem", value)} placeholder={aerodromosCarregando ? "Carregando aeródromos..." : "Selecione o aeródromo"} searchPlaceholder="Buscar ICAO, nome ou cidade" emptyMessage="Nenhum aeródromo encontrado." icon={<Search size={14} />} disabled={aerodromosCarregando} /></div>
-          <div className="flex items-end justify-center"><Button type="button" variant="outline" onClick={() => { const origem = novo.origem; atualizar("origem", novo.destino); atualizar("destino", origem); }} className="h-10 gap-2 text-xs" aria-label="Inverter origem e destino"><ArrowLeftRight size={14}/>⇄ Inverter</Button></div>
-          <div className="space-y-1.5"><Label className="text-[10px]">Destino</Label><SearchableCombobox items={aerodromoItems} value={novo.destino} onChange={(value) => atualizar("destino", value)} placeholder={aerodromosCarregando ? "Carregando aeródromos..." : "Selecione o aeródromo"} searchPlaceholder="Buscar ICAO, nome ou cidade" emptyMessage="Nenhum aeródromo encontrado." icon={<Search size={14} />} disabled={aerodromosCarregando} /></div>
-          <div className="xl:col-span-2"><PeriodoAgendamento inicio={novo.data_agendada} fim={novo.data_fim} aoAlterarInicio={(valor) => atualizar("data_agendada", valor)} aoAlterarFim={(valor) => atualizar("data_fim", valor)} /></div>
-          <div className="space-y-1.5"><Label htmlFor="hora-agendamento" className="text-[10px]">Horário previsto (UTC)</Label><Input id="hora-agendamento" type="time" value={novo.horario_previsto_agendamento || ""} onChange={(event) => atualizar("horario_previsto_agendamento", event.target.value)} required className="h-10 text-xs" /></div>
-        </fieldset>
-        <fieldset className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-secondary/20 p-3 sm:grid-cols-2">
-          <legend className="px-1 text-xs font-semibold text-foreground">Manifesto de Passageiros</legend>
-          <div className="space-y-1.5"><Label htmlFor="passageiros-agendamento" className="text-[10px]">Quantidade de passageiros</Label><Input id="passageiros-agendamento" type="number" min={1} max={50} step={1} value={novo.numero_passageiros ?? 1} onChange={(event) => alterarQuantidadePassageiros(Number(event.target.value))} className="h-10 text-xs" /></div>
-          {nomesPassageiros.map((nome, indice) => <div key={indice} className="space-y-1.5"><Label htmlFor={`nome-passageiro-${indice}`} className="text-[10px]">Nome completo do passageiro {indice + 1}</Label><Input id={`nome-passageiro-${indice}`} value={nome} onChange={(event) => alterarNomePassageiro(indice, event.target.value)} autoComplete="name" minLength={3} maxLength={120} required className="h-10 text-xs" placeholder="Nome e sobrenome" /></div>)}
-        </fieldset>
-        <fieldset className="grid grid-cols-1 gap-3 rounded-xl border border-border p-3 sm:grid-cols-2">
-          <legend className="px-1 text-xs font-semibold text-foreground">Tripulação &amp; Observações</legend>
-          <div className="space-y-1.5"><Label className="text-[10px]">Comandante</Label><p className="mb-1 text-[10px] text-muted-foreground">Ao selecionar o comandante, o voo é confirmado imediatamente. Sem comandante, o agendamento fica como solicitação pendente.</p><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={novo.piloto_id || ""} onChange={(value) => atualizar("piloto_id", value)} placeholder="Definir depois" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>
-          <div className="space-y-1.5"><Label className="text-[10px]">SIC (segundo em comando) <span className="text-muted-foreground">(opcional)</span></Label><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac}` }))} value={novo.copiloto_id || ""} onChange={(value) => atualizar("copiloto_id", value)} placeholder="Sem copiloto" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>
-          <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="observacoes-agendamento" className="text-[10px]">Observações</Label><Textarea id="observacoes-agendamento" value={novo.observacoes || ""} onChange={(event) => atualizar("observacoes", event.target.value)} placeholder="Informações da trip, passageiros ou operação" className="min-h-16 text-xs" /></div>
-        </fieldset>
+    <section className={emDialogo ? "agendamento-form overflow-visible" : "agendamento-form overflow-visible rounded-2xl border border-primary/25 bg-card shadow-xl shadow-black/5"}>
+      <CabecalhoSecao icon={<Plus size={15} />} title="Novo agendamento" detail="O número do voo é gerado somente após a confirmação" action={emDialogo ? undefined : <button type="button" onClick={aoCancelar} aria-label="Fechar novo agendamento" className="rounded-md p-1 text-muted-foreground hover:bg-secondary"><X size={16} /></button>} />
+      <form onSubmit={aoEnviar} className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 sm:gap-5 sm:p-6 xl:grid-cols-4">
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label className="text-[10px]">Cliente / sócio</Label>
+          <SearchableCombobox items={titulares} value={titularSelecionado} onChange={mudarTitular} placeholder="Selecione o cliente ou sócio" searchPlaceholder="Digite para buscar cliente ou sócio" emptyMessage="Nenhum cliente ou sócio encontrado." icon={<Users size={14} />} />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label className="text-[10px]">Aeronave</Label>
+          <SearchableCombobox items={aeronaveItems} value={novo.aeronave_id} onChange={selecionarAeronave} placeholder={titularSelecionado ? "Selecione a aeronave" : "Escolha primeiro o cliente ou sócio"} searchPlaceholder="Digite matrícula, fabricante ou modelo" emptyMessage="Nenhuma aeronave ativa encontrada." icon={<Plane size={14} />} disabled={!titularSelecionado} />
+        </div>
+        {aeronaveEmprestada && <div className="space-y-3 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3 sm:col-span-2 xl:col-span-4">
+          <div><p className="text-[10px] font-bold">Essa aeronave não está vinculada ao titular selecionado. Esse voo é emprestado?</p><p className="mt-1 text-[9px] text-muted-foreground">Confirme para registrar quem está cedendo a aeronave neste agendamento.</p></div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant={novo.voo_emprestimo_confirmado === true ? "default" : "outline"} onClick={() => atualizar("voo_emprestimo_confirmado", true)} className="h-8 text-[10px]">Sim, é emprestado</Button>
+            <Button type="button" variant={novo.voo_emprestimo_confirmado === false ? "default" : "outline"} onClick={() => { atualizar("voo_emprestimo_confirmado", false); atualizar("cliente_emprestimo_id", undefined); atualizar("socio_emprestimo_id", undefined); atualizar("aeronave_id", ""); }} className="h-8 text-[10px]">Não</Button>
+          </div>
+          {novo.voo_emprestimo_confirmado === true && <div className="space-y-1.5"><Label className="text-[10px]">Cliente ou sócio que está emprestando</Label><SearchableCombobox items={cedentes.filter((item) => item.id !== titularSelecionado)} value={novo.cliente_emprestimo_id ? `cliente:${novo.cliente_emprestimo_id}` : novo.socio_emprestimo_id ? `socio:${novo.socio_emprestimo_id}` : ""} onChange={selecionarCedente} placeholder="Selecione quem está emprestando" searchPlaceholder="Digite o nome do cedente" emptyMessage="Nenhum cotista vinculado a esta aeronave." icon={<Users size={14} />} /></div>}
+        </div>}
+        <div className="space-y-1.5"><Label className="text-[10px]">Origem</Label><SearchableCombobox items={aerodromoItems} value={novo.origem} onChange={(value) => atualizar("origem", value)} placeholder={aerodromosCarregando ? "Carregando aeródromos..." : "Selecione o aeródromo"} searchPlaceholder="Buscar ICAO, nome ou cidade" emptyMessage="Nenhum aeródromo encontrado." icon={<Search size={14} />} disabled={aerodromosCarregando} /></div>
+        <div className="space-y-1.5"><Label className="text-[10px]">Destino</Label><SearchableCombobox items={aerodromoItems} value={novo.destino} onChange={(value) => atualizar("destino", value)} placeholder={aerodromosCarregando ? "Carregando aeródromos..." : "Selecione o aeródromo"} searchPlaceholder="Buscar ICAO, nome ou cidade" emptyMessage="Nenhum aeródromo encontrado." icon={<Search size={14} />} disabled={aerodromosCarregando} /></div>
+        <PeriodoAgendamento inicio={novo.data_agendada} fim={novo.data_fim} aoAlterarInicio={(valor) => atualizar("data_agendada", valor)} aoAlterarFim={(valor) => atualizar("data_fim", valor)} />
+        <div className="space-y-1.5"><Label htmlFor="hora-agendamento" className="text-[10px]">Horário previsto (UTC)</Label><Input id="hora-agendamento" type="time" value={novo.horario_previsto_agendamento || ""} onChange={(event) => atualizar("horario_previsto_agendamento", event.target.value)} required className="h-10 text-xs" />{novo.horario_previsto_agendamento && <p className="text-[10px] text-muted-foreground">Em Brasília: <strong className="text-foreground">{horaBrasilia(novo.data_agendada, novo.horario_previsto_agendamento)}</strong></p>}</div>
+        <div className="space-y-1.5"><Label htmlFor="passageiros-agendamento" className="text-[10px]">Passageiros</Label><Input id="passageiros-agendamento" type="number" min={1} max={50} step={1} value={novo.numero_passageiros ?? 1} onChange={(event) => alterarQuantidadePassageiros(Number(event.target.value))} className="h-10 text-xs" /></div>
+        {nomesPassageiros.map((nome, indice) => <div key={indice} className="space-y-1.5"><Label htmlFor={`nome-passageiro-${indice}`} className="text-[10px]">Nome completo do passageiro {indice + 1}</Label><Input id={`nome-passageiro-${indice}`} value={nome} onChange={(event) => alterarNomePassageiro(indice, event.target.value)} autoComplete="name" minLength={3} maxLength={120} required className="h-10 text-xs" placeholder="Nome e sobrenome" /></div>)}
+        <div className="space-y-1.5 sm:col-span-2"><Label className="text-[10px]">Comandante</Label><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={novo.piloto_id || ""} onChange={(value) => atualizar("piloto_id", value)} placeholder="Definir depois" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>
+        <div className="space-y-1.5 sm:col-span-2"><Label className="text-[10px]">SIC (segundo em comando) <span className="text-muted-foreground">(opcional)</span></Label><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac}` }))} value={novo.copiloto_id || ""} onChange={(value) => atualizar("copiloto_id", value)} placeholder="Sem copiloto" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>
+        <div className="space-y-1.5 sm:col-span-2 xl:col-span-4"><Label htmlFor="observacoes-agendamento" className="text-[10px]">Observações</Label><Textarea id="observacoes-agendamento" value={novo.observacoes || ""} onChange={(event) => atualizar("observacoes", event.target.value)} placeholder="Informações da trip, passageiros ou operação" className="min-h-16 text-xs" /></div>
         <div className="sticky bottom-0 -mx-4 flex flex-col-reverse gap-2 border-t border-border/70 bg-card/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:flex-row sm:justify-end sm:bg-transparent sm:px-0 sm:pb-0 xl:col-span-4"><Button type="button" variant="outline" onClick={aoCancelar} className="h-11 w-full rounded-xl text-xs sm:w-auto">Cancelar</Button><Button type="submit" disabled={atualizando} className="h-11 w-full gap-2 rounded-xl text-xs sm:w-auto">{atualizando ? "Salvando..." : "Salvar agendamento"}<Check size={14} /></Button></div>
       </form>
     </section>
@@ -182,6 +192,7 @@ export type DadosDisponibilidade = {
 };
 
 type FormularioDisponibilidadeProps = {
+  emDialogo?: boolean;
   dados: DadosDisponibilidade;
   tripulacao: TripulanteAgendamento[];
   atualizando: boolean;
@@ -190,8 +201,8 @@ type FormularioDisponibilidadeProps = {
   aoAlterar: (campo: keyof DadosDisponibilidade, valor: string) => void;
 };
 
-export function FormularioDisponibilidade({ dados, tripulacao, atualizando, aoCancelar, aoEnviar, aoAlterar }: FormularioDisponibilidadeProps) {
-  return <section className="agendamento-form overflow-visible rounded-2xl border border-primary/25 bg-card shadow-xl shadow-black/5">
+export function FormularioDisponibilidade({ emDialogo = false, dados, tripulacao, atualizando, aoCancelar, aoEnviar, aoAlterar }: FormularioDisponibilidadeProps) {
+  return <section className={emDialogo ? "agendamento-form overflow-visible" : "agendamento-form overflow-visible rounded-2xl border border-primary/25 bg-card shadow-xl shadow-black/5"}>
     <CabecalhoSecao icon={<Users size={15} />} title="Criar escala" detail="Selecione o tripulante, período e status da escala" action={<button type="button" onClick={aoCancelar} aria-label="Fechar formulário de disponibilidade" className="rounded-md p-1 text-muted-foreground hover:bg-secondary"><X size={16} /></button>} />
     <form onSubmit={aoEnviar} className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 sm:gap-5 sm:p-6 xl:grid-cols-4">
       <div className="space-y-1.5 xl:col-span-2"><Label className="text-[10px]">Tripulante</Label><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={dados.tripulante_id} onChange={(valor) => aoAlterar("tripulante_id", valor)} placeholder="Selecione o piloto" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>

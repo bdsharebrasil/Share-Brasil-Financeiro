@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, Check, ChevronLeft, Copy, Pencil, Plane, Users, X } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, ChevronLeft, Copy, Pencil, Plane, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   type AlteracoesAgendamentoConfirmacao,
   type AtualizacaoAgendamento,
+  type DisponibilidadeTripulacao,
+  type EscalaAgendamento,
   type OpcoesAgendamentoResponse,
   type SolicitacaoVooInterna,
   type TripulanteAgendamento,
@@ -15,7 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { conflitosDoTripulante, montarBlocos } from "@/lib/escala-tempo";
-import type { DisponibilidadeTripulacao, EscalaAgendamento } from "@/lib/colaborador-api";
+import { edicaoEstruturalPermitida, pendenciasParaAprovar } from "@/components/agendamento/agendamentoFluxo";
 
 function dataIso(data: Date) {
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
@@ -62,7 +64,6 @@ type EdicaoConfirmacao = {
   emprestimo: boolean;
   cliente_emprestimo_id: string;
   socio_emprestimo_id: string;
-  observacoes: string;
 };
 
 function criarEdicaoConfirmacao(selecionada: SolicitacaoVooInterna): EdicaoConfirmacao {
@@ -75,7 +76,6 @@ function criarEdicaoConfirmacao(selecionada: SolicitacaoVooInterna): EdicaoConfi
     emprestimo: selecionada.voo_emprestado === "sim" || Boolean(selecionada.cliente_emprestimo_id || selecionada.socio_emprestimo_id),
     cliente_emprestimo_id: selecionada.cliente_emprestimo_id || "",
     socio_emprestimo_id: selecionada.socio_emprestimo_id || "",
-    observacoes: selecionada.observacoes || "",
   };
 }
 
@@ -96,17 +96,18 @@ export function DetalhesSolicitacao({
   aoMotivo,
   aoAprovar,
   aoReprovar,
+  escala = [],
+  disponibilidades = [],
+  iniciarRecusa = false,
   somenteLeitura = false,
   incorporado = false,
-  escala,
-  disponibilidades,
-  focarMotivoReprovacao = false,
 }: {
+  escala?: EscalaAgendamento[];
+  disponibilidades?: DisponibilidadeTripulacao[];
+  /** Abre direto o bloco de recusa (vindo do botão "Recusar" da lista). */
+  iniciarRecusa?: boolean;
   somenteLeitura?: boolean;
   incorporado?: boolean;
-  escala: EscalaAgendamento[];
-  disponibilidades: DisponibilidadeTripulacao[];
-  focarMotivoReprovacao?: boolean;
   acoes: ReactNode;
   mostrarMensagensConfirmacao: boolean;
   selecionada: SolicitacaoVooInterna;
@@ -126,6 +127,7 @@ export function DetalhesSolicitacao({
 }) {
   const [edicao, setEdicao] = useState<EdicaoConfirmacao>(() => criarEdicaoConfirmacao(selecionada));
   const [editandoAgendamento, setEditandoAgendamento] = useState(false);
+  const [recusando, setRecusando] = useState(iniciarRecusa);
   const motivoRef = useRef<HTMLTextAreaElement>(null);
   const [dadosAgendamento, setDadosAgendamento] = useState<AtualizacaoAgendamento>(() => ({
     aeronave_id: selecionada.aeronave_id || "",
@@ -135,15 +137,17 @@ export function DetalhesSolicitacao({
     data_fim: selecionada.data_fim || selecionada.data_agendada,
     horario_previsto_agendamento: horaParaCampo(selecionada.horario_previsto_agendamento),
     numero_passageiros: Number(selecionada.numero_passageiros) || 1,
-      passageiros: selecionada.passageiros || [],
     piloto_id: selecionada.piloto_id || "",
     copiloto_id: selecionada.copiloto_id || "",
     observacoes: selecionada.observacoes || "",
   }));
 
+  // Só recarrega o formulário quando o voo mudou de verdade. Um refresh silencioso da lista
+  // (polling, retorno de uma ação) não pode fechar a edição que o usuário está digitando.
   useEffect(() => {
     setEdicao(criarEdicaoConfirmacao(selecionada));
     setEditandoAgendamento(false);
+    setRecusando(iniciarRecusa);
     setDadosAgendamento({
       aeronave_id: selecionada.aeronave_id || "",
       origem: selecionada.origem,
@@ -152,30 +156,16 @@ export function DetalhesSolicitacao({
       data_fim: selecionada.data_fim || selecionada.data_agendada,
       horario_previsto_agendamento: horaParaCampo(selecionada.horario_previsto_agendamento),
       numero_passageiros: Number(selecionada.numero_passageiros) || 1,
-      passageiros: selecionada.passageiros || [],
       piloto_id: selecionada.piloto_id || "",
       copiloto_id: selecionada.copiloto_id || "",
       observacoes: selecionada.observacoes || "",
     });
-  }, [selecionada]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selecionada.id, selecionada.atualizado_em, selecionada.status, iniciarRecusa]);
 
-  const blocosEscala = useMemo(() => montarBlocos(escala.filter((item) => item.id !== selecionada.id), disponibilidades.filter((item) => item.status !== "disponivel"), tripulacao), [escala, disponibilidades, tripulacao, selecionada.id]);
-  const inicioCandidato = useMemo(() => {
-    const data = edicao.data_agendada || selecionada.data_agendada;
-    const horario = edicao.horario ? horarioUtc(data, edicao.horario) : undefined;
-    const voo: EscalaAgendamento = { id: selecionada.id, data_agendada: data, data_fim: edicao.data_fim || data, numero_voo: selecionada.numero_voo, origem: selecionada.origem, destino: selecionada.destino, piloto_id: pilotoId || selecionada.piloto_id || null, piloto_nome: selecionada.piloto_nome || null, copiloto_id: copilotoId || selecionada.copiloto_id || null, copiloto_nome: selecionada.copiloto_nome || null, status: selecionada.status, horario_previsto_agendamento: horario || null };
-    return montarBlocos([voo], [], tripulacao);
-  }, [edicao.data_agendada, edicao.data_fim, edicao.horario, selecionada, pilotoId, copilotoId, tripulacao]);
-  const conflitosTripulacao = useMemo(() => ([
-    { id: pilotoId || selecionada.piloto_id, funcao: "Comandante" },
-    { id: copilotoId || selecionada.copiloto_id, funcao: "Copiloto" },
-  ].filter((tripulante): tripulante is { id: string; funcao: string } => Boolean(tripulante.id)).flatMap(({ id, funcao }) => {
-    const candidato = inicioCandidato.find((bloco) => bloco.tripulanteId === id);
-    return candidato ? [{ id, funcao, nome: tripulacao.find((item) => item.id === id)?.nome_completo || candidato.tripulanteNome, quantidade: conflitosDoTripulante(blocosEscala, id, candidato.inicio, candidato.fim).length }] : [];
-  })), [pilotoId, copilotoId, selecionada.piloto_id, selecionada.copiloto_id, inicioCandidato, blocosEscala, tripulacao]);
   useEffect(() => {
-    if (focarMotivoReprovacao) motivoRef.current?.focus();
-  }, [focarMotivoReprovacao, selecionada.id]);
+    if (recusando) motivoRef.current?.focus();
+  }, [recusando]);
 
   const clienteTitularId = selecionada.cliente_id || opcoes.socios.find((s) => s.id === selecionada.socio_id)?.cliente_id;
   const aeronaveDoTitular = Boolean(
@@ -266,6 +256,32 @@ export function DetalhesSolicitacao({
       (aeronaveDoTitular || edicao.emprestimo)
   );
 
+  // Conflito REAL de escala para a tripulação escolhida, no horário que será aprovado.
+  const blocosEscala = useMemo(
+    () => montarBlocos(escala.filter((voo) => voo.id !== selecionada.id), disponibilidades, tripulacao),
+    [escala, disponibilidades, tripulacao, selecionada.id],
+  );
+  const janelaVoo = useMemo(() => {
+    const [bloco] = montarBlocos([{
+      id: selecionada.id, data_agendada: edicao.data_agendada, data_fim: edicao.data_fim || edicao.data_agendada, numero_voo: null,
+      origem: selecionada.origem, destino: selecionada.destino,
+      horario_previsto_agendamento: edicao.horario ? horarioUtc(edicao.data_agendada, edicao.horario) || null : null,
+      piloto_id: "janela", piloto_nome: null, copiloto_id: null, copiloto_nome: null, status: "aprovada",
+    }], [], []);
+    return bloco ? { inicio: bloco.inicio, fim: bloco.fim } : null;
+  }, [edicao.data_agendada, edicao.data_fim, edicao.horario, selecionada.id, selecionada.origem, selecionada.destino]);
+  const conflitosDe = (tripulanteId: string) => (tripulanteId && janelaVoo ? conflitosDoTripulante(blocosEscala, tripulanteId, janelaVoo.inicio, janelaVoo.fim) : []);
+  const nomeTripulante = (id: string) => tripulacao.find((t) => t.id === id)?.nome_completo || "Tripulante";
+  const conflitosEscolhidos = [pilotoId, copilotoId].filter(Boolean).flatMap((id) => conflitosDe(id).map((bloco) => ({ nome: nomeTripulante(id), bloco })));
+  const rotuloTripulante = (item: TripulanteAgendamento) => `${item.nome_completo} · CANAC ${item.canac}${conflitosDe(item.id).length ? " · conflito de escala" : ""}`;
+  const pendenciasAprovacao = pendenciasParaAprovar({
+    pilotoId,
+    aeronaveId: edicao.aeronave_id,
+    datasValidas: /^\d{4}-\d{2}-\d{2}$/.test(edicao.data_agendada) && /^\d{4}-\d{2}-\d{2}$/.test(edicao.data_fim) && edicao.data_fim >= edicao.data_agendada,
+    passageirosValidos: Number.isInteger(edicao.numero_passageiros) && edicao.numero_passageiros >= 1,
+    emprestimoInformado: !edicao.aeronave_id || (emprestimoValido && (aeronaveDoTitular || edicao.emprestimo)),
+  });
+
   const confirmar = () =>
     aoAprovar({
       aeronave_id: edicao.aeronave_id,
@@ -286,6 +302,7 @@ export function DetalhesSolicitacao({
   const statusPendente = !somenteLeitura && String(selecionada.status || "").trim().toLowerCase() === "pendente";
   // Detalhes de um voo já numerado não podem oferecer uma segunda confirmação.
   const podeConfirmar = statusPendente && !selecionada.numero_voo;
+  const estrutural = edicaoEstruturalPermitida(selecionada.status);
   const podeEditar = !somenteLeitura && !["encerrada", "concluida", "cancelada", "reprovada", "pendente"].includes(String(selecionada.status).toLowerCase());
   const statusOperacional = String(selecionada.status || "").trim().toLowerCase();
   const rotuloStatus: Record<string, string> = {
@@ -337,9 +354,9 @@ export function DetalhesSolicitacao({
             const sucesso = await aoAtualizar({ ...dadosAgendamento, horario_previsto_agendamento: dadosAgendamento.horario_previsto_agendamento ? horarioUtc(dadosAgendamento.data_agendada || selecionada.data_agendada, dadosAgendamento.horario_previsto_agendamento) : null });
             if (sucesso !== false) setEditandoAgendamento(false);
           }}>
-            <label className="space-y-1 text-xs">Aeronave<SearchableCombobox items={aeronaves} value={dadosAgendamento.aeronave_id || ""} onChange={(valor) => setDadosAgendamento((atual) => ({ ...atual, aeronave_id: valor }))} placeholder="Selecionar aeronave" /></label>
-            {([['origem', 'Origem', 'text'], ['destino', 'Destino', 'text'], ['data_agendada', 'Data de saída', 'date'], ['data_fim', 'Data final', 'date'], ['horario_previsto_agendamento', 'Horário previsto (UTC)', 'time'], ['numero_passageiros', 'Passageiros', 'number']] as const).map(([campo, rotulo, tipo]) => <label key={campo} className="space-y-1 text-xs">{rotulo}<Input type={tipo} value={dadosAgendamento[campo] ?? ""} required={campo !== "horario_previsto_agendamento"} min={campo === "numero_passageiros" ? 1 : campo === "data_fim" ? dadosAgendamento.data_agendada : undefined} max={campo === "numero_passageiros" ? 50 : undefined} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, [campo]: tipo === "number" ? Number(event.target.value) : ['origem', 'destino'].includes(campo) ? event.target.value.toUpperCase() : event.target.value }))} /></label>)}
-            <label className="text-xs sm:col-span-2">Nomes dos passageiros (um por linha)<Textarea value={(dadosAgendamento.passageiros||[]).join("\n")} onChange={e=>setDadosAgendamento(a=>({...a,passageiros:e.target.value?e.target.value.split("\n"):[]}))}/></label>
+            {!estrutural && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300 sm:col-span-2">Voo já iniciado: aeronave, rota, datas e horário previsto ficam bloqueados. Ajuste a tripulação, os passageiros e as observações aqui; horários reais são lançados em “Registrar horários”.</p>}
+            <label className="space-y-1 text-xs">Aeronave<SearchableCombobox disabled={!estrutural} items={aeronaves} value={dadosAgendamento.aeronave_id || ""} onChange={(valor) => setDadosAgendamento((atual) => ({ ...atual, aeronave_id: valor }))} placeholder="Selecionar aeronave" /></label>
+            {([['origem', 'Origem', 'text'], ['destino', 'Destino', 'text'], ['data_agendada', 'Data de saída', 'date'], ['data_fim', 'Data final', 'date'], ['horario_previsto_agendamento', 'Horário previsto (UTC)', 'time'], ['numero_passageiros', 'Passageiros', 'number']] as const).map(([campo, rotulo, tipo]) => <label key={campo} className="space-y-1 text-xs">{rotulo}<Input type={tipo} disabled={!estrutural && campo !== "numero_passageiros"} value={dadosAgendamento[campo] ?? ""} required={campo !== "horario_previsto_agendamento"} min={campo === "numero_passageiros" ? 1 : campo === "data_fim" ? dadosAgendamento.data_agendada : undefined} max={campo === "numero_passageiros" ? 50 : undefined} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, [campo]: tipo === "number" ? Number(event.target.value) : ['origem', 'destino'].includes(campo) ? event.target.value.toUpperCase() : event.target.value }))} /></label>)}
             {([['piloto_id', 'Comandante'], ['copiloto_id', 'Copiloto']] as const).map(([campo, rotulo]) => <label key={campo} className="space-y-1 text-xs">{rotulo}<SearchableCombobox items={tripulacao.filter((tripulante) => tripulante.id !== dadosAgendamento[campo === "piloto_id" ? "copiloto_id" : "piloto_id"]).map((tripulante) => ({ id: tripulante.id, label: tripulante.nome_completo }))} value={dadosAgendamento[campo] || ""} onChange={(valor) => setDadosAgendamento((atual) => ({ ...atual, [campo]: valor }))} placeholder={`Selecionar ${rotulo.toLowerCase()}`} /></label>)}
             <label className="space-y-1 text-xs sm:col-span-2">Observações<Textarea value={dadosAgendamento.observacoes || ""} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, observacoes: event.target.value }))} /></label>
             <div className="flex gap-2 sm:col-span-2"><Button type="submit" disabled={processando} className="text-xs">{processando ? "Salvando..." : "Salvar alterações"}</Button><Button type="button" variant="outline" disabled={processando} onClick={() => setEditandoAgendamento(false)} className="text-xs">Cancelar</Button></div>
@@ -504,9 +521,8 @@ export function DetalhesSolicitacao({
           <div className="mt-4">
             <Label className="text-xs font-semibold text-foreground">Observações</Label>
             <Textarea
-              readOnly={!podeConfirmar}
-              value={podeConfirmar ? edicao.observacoes : selecionada.observacoes || ""}
-              onChange={(event) => setEdicao((atual) => ({ ...atual, observacoes: event.target.value }))}
+              readOnly
+              value={selecionada.observacoes || ""}
               placeholder="Sem observações registradas."
               className="mt-1.5 min-h-[72px] rounded-lg border-border text-xs text-foreground"
             />
@@ -530,7 +546,7 @@ export function DetalhesSolicitacao({
                 <SearchableCombobox
                   items={tripulacao.map((item) => ({
                     id: item.id,
-                    label: `${item.nome_completo} · CANAC ${item.canac}`,
+                    label: rotuloTripulante(item),
                   }))}
                   value={pilotoId}
                   onChange={aoPiloto}
@@ -551,7 +567,7 @@ export function DetalhesSolicitacao({
                     .filter((item) => item.id !== pilotoId)
                     .map((item) => ({
                       id: item.id,
-                      label: `${item.nome_completo} · CANAC ${item.canac}`,
+                      label: rotuloTripulante(item),
                     }))}
                   value={copilotoId}
                   onChange={aoCopiloto}
@@ -563,48 +579,78 @@ export function DetalhesSolicitacao({
               </div>
             </div>
 
-            {/* Alerta de Conflito de Escala (Box Âmbar do Wireframe) */}
-            {conflitosTripulacao.filter((item) => item.quantidade > 0).map((item) => <div key={`${item.id}-${item.funcao}`} role="status" className="flex items-start gap-2.5 rounded-xl border border-[var(--app-warning-line)] bg-[var(--app-warning-soft)] p-3 text-xs text-foreground">
-              <AlertTriangle size={16} className="mt-0.5 shrink-0 text-[var(--app-warning)]" />
-              <span>{item.funcao} {item.nome}: {item.quantidade} {item.quantidade === 1 ? "conflito" : "conflitos"} de escala no período selecionado.</span>
-            </div>)}
-            {pilotoId && conflitosTripulacao.length > 0 && conflitosTripulacao.every((item) => item.quantidade === 0) && <div role="status" className="flex items-start gap-2.5 rounded-xl border border-[var(--app-success-line)] bg-[var(--app-success-soft)] p-3 text-xs text-foreground"><Check size={16} className="mt-0.5 shrink-0 text-[var(--app-success)]" /><span>Tripulação livre na escala para este período.</span></div>}
+            {/* Conflito de escala calculado de verdade; só aparece quando existe. */}
+            {conflitosEscolhidos.length > 0 ? (
+              <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-[#f1b950]/40 bg-amber-400/10 p-3 text-xs text-[#935a0d] dark:text-amber-300">
+                <AlertTriangle size={16} className="mt-0.5 shrink-0 text-[#d97706]" />
+                <div className="space-y-1">
+                  <strong className="block">Possível conflito de escala</strong>
+                  <ul className="list-disc pl-4">
+                    {conflitosEscolhidos.map(({ nome, bloco }) => <li key={`${nome}-${bloco.id}`}>{nome}: {bloco.titulo}{bloco.detalhe ? ` (${bloco.detalhe})` : ""}</li>)}
+                  </ul>
+                  <span className="block">Você ainda pode aprovar, mas confirme com a tripulação antes.</span>
+                </div>
+              </div>
+            ) : pilotoId ? (
+              <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300"><CheckCircle2 size={14} /> Sem conflitos de escala neste horário.</p>
+            ) : null}
 
-            {/* Motivo da Reprovação */}
-            <div>
-              <Label className="text-xs font-semibold text-foreground">Motivo da reprovação</Label>
-              <Textarea
-                ref={motivoRef}
-                value={motivo}
-                onChange={(e) => aoMotivo(e.target.value)}
-                placeholder="Obrigatório apenas ao reprovar..."
-                className="mt-1.5 min-h-[64px] rounded-lg border-border text-xs text-foreground"
-              />
-            </div>
-
-            {/* Botões de Confirmação */}
-            <div className="pt-2 space-y-2.5">
-              <button
-                type="button"
-                onClick={confirmar}
-                disabled={processando || !pilotoId || !formularioValido}
-                className="w-full flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-400/10 border border-[#17885f]/40 font-bold text-xs text-[#17885f] shadow-sm transition-all hover:bg-[#d1fae5] disabled:opacity-50"
-              >
-                <Check size={16} /> Aprovar e gerar número do voo
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!motivo.trim()) { motivoRef.current?.focus(); return; }
-                  aoReprovar();
-                }}
-                disabled={processando}
-                className="w-full flex h-10 items-center justify-center gap-2 rounded-xl border border-[#bf5260]/40 bg-card font-semibold text-xs text-[#bf5260] transition-colors hover:bg-red-400/10 disabled:opacity-50"
-              >
-                <X size={15} /> Reprovar solicitação
-              </button>
-            </div>
+            {recusando ? (
+              <div className="space-y-2.5 rounded-xl border border-[#bf5260]/30 bg-red-400/5 p-3">
+                <Label htmlFor="motivo-recusa" className="text-xs font-semibold text-foreground">Motivo da recusa *</Label>
+                <Textarea
+                  id="motivo-recusa"
+                  ref={motivoRef}
+                  value={motivo}
+                  onChange={(e) => aoMotivo(e.target.value)}
+                  placeholder="Explique ao cliente por que o voo não pode ser feito..."
+                  className="min-h-[72px] rounded-lg border-border text-xs text-foreground"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={aoReprovar}
+                    disabled={processando || !motivo.trim()}
+                    className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#bf5260] text-xs font-bold text-white transition-colors hover:bg-[#a8444f] disabled:opacity-50"
+                  >
+                    <X size={15} /> Confirmar recusa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setRecusando(false); aoMotivo(""); }}
+                    disabled={processando}
+                    className="h-10 rounded-xl border border-border bg-card px-4 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
+                  >
+                    Voltar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2.5 pt-2">
+                {pendenciasAprovacao.length > 0 && (
+                  <div className="rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+                    <strong className="block text-foreground">Para aprovar, falta:</strong>
+                    <ul className="mt-1 list-disc pl-4">{pendenciasAprovacao.map((pendencia) => <li key={pendencia}>{pendencia}</li>)}</ul>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={confirmar}
+                  disabled={processando || !pilotoId || !formularioValido}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#17885f]/40 bg-emerald-400/10 text-xs font-bold text-[#17885f] shadow-sm transition-all hover:bg-[#d1fae5] disabled:opacity-50 dark:hover:bg-emerald-400/20"
+                >
+                  <Check size={16} /> {processando ? "Aprovando..." : "Aprovar e gerar número do voo"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecusando(true)}
+                  disabled={processando}
+                  className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#bf5260]/40 bg-card text-xs font-semibold text-[#bf5260] transition-colors hover:bg-red-400/10 disabled:opacity-50"
+                >
+                  <X size={15} /> Recusar solicitação
+                </button>
+              </div>
+            )}
           </div>
         </section>
         ) : (
@@ -629,7 +675,6 @@ export function DetalhesSolicitacao({
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Copiloto</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">{selecionada.copiloto_nome || tripulacao.find((t) => t.id === (selecionada.copiloto_id || copilotoId))?.nome_completo || "Não escalado"}</p>
               </div>
-              {selecionada.passageiros?.length ? <div className="border-t border-border pt-3"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Manifesto de passageiros</p><div className="mt-2 flex flex-wrap gap-2">{selecionada.passageiros.map((passageiro, indice) => <span key={`${indice}-${passageiro}`} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs text-foreground">{passageiro}</span>)}</div></div> : null}
               {(selecionada.perna_atual_horario_corte || selecionada.horario_corte) && (
                 <div className="border-t border-border pt-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Último corte registrado · UTC</p>

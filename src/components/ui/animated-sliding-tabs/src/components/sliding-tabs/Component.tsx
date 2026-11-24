@@ -100,13 +100,24 @@ export function SlidingTabsList({ children, className = "", ...aria }: SlidingTa
   );
 }
 
-export function SlidingTabsTab({ value, children, className = "" }: { value: TabsValue; children: ReactNode; className?: string }) {
+export function SlidingTabsTab({
+  value,
+  children,
+  className = "",
+  onClick,
+}: {
+  value: TabsValue;
+  children: ReactNode;
+  className?: string;
+  onClick?: () => void;
+}) {
   const { value: selected, pillId } = useContext(SlidingTabsContext);
   const reduced = useReducedMotion() ?? false;
   const active = selected === value;
   return (
     <Tabs.Tab
       value={value}
+      onClick={onClick}
       className={`relative inline-flex h-10 shrink-0 items-center justify-center rounded-control px-1.5 text-[14px] font-medium whitespace-nowrap transition-colors duration-[var(--mk-dur-enter)] ease-kit-out select-none sm:px-2.5 pointer-coarse:h-11 motion-reduce:transition-none ${
         active ? "text-accent-fg" : "text-muted hover:bg-secondary hover:text-ink"
       } ${className}`}

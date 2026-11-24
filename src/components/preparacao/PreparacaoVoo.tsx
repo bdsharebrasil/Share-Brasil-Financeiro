@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { AlertCircle, Check, ChevronDown, Download, Loader2, Paperclip, Phone, Plane, Plus, RefreshCw, Send, Trash2, Users } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, Download, Loader2, Paperclip, Phone, Plane, Plus, RefreshCw, Send, Trash2, Users, X } from 'lucide-react';
 import { mesclar } from './mesclar';
 import DragReorder from '@/components/ui/drag-reorder';
 import { SlidingTabs, SlidingTabsList, SlidingTabsPanel, SlidingTabsPanels, SlidingTabsTab } from '@/components/ui/animated-sliding-tabs';
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/animated-sheet';
 import './preparacao.css';
+import './etapa-sheet.css';
 export type TransportePreparacao = {
   json: (path:string, body?:any)=>Promise<any>;
   arquivo: (path:string)=>Promise<Blob>;
@@ -35,6 +37,7 @@ export default function PreparacaoVoo({ vooId, api, aoSalvar, aoProgresso, escur
   const [erro,setErro]=useState(''),[aviso,setAviso]=useState(''),[ocupado,setOcupado]=useState(''),[sujo,setSujo]=useState(false),[offline,setOffline]=useState(false);
   const [versoes,setVersoes]=useState<any[]|null>(null),[conflito,setConflito]=useState<any>(null),[combustivel,setCombustivel]=useState<any>(null);
   const [busca,setBusca]=useState(''),[todos,setTodos]=useState(false),[mostrarPendencias,setMostrarPendencias]=useState(false);
+  const [etapaAberta,setEtapaAberta]=useState<string|null>(null);
   const ref=useRef<any>(null),atual=useRef<any>(null),base=useRef<any>(null),busy=useRef(false),dirty=useRef(false),sequencia=useRef(0),cache=useRef(''),vivo=useRef(true),conflitando=useRef(false);
   const enviarRef=useRef<(concluir?:boolean)=>Promise<any>>(async()=>null);
   const carregouRascunho=useRef(false);
@@ -123,6 +126,14 @@ export default function PreparacaoVoo({ vooId, api, aoSalvar, aoProgresso, escur
   const status=registro.finalizado_em?(pendencias?`Finalizada com ${pendencias} pendência(s)`:'Preparação finalizada'):'Em preparação';
   const secoes=registro.secoes.filter((s:any)=>s.segmento===aba);
   const filtro=busca.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const etapaSheet=secoes.find((s:any)=>s.id===etapaAberta);
+  const marcadosEtapa=etapaSheet?etapaSheet.itens.filter((i:any)=>dados.itens[i.id]?.estado&&dados.itens[i.id].estado!=='PENDENTE').length:0;
+  async function concluirEtapa(id:string){
+    if(!await salvar(false))return;
+    const proxima=secoes[secoes.findIndex((s:any)=>s.id===id)+1];
+    setEtapaAberta(null);
+    if(proxima)setTimeout(()=>setEtapaAberta(proxima.id),200);
+  }
   return <section className="pv" data-escuro={escuro}>
     <header className="pv-cabecalho"><div><span className="pv-legenda">PREPARAÇÃO DO VOO</span><h2>{registro.voo.numero_voo||'Voo'} · {registro.voo.matricula_registro||'Aeronave'}</h2><p>{dados.trechos.map((t:any,i:number)=><span key={t.id}>{i?' · ':''}{t.origem} → {t.destino}</span>)}</p></div>
       <span className="pv-selo" data-estado={pendencias?'EM_ANDAMENTO':'CONCLUIDO'}>{status}</span>
@@ -134,29 +145,12 @@ export default function PreparacaoVoo({ vooId, api, aoSalvar, aoProgresso, escur
     {conflito&&<div className="pv-aviso" role="alert"><p>{conflito.total} campo(s) foram alterados também por outra pessoa. As alterações em campos diferentes já foram combinadas.</p><div className="pv-acoes"><button onClick={()=>resolver('local')}>Manter minhas alterações nesses campos</button><button onClick={()=>resolver('remoto')}>Usar alterações da equipe nesses campos</button></div></div>}
     <nav className="pv-tabs" aria-label="Segmentos da preparação"><button aria-pressed={aba==='aeronave'} onClick={()=>setAba('aeronave')}><Plane size={17}/>Aeronave</button><button aria-pressed={aba==='tripulacao'} onClick={()=>setAba('tripulacao')}><Users size={17}/>Tripulação</button></nav>
     {aba==='aeronave'&&<>
-      <SlidingTabs value={secao} onValueChange={(value)=>{if(typeof value==='string')setSecao(value);}} activation="automatic" className="pv-etapas-sliding">
+      <SlidingTabs value={secao} onValueChange={(value)=>{if(typeof value==='string')setSecao(value);}} activation="manual" className="pv-etapas-sliding">
         <SlidingTabsList aria-label="Etapas da aeronave" className="pv-etapas pv-sliding-list">
-          {secoes.map((s:any)=><SlidingTabsTab key={s.id} value={s.id} className="pv-sliding-tab">{s.titulo}</SlidingTabsTab>)}
+          {secoes.map((s:any)=><SlidingTabsTab key={s.id} value={s.id} className="pv-sliding-tab" onClick={()=>setEtapaAberta(s.id)}>{s.titulo}</SlidingTabsTab>)}
           <SlidingTabsTab value="combustivel" className="pv-sliding-tab">Abastecimento realizado</SlidingTabsTab>
         </SlidingTabsList>
         <SlidingTabsPanels className="pv-sliding-panels">
-          {secoes.map((s:any)=>{
-            const itens=itensOrdenados(s);
-            return <SlidingTabsPanel key={s.id} value={s.id} className="pv-sliding-panel">
-              <div className="pv-lista">
-                <div className="pv-etapa-cabecalho"><div><h3>{s.titulo}</h3><p className="pv-meta">Arraste para reordenar ou use as setas para mudar a posição dos itens.</p></div><button type="button" disabled={readonly||!s.itens.length} onClick={()=>marcarEtapaConcluida(s.itens)}><Check size={15}/>Marcar etapa como concluída</button></div>
-                <DragReorder
-                  items={itens}
-                  ariaLabel={`Itens da etapa ${s.titulo}`}
-                  disabled={readonly}
-                  label={(i:any)=>i.label}
-                  onReorder={(proximos:any[])=>reordenarItens(s.id,proximos)}
-                  renderItem={(i:any)=><div className="pv-item" data-estado={dados.itens[i.id]?.estado}><div className="pv-item-topo"><span>{i.label}</span>{situacao(dados.itens[i.id]||{estado:'PENDENTE'},estado=>item(i.id,{estado}))}</div><textarea aria-label={`Observação: ${i.label}`} placeholder="Observação ou motivo, se necessário" value={dados.itens[i.id]?.observacao||''} onChange={e=>item(i.id,{observacao:e.target.value})} disabled={readonly}/>{dados.itens[i.id]?.responsavel&&<small>{dados.itens[i.id].responsavel} · {momento(dados.itens[i.id].atualizado_em)}</small>}</div>}
-                />
-                {s.itens.some((i:any)=>i.tipo==='oleo')&&campo('Nível de óleo LH / RH',dados.nivel_oleo,v=>alterar(d=>{d.nivel_oleo=v;}))}
-              </div>
-            </SlidingTabsPanel>;
-          })}
           <SlidingTabsPanel value="combustivel" className="pv-sliding-panel">
             <div className="pv-lista"><h3>Abastecimento realizado</h3><p className="pv-meta">Registre aqui o combustível efetivamente abastecido. As previsões ficam nos serviços de cada escala.</p>{registro.abastecimentos?.map((a:any)=><div className="pv-item" key={a.id}>{a.local} · {a.data} · {a.litros} L · R$ {a.valor_unitario}/L</div>)}
               <label className="pv-campo"><span>Escala do abastecimento</span><select value={eAtual?.id||''} onChange={e=>setEscala(e.target.value)}>{dados.escalas.map((e:any)=><option key={e.id} value={e.id}>{e.icao}</option>)}</select></label>
@@ -166,6 +160,31 @@ export default function PreparacaoVoo({ vooId, api, aoSalvar, aoProgresso, escur
           </SlidingTabsPanel>
         </SlidingTabsPanels>
       </SlidingTabs>
+      <Sheet open={Boolean(etapaAberta)} onOpenChange={(aberto)=>{if(!aberto)setEtapaAberta(null);}}>
+        <SheetContent className="pv pv-etapa-sheet">
+          {etapaSheet&&<>
+            <div className="pv-etapa-sheet-cabecalho">
+              <div><SheetTitle>{etapaSheet.titulo}</SheetTitle><SheetDescription>{marcadosEtapa} de {etapaSheet.itens.length} itens marcados</SheetDescription></div>
+              <SheetClose><button type="button" className="pv-etapa-sheet-fechar" aria-label="Fechar etapa"><X size={16}/></button></SheetClose>
+            </div>
+            <div className="pv-etapa-sheet-corpo">
+              <div className="pv-etapa-cabecalho"><p className="pv-meta">Marque a situação de cada item. Arraste para reordenar ou use as setas.</p><button type="button" disabled={readonly||!etapaSheet.itens.length} onClick={()=>marcarEtapaConcluida(etapaSheet.itens)}><Check size={15}/>Marcar etapa como concluída</button></div>
+              <DragReorder
+                items={itensOrdenados(etapaSheet)}
+                ariaLabel={`Itens da etapa ${etapaSheet.titulo}`}
+                disabled={readonly}
+                label={(i:any)=>i.label}
+                onReorder={(proximos:any[])=>reordenarItens(etapaSheet.id,proximos)}
+                renderItem={(i:any)=><div className="pv-item" data-estado={dados.itens[i.id]?.estado}><div className="pv-item-topo"><span>{i.label}</span>{situacao(dados.itens[i.id]||{estado:'PENDENTE'},estado=>item(i.id,{estado}))}</div><textarea aria-label={`Observação: ${i.label}`} placeholder="Observação ou motivo, se necessário" value={dados.itens[i.id]?.observacao||''} onChange={e=>item(i.id,{observacao:e.target.value})} disabled={readonly}/>{dados.itens[i.id]?.responsavel&&<small>{dados.itens[i.id].responsavel} · {momento(dados.itens[i.id].atualizado_em)}</small>}</div>}
+              />
+              {etapaSheet.itens.some((i:any)=>i.tipo==='oleo')&&campo('Nível de óleo LH / RH',dados.nivel_oleo,v=>alterar(d=>{d.nivel_oleo=v;}))}
+            </div>
+            <div className="pv-etapa-sheet-rodape">
+              <button type="button" className="pv-principal" disabled={readonly||!!ocupado||!!conflito} onClick={()=>void concluirEtapa(etapaSheet.id)}>{ocupado==='salvar'?<Loader2 size={16} className="pv-giro"/>:<Check size={16}/>}Salvar e fechar</button>
+            </div>
+          </>}
+        </SheetContent>
+      </Sheet>
     </>}
     {aba==='aeronave'&&registro.finalizado_em&&painelAeronave}
     {aba==='tripulacao'&&<>

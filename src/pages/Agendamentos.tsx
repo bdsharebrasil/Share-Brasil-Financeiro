@@ -135,6 +135,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
   const [abaAnterior, setAbaAnterior] = useState<AbaAgendamento | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroOperacoes, setFiltroOperacoes] = useState<FiltroOperacoes>("operacao");
+  const [semVooSelecionado, setSemVooSelecionado] = useState(false);
   const [visaoAndamento, setVisaoAndamento] = useState<"monitoramento" | "hoje">("hoje");
   
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatusCronograma>("todos");
@@ -315,6 +316,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
         setFiltroOperacoes(planejada ? "confirmados" : "operacao");
         setDataOperacoes(item.data_agendada);
         setVooHojeSelecionadoId(planejada ? item.id : original.id);
+        setSemVooSelecionado(false);
       }
       return;
     }
@@ -375,6 +377,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     setFiltroOperacoes(operacaoIniciada(item) ? "operacao" : "confirmados");
     setDataOperacoes(hojeBrasilia());
     setVooHojeSelecionadoId(item.id);
+    setSemVooSelecionado(false);
   }, [abrirSolicitacao, carregando, painel?.agendamentos]);
 
   const navegarParaDataCalendario = useCallback((data: string) => {
@@ -680,10 +683,11 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     const texto = [voo.numero_voo, voo.matricula_registro, voo.origem, voo.destino, voo.cliente_razao_social, voo.socio_nome, ...tripulantes].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
     return !termo || texto.includes(termo);
   });
-  const vooOperacional = selecionarOperacao(voosLateral, vooHojeSelecionadoId);
+  const vooOperacional = semVooSelecionado ? null : selecionarOperacao(voosLateral, vooHojeSelecionadoId);
   const operacaoSelecionada = vooOperacional?.solicitacao_origem_id ? agendamentos.find(item => item.id === vooOperacional.solicitacao_origem_id) || null : vooOperacional;
   const selecionarVooLateral = (item: SolicitacaoVooInterna) => {
     setVooHojeSelecionadoId(item.id);
+    setSemVooSelecionado(false);
     abrirSolicitacao(item);
   };
   // A mesma seleção governa a lista, os controles, os detalhes e o mapa.
@@ -709,6 +713,16 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     selecionarAba(proxima);
   };
   const voltarTelaAnterior = () => {
+    if (aba === "voos-hoje") {
+      setAbaAnterior(null);
+      setFiltroOperacoes("operacao");
+      setSemVooSelecionado(true);
+      setVooHojeSelecionadoId(null);
+      setSelecionada(null);
+      setChecklistAberto(false);
+      setJornadaAberta(false);
+      return;
+    }
     if (abaAnterior && abaAnterior !== aba) {
       selecionarArea(abaAnterior);
       return;
@@ -716,7 +730,6 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     setSelecionada(null);
     setChecklistAberto(false);
     setJornadaAberta(false);
-    if (aba === "voos-hoje") setVooHojeSelecionadoId(null);
   };
   const dentroDoAgendamento = aba === "voos-hoje" ? vooHojeSelecionadoId !== null : Boolean(abaLista && selecionada);
   const renderizarDetalhes = (item: SolicitacaoVooInterna, somenteLeitura = false, incorporado = false) => <DetalhesSolicitacao

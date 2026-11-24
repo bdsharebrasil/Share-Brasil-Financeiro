@@ -29,6 +29,7 @@ export default function OperacaoVooSelecionado({ item, operacao, aoAbrirAgendame
     ? operacao.pernas_planejadas?.find(perna => perna.id === item.id)
     : undefined;
   const podeAbrirJornada = acoes.mostrarJornada || operacaoIniciada(item);
+  const mostrarAcoesPreparacao = dadosVooAbertos || Boolean(item.solicitacao_origem_id);
 
   return <section className="sb-operation-panel" aria-label="Controles do voo selecionado">
     <header className="sb-operation-heading">
@@ -36,14 +37,14 @@ export default function OperacaoVooSelecionado({ item, operacao, aoAbrirAgendame
       <span className={`sb-pill ${operacaoIniciada(item) ? "live" : "confirmed"}`}>{rotuloOperacao(item.status)}</span>
     </header>
     <div className="sb-operation-actions" aria-label="Ações da operação">
-      {dadosVooAbertos && <Button type="button" variant="outline" aria-pressed={etapa === "checklist"} onClick={() => setEtapa("checklist")}><ClipboardCheck size={15} />{acoes.checklistConcluido ? "Ver checklist" : "Checklist pré-voo"}</Button>}
-      {dadosVooAbertos && aoAbrirPlano && <Button type="button" variant="outline" onClick={() => aoAbrirPlano(item.id)}><FileText size={15} />Plano de voo</Button>}
-      {dadosVooAbertos && acoes.checklistConcluido && <PesoBalanceamentoFicha key={item.id} item={item} rotuloBotao="Peso e balanceamento" />}
+      {mostrarAcoesPreparacao && <Button type="button" variant="outline" aria-pressed={etapa === "checklist"} onClick={() => setEtapa("checklist")}><ClipboardCheck size={15} />{acoes.checklistConcluido ? "Ver checklist" : "Checklist pré-voo"}</Button>}
+      {mostrarAcoesPreparacao && aoAbrirPlano && <Button type="button" variant="outline" onClick={() => aoAbrirPlano(item.id)}><FileText size={15} />Plano de voo</Button>}
+      {mostrarAcoesPreparacao && acoes.checklistConcluido && <PesoBalanceamentoFicha key={item.id} item={item} rotuloBotao="Peso e balanceamento" />}
       <Button type="button" disabled={!podeAbrirJornada} aria-pressed={etapa === "jornada"} onClick={() => setEtapa("jornada")}><Clock3 size={15} />{agendamento ? "Registrar horários" : operacaoIniciada(item) ? "Horários e jornada" : "Iniciar operação"}</Button>
       {operacaoIniciada(item) && <>
-        <Button type="button" variant="outline" disabled={processando || !acoes.podeFinalizar} title={!acoes.podeFinalizar ? "Encerre a jornada antes de encerrar a operação." : undefined} onClick={() => aoFinalizar(item)}><Flag size={15} />Encerrar operação</Button>
+        <Button type="button" variant="outline" disabled={processando || !acoes.podeFinalizar} title={!acoes.podeFinalizar ? "Encerre a jornada antes de encerrar a operação." : undefined} className="[border-color:rgba(245,166,35,0.49)] [background-color:rgba(245,166,35,0.32)]" onClick={() => aoFinalizar(item)}><Flag size={15} />Encerrar operação</Button>
       </>}
-      <Button type="button" onClick={aoNovoAgendamento}><CalendarPlus size={15} />Novo agendamento</Button>
+      <Button type="button" className="bg-[rgba(5,117,43,0.34)] text-[rgba(219,231,243,1)]" onClick={aoNovoAgendamento}><CalendarPlus size={15} />Novo agendamento</Button>
     </div>
     {!podeAbrirJornada && <p className="sb-operation-help">Conclua o checklist pré-voo para iniciar a operação e registrar os horários.</p>}
     {etapa === "checklist" && <div className="sb-operation-body"><ChecklistPreVoo item={item} aoAtualizarProgresso={setProgressoLocal} aoConcluir={async () => { await aoAtualizar(); }} /></div>}

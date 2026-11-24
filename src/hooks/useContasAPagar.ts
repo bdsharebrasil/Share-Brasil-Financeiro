@@ -26,6 +26,7 @@ function fluxoSaida(lancamento: Lancamento) {
 function comoContaAPagar(lancamento: Lancamento): ContaAPagar {
   return {
     id: lancamento.id,
+    anexos: lancamento.anexos,
     dataEmissao: lancamento.data || null,
     dataVencimento: lancamento.prazo || "",
     valor: lancamento.valorCentavos / 100,

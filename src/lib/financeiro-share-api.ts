@@ -402,7 +402,7 @@ function normalizarLancamentoCaixa(row: any): Lancamento {
 
     grupoCategoria: String(row.grupoCategoria ?? row.grupo_categoria ?? ""), tipo: row.tipo ?? row.tipo_despesa ?? null,
 
-    prazo: row.prazo ?? row.data_vencimento ?? null, fluxoOriginal: String(row.fluxo ?? ""), fluxo: ["ENTRADA", "RECEITA"].includes(String(row.fluxo ?? "SAIDA").toUpperCase()) ? "ENTRADA" : "SAIDA",
+    prazo: row.prazo ?? row.data_vencimento ?? null, fluxoOriginal: String(row.fluxo ?? ""), fluxo: ["ENTRADA", "RECEITA"].includes(String(row.fluxo ?? "").trim().toUpperCase()) ? "ENTRADA" : "SAIDA",
 
     valorCentavos: Number(row.valorCentavos ?? row.valor_centavos ?? Math.round(Number(row.valor_total ?? row.valor ?? 0) * 100)),
 

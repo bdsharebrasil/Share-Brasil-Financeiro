@@ -457,7 +457,7 @@ export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBanc
               {!ocultar("descricao") && <td><b className="cash-description">{item.descricao}</b></td>}{!ocultar("favorecido") && <td>{item.fornecedor || "—"}</td>}
               {!ocultar("categoria") && <td><span className="cash-category">{item.categoria || "Sem categoria"}</span></td>}
               {!ocultar("conta") && <td>{dados?.contaNome || "—"}</td>}
-              {!ocultar("fluxo") && <td><span className={`cash-flow ${entrada ? "cash-flow-income" : "cash-flow-expense"}`}>{entrada ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}{entrada ? "Entrada" : "Saída"}</span></td>}
+              {!ocultar("fluxo") && <td><span className={`cash-flow ${entrada ? "cash-flow-income" : "cash-flow-expense"}`}>{entrada ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}{entrada ? "Entrada" : "Saída"} · {item.caixa === "CLIENTE" ? "Cliente" : item.caixa === "HOLDING" ? "Holding" : "Share"}</span></td>}
               {!ocultar("valor") && <td className="cash-num"><strong className={entrada ? "cash-amount-income" : "cash-amount-expense"}>{valorValido(item) ? `${entrada ? "+" : "−"} ${formatarMoeda(item.valorCentavos)}` : "Valor inválido"}</strong></td>}
               {!ocultar("status") && <td><StatusBadge status={item.status} /></td>}
               <td><button type="button" className="cash-expand" aria-expanded={aberto} aria-controls={`cash-detail-${item.id}`} aria-label={`${aberto ? "Fechar" : "Abrir"} detalhes de ${item.descricao}`} onClick={() => setExpandido(aberto ? null : item.id)}>{aberto ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button></td>

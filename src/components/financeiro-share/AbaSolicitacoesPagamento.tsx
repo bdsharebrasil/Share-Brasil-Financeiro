@@ -698,6 +698,16 @@ const STYLES = `
 .nf-payment-requests .nf-list-heading{padding:4px 22px 18px}.nf-payment-requests .nf-list-heading h2{font-size:15px;font-weight:650}.nf-payment-requests .nf-list-heading p{margin:3px 0 0;color:var(--app-muted);font-size:11px}
 .nf-payment-requests .nf-text-btn,.nf-payment-dialog .nf-text-btn{padding:5px 8px;border:0;background:transparent;color:var(--app-info);font-size:12px;font-weight:600;min-height:36px}
 .nf-payment-requests .nf-table-wrap{width:100%;overflow:auto}.nf-payment-requests .erp-tabela{width:100%;table-layout:fixed}.nf-payment-requests .erp-tabela th{position:relative}.nf-payment-requests .erp-redimensionar{position:absolute;right:-3px;top:0;bottom:0;z-index:1;width:7px;cursor:col-resize;touch-action:none}.nf-payment-requests .erp-redimensionar:hover{background:var(--app-info)}.nf-payment-requests .erp-tabela-container{cursor:auto}.nf-payment-requests .erp-linha{cursor:default}.nf-payment-requests .erp-linha-detalhes .nf-detail{margin:12px 16px}
+.nf-payment-requests .erp-tabela{font-size:14px;line-height:1.45}
+.nf-payment-requests .erp-tabela th{height:46px;padding:0 14px}
+.nf-payment-requests .erp-tabela th .erp-ordenar{height:44px;font-size:11px}
+.nf-payment-requests .erp-tabela td{padding:10px 14px;font-size:14px}
+.nf-payment-requests .erp-tabela td.erp-td-data{padding-top:10px;padding-bottom:10px}
+.nf-payment-requests .erp-tabela .erp-linha{height:56px}
+.nf-payment-requests .erp-tabela .erp-documento{font-size:13px}
+.nf-payment-requests .erp-tabela .erp-texto-secundario{font-size:12px;margin-top:3px;margin-bottom:0}
+.nf-payment-requests .erp-tabela .erp-valor{font-size:15px}
+.nf-payment-requests .erp-tabela .erp-expandir{width:24px;height:32px}
 .nf-payment-requests .nf-doc-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:30px;height:34px;border:1px solid var(--app-line);border-radius:7px;background:var(--app-soft);color:var(--app-muted)}.nf-payment-requests .nf-doc-icon svg{width:15px;height:15px}
 .nf-payment-requests .nf-amount{font-weight:650;font-variant-numeric:tabular-nums;color:var(--app-text)}
 .nf-payment-requests .nf-detail{display:grid;grid-template-columns:minmax(160px,1fr) minmax(0,3fr);gap:24px;padding:22px;background:var(--app-soft);border:1px solid var(--app-line);border-radius:10px;white-space:normal}.nf-payment-requests .nf-detail h3{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--app-muted);margin-bottom:12px}.nf-payment-requests .nf-detail p{font-size:12px;color:var(--app-muted)}

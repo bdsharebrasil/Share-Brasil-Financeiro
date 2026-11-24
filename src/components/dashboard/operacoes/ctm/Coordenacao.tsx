@@ -1,7 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useReducedMotion } from "framer-motion";
-import { BellRing, ClipboardList, History, Plus, Search } from "lucide-react";
+import {
+  ArrowRight,
+  BellRing,
+  Boxes,
+  Calculator,
+  CalendarClock,
+  ClipboardList,
+  History,
+  Landmark,
+  Plus,
+  Search,
+  type LucideIcon,
+} from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -603,14 +615,15 @@ export function Reportes({ aeronave }: { aeronave: string }) {
     </section>
   );
 }
-function Grade({ titulos, linhas }: { titulos: string[]; linhas: (string | number)[][] }) {
+function Grade({ titulos, linhas, vazio }: { titulos: string[]; linhas: ReactNode[][]; vazio: string }) {
+  if (!linhas.length) return <p className="px-5 py-8 text-center text-sm text-muted-foreground">{vazio}</p>;
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-xs">
-        <thead>
+      <table className="w-full text-left text-sm">
+        <thead className="bg-muted/40 text-xs text-muted-foreground">
           <tr>
             {titulos.map((t) => (
-              <th key={t} className="p-2">
+              <th scope="col" className="whitespace-nowrap px-4 py-3 font-medium" key={t}>
                 {t}
               </th>
             ))}
@@ -618,9 +631,12 @@ function Grade({ titulos, linhas }: { titulos: string[]; linhas: (string | numbe
         </thead>
         <tbody>
           {linhas.map((row, i) => (
-            <tr className="border-t transition-colors hover:bg-muted/30" key={i}>
+            <tr className="border-t border-border/60 transition-colors hover:bg-muted/30" key={i}>
               {row.map((v, j) => (
-                <td className="p-2" key={j}>
+                <td
+                  className={j === 0 ? "px-4 py-3 font-semibold tabular-nums" : "px-4 py-3 text-muted-foreground tabular-nums"}
+                  key={j}
+                >
                   {v}
                 </td>
               ))}
@@ -628,8 +644,48 @@ function Grade({ titulos, linhas }: { titulos: string[]; linhas: (string | numbe
           ))}
         </tbody>
       </table>
-      {!linhas.length && <p className="p-2">Nenhum registro.</p>}
     </div>
+  );
+}
+function Secao({
+  icone: Icone,
+  titulo,
+  descricao,
+  acao,
+  children,
+}: {
+  icone: LucideIcon;
+  titulo: string;
+  descricao: string;
+  acao?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border/70 p-4 sm:p-5">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+          <Icone size={18} />
+        </span>
+        <div className="mr-auto min-w-0">
+          <h2 className="font-semibold">{titulo}</h2>
+          <p className="text-xs text-muted-foreground">{descricao}</p>
+        </div>
+        {acao}
+      </header>
+      {children}
+    </section>
+  );
+}
+function Metricas({ itens, colunas = "md:grid-cols-4" }: { itens: [string, string][]; colunas?: string }) {
+  return (
+    <dl className={"grid grid-cols-2 gap-3 " + colunas}>
+      {itens.map(([nome, valor]) => (
+        <div key={nome} className="rounded-xl border border-border/70 bg-card p-3 shadow-sm">
+          <dt className="text-xs text-muted-foreground">{nome}</dt>
+          <dd className="mt-1 truncate text-base font-semibold tabular-nums">{valor}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 export function Previsoes({
@@ -645,33 +701,70 @@ export function Previsoes({
     base(aeronave) + "/previsoes",
     !!aeronave,
   );
-  if (!q.data) return <p>{q.isError ? aviso(q.error) : "Carregando previsões…"}</p>;
-  return (
-    <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-semibold">Próximas manutenções e trocas</h2>
-        {abrirCompleto && (
-          <Button variant="outline" size="sm" className="rounded-lg" onClick={abrirCompleto}>
-            Ver previsões
-          </Button>
+  if (!q.data)
+    return (
+      <div
+        role={q.isError ? "alert" : "status"}
+        className="rounded-2xl border border-border/70 bg-card p-5 text-sm text-muted-foreground shadow-sm"
+      >
+        {q.isError ? (
+          <>
+            {aviso(q.error)}{" "}
+            <Button variant="link" onClick={() => void q.refetch()}>
+              Tentar novamente
+            </Button>
+          </>
+        ) : (
+          "Carregando previsões…"
         )}
       </div>
-      <p className="text-sm text-muted-foreground">
-        Horas de célula: {q.data.horas ?? "Sem leitura"} · Utilização média nos últimos 90 dias:{" "}
-        {q.data.media == null ? "Sem base" : num(q.data.media) + " h/dia"}
-      </p>
+    );
+  const itens = resumido ? q.data.itens.slice(0, 4) : q.data.itens;
+  return (
+    <Secao
+      icone={CalendarClock}
+      titulo="Próximas manutenções e trocas"
+      descricao="Vencimentos por calendário ou estimativa pelo uso da aeronave"
+      acao={
+        abrirCompleto && (
+          <Button variant="outline" size="sm" className="gap-2 rounded-lg" onClick={abrirCompleto}>
+            Ver previsões <ArrowRight size={14} />
+          </Button>
+        )
+      }
+    >
+      <div className="border-b border-border/70 p-4 sm:p-5">
+        <Metricas
+          colunas="md:grid-cols-3"
+          itens={[
+            ["Horas de célula", q.data.horas == null ? "Sem leitura" : num(q.data.horas) + " h"],
+            ["Utilização média (90 dias)", q.data.media == null ? "Sem base" : num(q.data.media) + " h/dia"],
+            ["Itens monitorados", String(q.data.itens.length)],
+          ]}
+        />
+      </div>
       <Grade
+        vazio="Nenhuma previsão calculada para esta aeronave."
         titulos={["Item", "Próxima data", "Horas restantes", "Ciclos restantes", "Limite em ciclos", "Limite em pousos"]}
-        linhas={(resumido ? q.data.itens.slice(0, 4) : q.data.itens).map((r) => [
+        linhas={itens.map((r) => [
           r.item,
-          r.data ? dia(r.data) + (r.estimada ? " (estimada por uso)" : " (calendário)") : "Sem previsão",
+          r.data ? (
+            <span className="flex flex-wrap items-center gap-2">
+              {dia(r.data)}
+              <span className="rounded-md border border-border/70 px-1.5 py-0.5 text-[10px] font-medium">
+                {r.estimada ? "Estimada pelo uso" : "Calendário"}
+              </span>
+            </span>
+          ) : (
+            "Sem previsão"
+          ),
           r.saldo == null ? "—" : num(r.saldo),
           r.ciclos ?? "—",
           r.limite_ciclos ?? "—",
           r.limite_pousos ?? "—",
         ])}
       />
-    </section>
+    </Secao>
   );
 }
 export function Custos({ aeronave, ordens }: { aeronave: string; ordens: Linha[] }) {
@@ -685,15 +778,38 @@ export function Custos({ aeronave, ordens }: { aeronave: string; ordens: Linha[]
     ...new Set((financeiro.data?.registros || []).map((r) => String(r.categoria_nome || "Sem categoria"))),
   ].sort();
   const categoria = cat || categorias.find((c) => /manuten/i.test(c)) || "";
+  const rateios = (financeiro.data?.registros || []).filter(
+    (r) => String(r.categoria_nome || "Sem categoria") === categoria,
+  );
+  const totalPecas = ordens.reduce((soma, ordem) => soma + Number(ordem.total_pecas ?? 0), 0);
+  const totalMaoObra = ordens.reduce((soma, ordem) => soma + Number(ordem.total_mao_obra ?? 0), 0);
   return (
     <div className="space-y-4">
+      <Metricas
+        itens={[
+          ["Ordens de serviço", String(ordens.length)],
+          ["Peças em OS", formatarMoeda(totalPecas)],
+          ["Mão de obra em OS", formatarMoeda(totalMaoObra)],
+          ["Total em OS", formatarMoeda(totalPecas + totalMaoObra)],
+        ]}
+      />
       <GraficoCustos ordens={ordens} />
-      <section className="rounded-xl border bg-card p-4">
-        <h2 className="font-semibold">Histórico de preços das peças</h2>
+      <Secao
+        icone={Boxes}
+        titulo="Histórico de preços das peças"
+        descricao="Trocas com preço unitário, quantidade e fornecedor"
+      >
         {pecas.isError ? (
-          <p>{aviso(pecas.error)}</p>
+          <p role="alert" className="p-5 text-sm text-destructive">
+            {aviso(pecas.error)}
+          </p>
+        ) : pecas.isPending ? (
+          <p role="status" className="p-5 text-sm text-muted-foreground">
+            Carregando peças…
+          </p>
         ) : (
           <Grade
+            vazio="Nenhuma troca de peça registrada para esta aeronave."
             titulos={["Troca", "Peça", "P/N instalado", "Fornecedor", "Quantidade", "Unitário", "Total"]}
             linhas={(pecas.data?.registros || []).map((r) => [
               dia(r.data_troca),
@@ -706,20 +822,41 @@ export function Custos({ aeronave, ordens }: { aeronave: string; ordens: Linha[]
             ])}
           />
         )}
-      </section>
-      <section className="rounded-xl border bg-card p-4">
-        <h2 className="font-semibold">Prévia do rateio com as cotas ativas</h2>
-        <select className={select} aria-label="Selecionar OAS" value={id || ""} onChange={(e) => setSel(e.target.value)}>
-          {ordens.map((o) => (
-            <option value={o.id} key={o.id}>
-              OAS {o.numero} · {o.objetivo}
-            </option>
-          ))}
-        </select>
-        {divisao.isError ? (
-          <p>{aviso(divisao.error)}</p>
+      </Secao>
+      <Secao
+        icone={Calculator}
+        titulo="Prévia do rateio"
+        descricao="Divisão estimada entre as cotas ativas da OAS selecionada"
+        acao={
+          ordens.length ? (
+            <select
+              className={select + " h-10 w-full sm:w-72"}
+              aria-label="Selecionar OAS"
+              value={id || ""}
+              onChange={(e) => setSel(e.target.value)}
+            >
+              {ordens.map((o) => (
+                <option value={o.id} key={o.id}>
+                  OAS {o.numero} · {o.objetivo}
+                </option>
+              ))}
+            </select>
+          ) : undefined
+        }
+      >
+        {!id ? (
+          <p className="p-5 text-sm text-muted-foreground">Nenhuma OAS disponível para calcular o rateio.</p>
+        ) : divisao.isError ? (
+          <p role="alert" className="p-5 text-sm text-destructive">
+            {aviso(divisao.error)}
+          </p>
+        ) : divisao.isPending ? (
+          <p role="status" className="p-5 text-sm text-muted-foreground">
+            Calculando rateio…
+          </p>
         ) : divisao.data?.linhas ? (
           <Grade
+            vazio="Nenhuma cota ativa para este rateio."
             titulos={[
               "Cotista",
               divisao.data.uso ? "Horas no período" : "Cota fixa (%)",
@@ -734,38 +871,54 @@ export function Custos({ aeronave, ordens }: { aeronave: string; ordens: Linha[]
             ])}
           />
         ) : (
-          <p>{divisao.data?.aviso}</p>
+          <p className="p-5 text-sm text-muted-foreground">{divisao.data?.aviso}</p>
         )}
-      </section>
-      <section className="rounded-xl border bg-card p-4">
-        <h2 className="font-semibold">Rateios registrados no Financeiro</h2>
-        <label>
-          Categoria{" "}
-          <select className={select} value={categoria} onChange={(e) => setCat(e.target.value)}>
-            <option value="">Selecione</option>
-            {categorias.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </label>
+      </Secao>
+      <Secao
+        icone={Landmark}
+        titulo="Rateios registrados no Financeiro"
+        descricao="Despesas da categoria selecionada divididas entre os cotistas"
+        acao={
+          <label className="flex w-full items-center gap-2 text-xs text-muted-foreground sm:w-auto">
+            Categoria
+            <select
+              className={select + " h-10 min-w-0 flex-1 sm:w-64 sm:flex-none"}
+              value={categoria}
+              onChange={(e) => setCat(e.target.value)}
+            >
+              <option value="">Selecione</option>
+              {categorias.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+        }
+      >
         {financeiro.isError ? (
-          <p>{aviso(financeiro.error)}</p>
+          <p role="alert" className="p-5 text-sm text-destructive">
+            {aviso(financeiro.error)}
+          </p>
+        ) : financeiro.isPending ? (
+          <p role="status" className="p-5 text-sm text-muted-foreground">
+            Carregando rateios…
+          </p>
         ) : (
           <Grade
+            vazio="Nenhum rateio registrado nesta categoria."
             titulos={["Emissão", "Cotista", "Origem", "Despesa", "Situação", "Valor rateado"]}
-            linhas={(financeiro.data?.registros || [])
-              .filter((r) => String(r.categoria_nome || "Sem categoria") === categoria)
-              .map((r) => [
-                dia(r.competencia),
-                r.cotista,
-                String(r.dominio).startsWith("HOLD") ? "Holding" : "Cliente",
-                r.descricao_despesa,
-                r.status,
-                formatarMoeda(r.valor_rateado_centavos / 100),
-              ])}
+            linhas={rateios.map((r) => [
+              dia(r.competencia),
+              r.cotista,
+              String(r.dominio).startsWith("HOLD") ? "Holding" : "Cliente",
+              r.descricao_despesa,
+              r.status,
+              formatarMoeda(r.valor_rateado_centavos / 100),
+            ])}
           />
         )}
-      </section>
+      </Secao>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, useRef, useId, type ReactNode } from "react";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, FileText, RefreshCw, Search, TriangleAlert, X, Download } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, FileText, Pencil, RefreshCw, Search, TriangleAlert, X, Download } from "lucide-react";
 import { toast } from "sonner";
 import {
   buscarContasBancariasHolding,
@@ -8,6 +8,7 @@ import {
   carregarDocumentoFinanceiro,
   formatarData,
   formatarMoeda,
+  buscarOpcoesFinanceiroShare,
   type CamposLancamento,
   type ContaBancaria,
   type ReembolsoColaborador,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/financeiro-share-api";
 import { buscarAeronavesShare } from "@/lib/colaborador-api";
 import { ModalContaAPagar } from "./ModalContaAPagar";
+import { NovoLancamentoShareDialog, type LancamentoEdicao } from "./NovoLancamentoShareDialog";
 import type { ContaAPagar, StatusContaFinanceira } from "./tipos";
 import { createPortal } from "react-dom";
 
@@ -228,6 +230,10 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   const [pagina, setPagina] = useState(1);
   const [contasParaPagamento, setContasParaPagamento] = useState<ContaBancaria[]>(contasBancarias);
   const [matriculasAeronaves, setMatriculasAeronaves] = useState<Record<string, string>>({});
+  const [opcoes, setOpcoes] = useState<{ categorias: any[]; fornecedores: Array<{ id: string; nome: string; cidade?: string | null; origem: string }> }>({ categorias: [], fornecedores: [] });
+  const [lancamentoEditando, setLancamentoEditando] = useState<LancamentoEdicao | null>(null);
+  const tabelaRef = useRef<HTMLDivElement>(null);
+  const arrasteRef = useRef<{ x: number; scrollLeft: number; id: number } | null>(null);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -262,6 +268,26 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   }, [aoAlterarQuantidade]);
 
   useEffect(() => { void carregar(); }, [carregar]);
+  useEffect(() => { void buscarOpcoesFinanceiroShare().then((dados) => setOpcoes({ categorias: dados.categorias, fornecedores: dados.fornecedores ?? [] })).catch(() => undefined); }, []);
+
+  function iniciarArraste(evento: React.PointerEvent<HTMLDivElement>) {
+    if (!evento.isPrimary || evento.button !== 0 || evento.pointerType === "touch") return;
+    if (evento.target instanceof Element && evento.target.closest("button, a, input, select, textarea")) return;
+    const container = evento.currentTarget;
+    arrasteRef.current = { x: evento.clientX, scrollLeft: container.scrollLeft, id: evento.pointerId };
+    const mover = (movimento: PointerEvent) => { if (arrasteRef.current?.id === movimento.pointerId) container.scrollLeft = arrasteRef.current.scrollLeft - (movimento.clientX - arrasteRef.current.x); };
+    const parar = () => { window.removeEventListener("pointermove", mover); window.removeEventListener("pointerup", parar); arrasteRef.current = null; };
+    window.addEventListener("pointermove", mover); window.addEventListener("pointerup", parar);
+  }
+
+  function editarSolicitacao(item: SolicitacaoPagamento | ReembolsoColaborador) {
+    const raw = item as unknown as Record<string, unknown>;
+    const texto = (...chaves: string[]) => chaves.map((chave) => raw[chave]).find((valor) => valor != null && String(valor).trim() !== "") as string | undefined;
+    const id = String(texto("lancamento_id", "lancamentoId", "id") ?? "");
+    if (!id) return toast.error("Este registro não possui lançamento editável.");
+    const valorCentavos = raw.valor_centavos != null ? Number(raw.valor_centavos) : Math.round(Number(raw.valor ?? 0) * 100);
+    setLancamentoEditando({ id, descricao: texto("descricao"), fluxo: "SAIDA", categoriaId: texto("categoria_id"), categoria: texto("categoria_nome", "lancamento_categoria_nome"), grupoCategoria: texto("grupo_categoria"), valorCentavos, data: texto("data_emissao", "dataEmissao", "data_despesa"), prazo: texto("data_vencimento", "dataVencimento", "vencimento"), fornecedorId: texto("fornecedor_id", "fornecedorId"), fornecedor: texto("lancamento_fornecedor_nome", "fornecedor_nome", "fornecedor"), numeroDoc: texto("numero_doc", "documento"), observacoes: texto("observacoes") });
+  }
 
   useEffect(() => {
     let ativo = true;
@@ -380,7 +406,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
       secundaria: item.descricao ?? "",
       valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : Number(item.valor ?? 0))}`,
       status: item.status,
-      acao: baixaDisponivel ? <button type="button" className="nf-btn primary" disabled={!item.conta_a_pagar_id} title={!item.conta_a_pagar_id ? "Conta a pagar vinculada não encontrada" : undefined} onClick={() => abrirBaixaCliente(item)}>Dar baixa</button> : undefined,
+      acao: <>{<button type="button" className="nf-btn" onClick={() => editarSolicitacao(item)}><Pencil size={14} /> Editar</button>}{baixaDisponivel && <button type="button" className="nf-btn primary" disabled={!item.conta_a_pagar_id} title={!item.conta_a_pagar_id ? "Conta a pagar vinculada não encontrada" : undefined} onClick={() => abrirBaixaCliente(item)}>Dar baixa</button>}</>,
       detalhe: expandida ? detalheLancamento(item, setDocumentoAberto) : null,
     };
   });
@@ -399,7 +425,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
       secundaria: item.descricao ?? "",
       valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : item.valor)}`,
       status: item.status,
-      acao: <button type="button" className="nf-btn primary" onClick={() => abrirBaixa(item)}><CheckCircle2 /> Dar baixa</button>,
+      acao: <><button type="button" className="nf-btn" onClick={() => editarSolicitacao(item)}><Pencil size={14} /> Editar</button><button type="button" className="nf-btn primary" onClick={() => abrirBaixa(item)}><CheckCircle2 /> Dar baixa</button></>,
       detalhe: expandida ? detalheLancamento(item, setDocumentoAberto) : null,
     };
   });
@@ -435,7 +461,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
           : erro ? <div className="nf-empty" role="alert"><TriangleAlert /><h3>Não foi possível carregar</h3><p>{erro}</p><button className="nf-btn" onClick={() => void carregar()}>Tentar novamente</button></div>
           : totalItens === 0 ? <div className="nf-empty"><Search /><h3>{temFiltro ? "Nenhum resultado encontrado" : "Nada por aqui"}</h3><p>{temFiltro ? "Ajuste a busca ou o filtro para encontrar o registro." : aba === "cotista" ? "Não há despesas reembolsáveis no caixa cliente." : "Não há reembolsos pendentes de colaboradores."}</p>{temFiltro && <button className="nf-btn" onClick={limparFiltros}>Limpar filtros</button>}</div>
           : <>
-            <div className="erp-tabela-container nf-table-wrap" role="region" aria-label={aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"} tabIndex={0}>
+            <div ref={tabelaRef} onPointerDown={iniciarArraste} className="erp-tabela-container nf-table-wrap" role="region" aria-label={aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"} tabIndex={0}>
               <table className="erp-tabela">
                 <caption className="erp-sr-only">{aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"}</caption>
                 <colgroup>
@@ -502,6 +528,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
           await carregar();
         }}
       />}
+      <NovoLancamentoShareDialog aberto={Boolean(lancamentoEditando)} aoFechar={() => setLancamentoEditando(null)} categorias={opcoes.categorias} fornecedores={opcoes.fornecedores} lancamentoInicial={lancamentoEditando ?? undefined} aoCriar={() => { setLancamentoEditando(null); void carregar(); }} somenteDespesa />
     </div>
   );
 }

@@ -5,13 +5,13 @@ html .baixa-dialog {
   padding: 0 !important; overflow: hidden; border: 1px solid var(--fin-border); border-radius: 12px;
   background: var(--fin-surface); color: var(--fin-text); box-shadow: 0 20px 60px #0004;
 }
-.baixa-dialog .baixa-header { flex-shrink: 0; padding: 22px 24px 18px; border-bottom: 1px solid var(--fin-border); text-align: left; }
+.baixa-dialog .baixa-header { flex-shrink: 0; padding: 16px 20px 14px; border-bottom: 1px solid var(--fin-border); text-align: left; }
 .baixa-dialog .baixa-kicker { margin-bottom: 8px; color: var(--fin-accent); font-size: 10px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; }
-.baixa-dialog .baixa-titulo { display: flex; gap: 8px; align-items: center; font-size: 20px; font-weight: 600; color: var(--fin-text); }
-.baixa-dialog .baixa-header > p:last-child { font-size: 13px; line-height: 1.5; color: var(--fin-muted); }
-.baixa-dialog .baixa-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px 24px; display: grid; gap: 20px; }
-.baixa-dialog .baixa-footer { flex-shrink: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--fin-border); padding: 16px 24px; background: var(--fin-soft); }
-.baixa-dialog .baixa-resumo { min-width: 0; padding: 20px; border: 1px solid var(--fin-border); border-radius: 14px; background: var(--fin-soft); }
+.baixa-dialog .baixa-titulo { display: flex; gap: 8px; align-items: center; font-size: 18px; font-weight: 600; color: var(--fin-text); }
+.baixa-dialog .baixa-header > p:last-child { font-size: 12px; line-height: 1.4; color: var(--fin-muted); }
+.baixa-dialog .baixa-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px 20px; display: grid; gap: 16px; }
+.baixa-dialog .baixa-footer { flex-shrink: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--fin-border); padding: 12px 20px; background: var(--fin-soft); }
+.baixa-dialog .baixa-resumo { min-width: 0; padding: 16px; border: 1px solid var(--fin-border); border-radius: 12px; background: var(--fin-soft); }
 .baixa-resumo-topo { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .baixa-resumo-topo > div:first-child { flex: 1 1 220px; min-width: 0; }
 .baixa-resumo h3 { margin: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }

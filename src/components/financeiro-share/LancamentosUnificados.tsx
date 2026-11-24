@@ -21,6 +21,7 @@ import {
   List,
   Loader2,
   MoreVertical,
+  Pencil,
   Plus,
   Printer,
   RotateCw,
@@ -56,7 +57,7 @@ import {
 } from "./linhas-contas";
 import { ModalContaAPagar } from "./ModalContaAPagar";
 import { ModalContaAReceber } from "./ModalContaAReceber";
-import { NovoLancamentoShareDialog } from "./NovoLancamentoShareDialog";
+import { NovoLancamentoShareDialog, type LancamentoEdicao } from "./NovoLancamentoShareDialog";
 import { AbaSolicitacoesPagamento } from "./AbaSolicitacoesPagamento";
 
 /** Campos opcionais: conecte aos nomes reais do seu backend via obterDetalhes. */
@@ -441,9 +442,11 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const [novo, setNovo] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaCaixaShare[]>([]);
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
+  const [fornecedores, setFornecedores] = useState<Array<{ id: string; nome: string; cidade?: string | null; origem: string }>>([]);
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [expandidos, setExpandidos] = useState<string[]>([]);
   const [contaBaixa, setContaBaixa] = useState<LinhaConta | null>(null);
+  const [lancamentoEditando, setLancamentoEditando] = useState<LancamentoEdicao | null>(null);
   const contaBaixaReal = useMemo(
     () => contaBaixa ? contaAPagarDaLinha(contaBaixa, pagar.contas) : null,
     [contaBaixa, pagar.contas],
@@ -471,7 +474,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   useEffect(() => {
     let ativo = true;
     void buscarOpcoesFinanceiroShare().then((opcoes) => {
-      if (ativo) { setCategorias(opcoes.categorias); setContasBancarias(opcoes.contas_bancarias); }
+      if (ativo) { setCategorias(opcoes.categorias); setContasBancarias(opcoes.contas_bancarias); setFornecedores(opcoes.fornecedores ?? []); }
     }).catch(() => {
       if (ativo) toast.error("Não foi possível carregar as opções financeiras. Tente novamente.");
     });
@@ -736,6 +739,22 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     } catch (erro) {
       toast.error(erro instanceof Error ? erro.message : "Não foi possível excluir o lançamento.");
     }
+  }
+
+  function editarLinha(linha: LinhaConta) {
+    const raw = linha.raw as unknown as Record<string, unknown>;
+    const id = String(raw.lancamentoId ?? linha.id ?? "");
+    if (!id) return;
+    setMenuLinhaId(null);
+    setLancamentoEditando({
+      id, descricao: linha.descricao, fluxo: linha.fluxo,
+      categoriaId: String(raw.categoriaId ?? raw.categoria_share_id ?? raw.categoria_id ?? "") || null,
+      categoria: linha.categoria, grupoCategoria: String(raw.grupoCategoria ?? raw.grupo_categoria ?? "") || null,
+      valorCentavos: Math.round(linha.valor * 100), data: linha.dataLancamento, prazo: linha.dataVencimento,
+      fornecedorId: String(raw.fornecedorId ?? raw.fornecedor_id ?? raw.fornecedores_favoritos_id ?? "") || null,
+      fornecedor: linha.fornecedor ?? linha.favorecido, numeroDoc: linha.documento,
+      observacoes: String(raw.observacoes ?? "") || null,
+    });
   }
 
   function iniciarResize(evento: ReactPointerEvent<HTMLSpanElement>, chave: ChaveColuna) {
@@ -1004,6 +1023,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                             <MoreVertical size={16} aria-hidden="true" />
                           </button>
                           {menuLinhaId === linha.id && <div className="erp-menu-acoes" role="menu">
+                            <button type="button" role="menuitem" onClick={() => editarLinha(linha)}><Pencil size={14} /> Editar</button>
                             <button type="button" role="menuitem" disabled={!podeBaixar(linha)} onClick={() => {
                               setMenuLinhaId(null);
                               const conta = contaAPagarDaLinha(linha, pagar.contas);
@@ -1059,7 +1079,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
         </table>
       </div>
 
-      <NovoLancamentoShareDialog aberto={novo} aoFechar={() => setNovo(false)} categorias={categorias}
+      <NovoLancamentoShareDialog aberto={novo || Boolean(lancamentoEditando)} aoFechar={() => { setNovo(false); setLancamentoEditando(null); }} categorias={categorias}
+        fornecedores={fornecedores} lancamentoInicial={lancamentoEditando ?? undefined}
         aoCriar={() => void recarregar()} somenteDespesa={!ehEntrada} somenteEntrada={ehEntrada} />
       {contaBaixa && ehEntrada && <ModalContaAReceber conta={contaBaixa.raw as ContaAReceber} aberto onFechar={() => setContaBaixa(null)} contasBancarias={contasBancarias}
         onConfirmar={async (dados) => {

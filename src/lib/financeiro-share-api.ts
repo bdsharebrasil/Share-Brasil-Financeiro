@@ -1087,6 +1087,8 @@ export type OpcoesLancamento = {
 
 };
 
+export type FornecedorLancamento = { id: string; nome: string; cidade?: string | null; uf?: string | null; origem: string };
+
 export async function buscarOpcoesFinanceiroShare() {
 
   return (await financeiroRequest("/api/financeiro/share/opcoes")) as {
@@ -1096,6 +1098,8 @@ export async function buscarOpcoesFinanceiroShare() {
     contas_bancarias: ContaBancaria[];
 
     empresas: EmpresaShare[];
+
+    fornecedores: FornecedorLancamento[];
 
   };
 

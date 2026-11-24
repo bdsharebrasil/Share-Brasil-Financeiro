@@ -7,8 +7,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { criarDespesa, emitirReceita, type CategoriaCaixaShare } from "@/lib/financeiro-share-api";
+import { criarDespesa, editarLancamento, emitirReceita, type CategoriaCaixaShare, type FornecedorLancamento } from "@/lib/financeiro-share-api";
+import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import type { Lancamento } from "@/components/financeiro-share/tipos";
+
+export type LancamentoEdicao = {
+  id: string;
+  descricao?: string | null;
+  fluxo?: string | null;
+  categoriaId?: string | null;
+  categoria?: string | null;
+  grupoCategoria?: string | null;
+  valorCentavos?: number | null;
+  data?: string | null;
+  prazo?: string | null;
+  fornecedorId?: string | null;
+  fornecedor?: string | null;
+  numeroDoc?: string | null;
+  observacoes?: string | null;
+};
 
 type Props = {
   aberto: boolean;
@@ -18,9 +35,12 @@ type Props = {
   somenteDespesa?: boolean;
   fluxoInicial?: "entrada" | "saida";
   somenteEntrada?: boolean;
+  fornecedores?: FornecedorLancamento[];
+  lancamentoInicial?: LancamentoEdicao;
 };
 
-export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCriar, somenteDespesa = false, fluxoInicial, somenteEntrada = false }: Props) {
+export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCriar, somenteDespesa = false, fluxoInicial, somenteEntrada = false, fornecedores = [], lancamentoInicial }: Props) {
+  const editando = Boolean(lancamentoInicial);
   const [salvando, setSalvando] = useState(false);
   const [fluxo, setFluxo] = useState("saida");
   const [grupoDespesa, setGrupoDespesa] = useState("DESPESAS EMPRESA");
@@ -30,6 +50,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
   const [dataEmissao, setDataEmissao] = useState(() => new Date().toISOString().slice(0, 10));
   const [dataVencimento, setDataVencimento] = useState("");
   const [fornecedor, setFornecedor] = useState("");
+  const [fornecedorId, setFornecedorId] = useState("");
   const [numeroDoc, setNumeroDoc] = useState("");
   const [observacoes, setObservacoes] = useState("");
 
@@ -38,6 +59,21 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
     else if (somenteEntrada) setFluxo("entrada");
     else if (fluxoInicial) setFluxo(fluxoInicial);
   }, [somenteDespesa, somenteEntrada, fluxoInicial]);
+
+  useEffect(() => {
+    if (!aberto || !lancamentoInicial) return;
+    setFluxo(String(lancamentoInicial.fluxo ?? fluxoInicial ?? "saida").toLowerCase() === "entrada" ? "entrada" : "saida");
+    setDescricao(lancamentoInicial.descricao ?? "");
+    setCategoriaId(lancamentoInicial.categoriaId ?? "");
+    setValor(lancamentoInicial.valorCentavos != null ? (lancamentoInicial.valorCentavos / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "");
+    setDataEmissao((lancamentoInicial.data ?? "").slice(0, 10));
+    setDataVencimento((lancamentoInicial.prazo ?? "").slice(0, 10));
+    setFornecedorId(lancamentoInicial.fornecedorId ?? "");
+    setFornecedor(lancamentoInicial.fornecedor ?? "");
+    setNumeroDoc(lancamentoInicial.numeroDoc ?? "");
+    setObservacoes(lancamentoInicial.observacoes ?? "");
+    if (lancamentoInicial.grupoCategoria) setGrupoDespesa(lancamentoInicial.grupoCategoria);
+  }, [aberto, fluxoInicial, lancamentoInicial]);
 
   const gruposCategoria = useMemo(() => {
     const mapa = new Map<string, CategoriaCaixaShare[]>();
@@ -52,11 +88,12 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
   const limpar = () => {
     setFluxo("saida"); setGrupoDespesa("DESPESAS EMPRESA"); setDescricao(""); setCategoriaId(""); setValor("");
     setDataEmissao(new Date().toISOString().slice(0, 10)); setDataVencimento("");
-    setFornecedor(""); setNumeroDoc(""); setObservacoes("");
+    setFornecedor(""); setFornecedorId(""); setNumeroDoc(""); setObservacoes("");
   };
 
   const salvar = async () => {
     const categoria = categorias.find((item) => item.id === categoriaId);
+    const fornecedorSelecionado = fornecedores.find((item) => item.id === fornecedorId);
     const valorNumerico = Number(valor.replace(/\./g, "").replace(",", "."));
     if (!descricao.trim()) return toast.error("Informe a descrição do lançamento.");
     if (!categoria) return toast.error("Selecione a categoria do caixa Share.");
@@ -65,8 +102,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
 
     setSalvando(true);
     try {
-      const criar = fluxo === "entrada" ? emitirReceita : criarDespesa;
-      const lancamento = await criar({
+      const payload = {
         descricao: descricao.trim(),
         fluxo: fluxo === "entrada" ? "ENTRADA" : "SAIDA",
         tipo_caixa: "SHARE",
@@ -76,12 +112,16 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
         valor_total: valorNumerico,
         data_emissao: dataEmissao || null,
         data_vencimento: dataVencimento || null,
-        fornecedor: fornecedor.trim() || null,
+        fornecedor_id: fornecedorId || null,
+        fornecedor: (fornecedorSelecionado?.nome ?? fornecedor).trim() || null,
         numero_doc: numeroDoc.trim() || null,
         periodicidade: categoria.classificacao,
         observacoes: observacoes.trim() || null,
-      });
-      toast.success("Lançamento do caixa Share registrado.");
+      };
+      const lancamento = editando
+        ? await editarLancamento(lancamentoInicial!.id, { ...payload, valor_centavos: Math.round(valorNumerico * 100), data: dataEmissao || null, data_vencimento: dataVencimento || null, categoria_id: categoria.id })
+        : await (fluxo === "entrada" ? emitirReceita : criarDespesa)(payload);
+      toast.success(editando ? "Lançamento atualizado." : "Lançamento do caixa Share registrado.");
       aoCriar(lancamento);
       limpar();
       aoFechar();
@@ -97,7 +137,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
       <DialogContent className="max-h-[94dvh] w-[calc(100%-1rem)] max-w-3xl overflow-y-auto rounded-2xl border-border bg-card p-4 shadow-2xl sm:w-full sm:p-6">
         <DialogHeader>
           <p className="text-[10px] font-bold uppercase tracking-[.16em] text-primary">Financeiro Share · Caixa próprio</p>
-          <DialogTitle className="text-xl font-bold tracking-[-.03em]">{somenteDespesa ? "Nova conta a pagar" : "Novo lançamento"}</DialogTitle>
+          <DialogTitle className="text-xl font-bold tracking-[-.03em]">{editando ? "Editar lançamento" : somenteDespesa ? "Nova conta a pagar" : "Novo lançamento"}</DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
             Despesas e entradas da própria Share Brasil. Lançamentos de cotista não entram aqui.
           </DialogDescription>
@@ -162,7 +202,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
 
           <div className="space-y-2">
             <Label>Fornecedor</Label>
-            <Input value={fornecedor} onChange={(evento) => setFornecedor(evento.target.value)} placeholder="Nome do fornecedor" />
+            <SearchableCombobox items={fornecedores.map((item) => ({ id: item.id, label: `${item.nome}${item.cidade ? ` · ${item.cidade}` : ""}` }))} value={fornecedorId} onChange={(id, label) => { setFornecedorId(id); setFornecedor(label.split(" · ")[0]); }} placeholder="Selecione o fornecedor" searchPlaceholder="Buscar fornecedor..." emptyMessage="Nenhum fornecedor encontrado." clearable />
           </div>
 
           <div className="space-y-2 sm:col-span-2">
@@ -179,7 +219,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
         <DialogFooter className="sticky bottom-[-1rem] -mx-4 mt-2 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:bottom-[-1.5rem] sm:-mx-6 sm:px-6">
           <Button type="button" variant="ghost" onClick={aoFechar} disabled={salvando} className="min-h-10">Cancelar</Button>
           <Button type="button" onClick={salvar} disabled={salvando} className="min-h-10 gap-2">
-            {salvando ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} Salvar lançamento
+            {salvando ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} {editando ? "Salvar alterações" : "Salvar lançamento"}
           </Button>
         </DialogFooter>
       </DialogContent>

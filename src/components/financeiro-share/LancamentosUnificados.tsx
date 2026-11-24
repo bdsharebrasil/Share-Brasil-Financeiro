@@ -115,11 +115,6 @@ const STATUS_FILTRO: Array<{ valor: Exclude<FiltroSituacao, "TODAS">; rotulo: st
   { valor: "CANCELADO", rotulo: "CANCELADO" },
 ];
 
-const FLUXOS_FILTRO: FluxoLinha[] = [
-  "ESTORNO", "RECEITA", "DESPESA", "SAIDA REEMBOLSO",
-  "ENTRADA REEMBOLSO", "SAIDA", "ENTRADA",
-];
-
 const rotuloStatus = (status: Exclude<FiltroSituacao, "TODAS">) =>
   status.replace(/_/g, " ");
 
@@ -173,6 +168,18 @@ function ehReembolsavelDireto(linha: LinhaConta) {
 }
 function ehLancamentoDireto(conta: ContaAPagar) {
   return conta.fonteLancamento === true && (conta.lancamentoId ?? conta.id) === conta.id;
+}
+function ehReembolso(linha: LinhaConta) {
+  const raw = linha.raw as unknown as Record<string, unknown>;
+  const origem = String(raw.origemTipo ?? raw.origem_tipo ?? "").trim().toUpperCase();
+  const categoria = String(raw.categoriaNome ?? raw.categoria_nome ?? linha.categoria ?? "").trim().toUpperCase();
+  return raw.reembolsavel === true || origem.includes("REEMBOLSO") || categoria.includes("REEMBOLSO");
+}
+function correspondeAoFluxo(linha: LinhaConta, filtro: "TODOS" | FluxoLinha) {
+  if (filtro === "TODOS") return true;
+  if (filtro === "SAIDA REEMBOLSO") return linha.fluxo === "SAIDA" && ehReembolso(linha);
+  if (filtro === "ENTRADA REEMBOLSO") return linha.fluxo === "ENTRADA" && ehReembolso(linha);
+  return linha.fluxo === filtro;
 }
 function contaAPagarDaLinha(linha: LinhaConta, contas: ContaAPagar[]) {
   const raw = linha.raw as ContaAPagar;
@@ -388,6 +395,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const pagar = useContasAPagar({ incluirLancamentos: fluxo === "SAIDA", incluirReembolsos: fluxo === "SAIDA" });
   const receber = useContasAReceber();
   const ehEntrada = fluxo === "ENTRADA";
+  const fluxosFiltro: FluxoLinha[] = ehEntrada ? ["ENTRADA", "ENTRADA REEMBOLSO"] : ["SAIDA", "SAIDA REEMBOLSO"];
   const titulo = ehEntrada ? "Registrar Entrada" : "Registrar Saída";
   const carregando = ehEntrada ? receber.carregando : pagar.carregando;
   const erro = ehEntrada ? receber.erro : pagar.erro;
@@ -626,7 +634,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       }
       if (situacaoFiltro !== "TODAS" && statusParaFiltro(linha) !== situacaoFiltro) return false;
       if (caixaFiltro !== "TODOS" && linha.caixa !== caixaFiltro) return false;
-      if (fluxoFiltro !== "TODOS" && linha.fluxo !== fluxoFiltro) return false;
+      if (!correspondeAoFluxo(linha, fluxoFiltro)) return false;
       if (contaFiltro !== null && linha.contaBancaria !== contaFiltro) return false;
       if (docFiltro !== null && tipoDocumento(linha) !== docFiltro) return false;
       const texto = [linha.documento, ...(linha.raw.numerosDocumento ?? []), linha.descricao, linha.categoria, linha.favorecido,
@@ -858,7 +866,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
             <option value="TODOS">Todos os caixas</option><option value="SHARE">Share</option><option value="CLIENTE">Cliente</option>
           </select></label>
           <label><span className="erp-sr-only">Fluxo</span><select value={fluxoFiltro} onChange={(e) => setFluxoFiltro(e.target.value as "TODOS" | FluxoLinha)}>
-            <option value="TODOS">Todos os fluxos</option>{FLUXOS_FILTRO.map((item) => <option key={item} value={item}>{item}</option>)}
+            <option value="TODOS">Todos os fluxos</option>{fluxosFiltro.map((item) => <option key={item} value={item}>{item}</option>)}
           </select></label>
           <button type="button" className="erp-btn erp-btn-texto" onClick={limparFiltros}><X size={15} aria-hidden="true" />Limpar</button>
         </div>}

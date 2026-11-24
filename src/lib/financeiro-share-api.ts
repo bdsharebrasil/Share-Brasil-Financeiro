@@ -224,8 +224,26 @@ export async function carregarDocumentoFinanceiro(valor: string, signal?: AbortS
 
   if (!blob.size) throw new Error("O documento está vazio.");
 
-  return blob;
+  return tipificarBlobDocumento(blob, resolvida);
 
+}
+
+export async function tipificarBlobDocumento(blob: Blob, urlOrigem = ""): Promise<Blob> {
+  const declarado = blob.type.split(";")[0].trim().toLowerCase();
+  if (declarado === "application/pdf" || (declarado.startsWith("image/") && declarado !== "image/svg+xml")) return blob;
+  const b = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+  const ascii = (inicio: number, fim: number) => String.fromCharCode(...b.slice(inicio, fim));
+  let tipo = "";
+  if (ascii(0, 5) === "%PDF-") tipo = "application/pdf";
+  else if (b[0] === 0xff && b[1] === 0xd8) tipo = "image/jpeg";
+  else if (ascii(1, 4) === "PNG") tipo = "image/png";
+  else if (ascii(0, 3) === "GIF") tipo = "image/gif";
+  else if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") tipo = "image/webp";
+  else {
+    const extensao = urlOrigem.split(/[?#]/)[0].split(".").pop()?.toLowerCase();
+    tipo = ({ pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif" } as Record<string, string>)[extensao ?? ""] ?? "";
+  }
+  return tipo ? new Blob([blob], { type: tipo }) : blob;
 }
 
 export function enviarComprovanteRecebimento(id: string, arquivo: File): Promise<{ url: string }> {

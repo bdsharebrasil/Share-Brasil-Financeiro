@@ -1,10 +1,13 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, useRef, useId, type ReactNode } from "react";
 import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, FileText, MoreVertical, Pencil, RefreshCw, Search, TriangleAlert, X, Download } from "lucide-react";
 import { toast } from "sonner";
+import { anexosFinanceiros } from "@/lib/documentos-financeiros";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   buscarContasBancariasHolding,
   buscarSolicitacoesPagamento,
   darBaixaContaAPagar,
+  darBaixaPagamentoShare,
   carregarDocumentoFinanceiro,
   formatarData,
   formatarMoeda,
@@ -107,27 +110,15 @@ function primeiroTexto(...valores: Array<string | null | undefined>): string | n
   return valores.find((valor) => valor && valor.trim() !== "") ?? null;
 }
 
-const ANEXOS: Array<{ campo: "url_demonstrativo" | "url_nf" | "url_recibo" | "url_boleto" | "url_doc" | "comprovante_url"; rotulo: string }> = [
-  { campo: "url_demonstrativo", rotulo: "Demonstrativo" },
-  { campo: "url_nf", rotulo: "Nota fiscal" },
-  { campo: "url_recibo", rotulo: "Recibo" },
-  { campo: "url_boleto", rotulo: "Boleto" },
-  { campo: "url_doc", rotulo: "Documento" },
-  { campo: "comprovante_url", rotulo: "Comprovante" },
-];
-
 function detalheLancamento(campos: CamposLancamento, abrirDocumento: (documento: DocumentoAberto) => void, acao?: ReactNode): ReactNode {
-  const anexos = ANEXOS.flatMap(({ campo, rotulo }) => {
-    const url = campos[campo];
-    return url ? [{ rotulo, url }] : [];
-  });
+  const anexos = anexosFinanceiros(campos);
   const fornecedor = campos.lancamento_fornecedor_nome ?? campos.fornecedor_nome ?? campos.fornecedor;
   const categoria = campos.lancamento_categoria_nome ?? campos.categoria_nome;
   return <div className="nf-detail">
     <section>
       <h3>Documentos anexos</h3>
       {anexos.length > 0
-        ? anexos.map(({ rotulo, url }) => <button type="button" className="nf-attachment" key={rotulo} onClick={() => abrirDocumento({ titulo: rotulo, url })}><FileText size={16} />{rotulo}<ChevronRight size={14} /></button>)
+        ? anexos.map(({ nome: rotulo, url }) => <button type="button" className="nf-attachment" key={url} onClick={() => abrirDocumento({ titulo: rotulo, url })}><FileText size={16} />{rotulo}<ChevronRight size={14} /></button>)
         : <p><FileText size={13} /> Nenhum documento anexado.</p>}
     </section>
     <section>
@@ -210,7 +201,8 @@ function contaDaSolicitacao(item: SolicitacaoPagamento, id: string): ContaAPagar
     bancoPagamento: null,
     comprovantePagamentoUrl: item.comprovante_url ?? null,
     documento: null,
-    documentoUrl: null,
+    documentoUrl: item.documentoUrl ?? item.url_doc ?? null,
+    fonteLancamento: !item.conta_a_pagar_id,
     lancamentoId: item.lancamento_id ?? null,
     status: (item.conta_a_pagar_status ?? item.status) as StatusContaFinanceira,
     criadoEm: item.criado_em,
@@ -230,15 +222,6 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   const [expandido, setExpandido] = useState<string | null>(null);
   const [menuAberto, setMenuAberto] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!menuAberto) return;
-    const fecharFora = (evento: PointerEvent) => {
-      if (evento.target instanceof Element && evento.target.closest(".nf-menu-linha")) return;
-      setMenuAberto(null);
-    };
-    document.addEventListener("pointerdown", fecharFora);
-    return () => document.removeEventListener("pointerdown", fecharFora);
-  }, [menuAberto]);
   const [busca, setBusca] = useState("");
   const [filtroEnvio, setFiltroEnvio] = useState("TODOS");
   const [filtroReembolso, setFiltroReembolso] = useState("TODOS");
@@ -351,11 +334,9 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   }
 
   function abrirBaixaCliente(item: SolicitacaoPagamento) {
-    if (!item.conta_a_pagar_id) {
-      toast.error("Não foi encontrada uma conta a pagar vinculada a este lançamento.");
-      return;
-    }
-    setContaBaixa(contaDaSolicitacao(item, item.conta_a_pagar_id));
+    setAlvo(null);
+    setContasParaPagamento(contasBancarias);
+    setContaBaixa(contaDaSolicitacao(item, item.conta_a_pagar_id || item.lancamento_id || item.id));
   }
 
   function fecharBaixa() {
@@ -450,7 +431,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
       status: item.status,
       acoes: [
         { rotulo: <><Pencil size={14} /> Editar</>, aoClicar: () => editarSolicitacao(item) },
-        ...(baixaDisponivel ? [{ rotulo: "Dar baixa", desabilitada: !item.conta_a_pagar_id, titulo: !item.conta_a_pagar_id ? "Conta a pagar vinculada não encontrada" : undefined, aoClicar: () => abrirBaixaCliente(item) }] : []),
+        ...(baixaDisponivel ? [{ rotulo: "Dar baixa", aoClicar: () => abrirBaixaCliente(item) }] : []),
       ],
       detalhe: expandida ? detalheLancamento(item, setDocumentoAberto) : null,
     };
@@ -481,13 +462,12 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   const linhas = aba === "cotista" ? linhasEnvio : linhasReembolso;
 
   function celulaAcoes(linha: LinhaExibida) {
-    const aberto = menuAberto === linha.chave;
-    return <div className="nf-menu-linha">
-      <button type="button" className="nf-icon" aria-label={`Ações de ${linha.secundaria || linha.principal}`} aria-haspopup="menu" aria-expanded={aberto} onClick={() => setMenuAberto(aberto ? null : linha.chave)}><MoreVertical /></button>
-      {aberto && <div className="nf-menu-acoes" role="menu">
-        {linha.acoes.map((acao, indice) => <button key={indice} type="button" role="menuitem" disabled={acao.desabilitada} title={acao.titulo} onClick={() => { setMenuAberto(null); acao.aoClicar(); }}>{acao.rotulo}</button>)}
-      </div>}
-    </div>;
+    return <DropdownMenu open={menuAberto === linha.chave} onOpenChange={(aberto) => setMenuAberto(aberto ? linha.chave : null)} modal={false}>
+      <DropdownMenuTrigger asChild><button type="button" className="nf-icon" aria-label={`Ações de ${linha.secundaria || linha.principal}`}><MoreVertical /></button></DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-44">
+        {linha.acoes.map((acao, indice) => <DropdownMenuItem key={indice} disabled={acao.desabilitada} title={acao.titulo} onSelect={acao.aoClicar}>{acao.rotulo}</DropdownMenuItem>)}
+      </DropdownMenuContent>
+    </DropdownMenu>;
   }
 
   return (
@@ -579,7 +559,8 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
         onFechar={fecharBaixa}
         contasBancarias={contasParaPagamento}
         onConfirmar={async (dados) => {
-          await darBaixaContaAPagar(contaBaixa.id, dados);
+          if (contaBaixa.fonteLancamento) await darBaixaPagamentoShare(contaBaixa.lancamentoId || contaBaixa.id, dados);
+          else await darBaixaContaAPagar(contaBaixa.id, dados);
           toast.success("Baixa registrada.");
           fecharBaixa();
           await carregar();
@@ -656,6 +637,13 @@ function VisualizadorDocumento({ documento, onClose }: { documento: DocumentoAbe
 }
 
 const STYLES = `
+html .nf-workspace.nf-payment-requests{height:auto;min-height:0;overflow:visible;margin:0;padding:12px}
+html .nf-workspace.nf-payment-requests .nf-panel{flex:none;min-height:0;margin:0}
+html .nf-workspace.nf-payment-requests .nf-table-wrap{flex:none;max-height:none;overflow:auto}
+html .nf-workspace.nf-payment-requests .erp-tabela td.erp-td-acoes{overflow:visible}
+html .nf-workspace.nf-payment-requests .erp-tabela th{position:sticky;top:0;z-index:1;background:var(--app-soft)}
+html .nf-workspace.nf-payment-requests .nf-icon{width:30px;min-height:30px;height:30px;padding:5px}
+
 .nf-payment-requests,.nf-payment-dialog{--nf-ink: var(--app-text);--nf-muted: var(--app-muted);--nf-border: var(--app-line);--nf-blue: var(--app-info);color:var(--nf-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;line-height:1.5;color-scheme:var(--app-color-scheme)}
 .nf-payment-requests *,.nf-payment-dialog *{box-sizing:border-box}
 .nf-payment-requests{container-type:inline-size;width:100%;min-width:0;background:var(--app-soft);margin:-8px -3px;padding:38px 18px;border-radius:18px}
@@ -668,11 +656,6 @@ const STYLES = `
 .nf-payment-requests .nf-dot{width:6px;height:6px;background:var(--nf-blue);border-radius:50%}
 .nf-payment-requests h1{font-size:27px;font-weight:650;letter-spacing:-1px;margin:-15px 0 4px}
 .nf-payment-requests .nf-subtitle{margin:0;color:var(--nf-muted);font-size:13px}
-.nf-payment-requests .nf-menu-linha{position:relative;display:inline-flex}
-.nf-payment-requests .nf-menu-acoes{position:absolute;top:calc(100% + 4px);right:0;z-index:40;min-width:160px;padding:4px;border:1px solid var(--app-line);border-radius:8px;background:var(--app-surface);box-shadow:0 12px 30px #0003}
-.nf-payment-requests .nf-menu-acoes button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:0;border-radius:6px;background:transparent;color:var(--app-text);font-size:12px;text-align:left;white-space:nowrap}
-.nf-payment-requests .nf-menu-acoes button:hover:not(:disabled){background:var(--app-soft)}
-.nf-payment-requests .nf-menu-acoes button:disabled{opacity:.45;cursor:not-allowed}
 .nf-payment-requests .nf-btn,.nf-payment-dialog .nf-btn,.nf-payment-requests .nf-icon,.nf-payment-dialog .nf-icon{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:9px 13px;border:1px solid var(--app-line);border-radius:9px;color:var(--app-text);background:var(--app-surface);font-size:12px;font-weight:600;text-decoration:none;transition:background .15s,box-shadow .15s}
 .nf-payment-requests .nf-btn:hover,.nf-payment-dialog .nf-btn:hover{background:var(--app-soft);box-shadow:0 2px 5px #162c4510}
 .nf-payment-requests .nf-btn.primary,.nf-payment-dialog .nf-btn.primary{background:var(--nf-blue);border-color:var(--nf-blue);color:var(--app-primary-text);box-shadow:0 2px 4px #245bd81a}
@@ -723,7 +706,7 @@ const STYLES = `
 .nf-payment-dialog .nf-upload{position:relative;display:inline-flex;align-items:center;gap:9px;max-width:100%;border:1px solid var(--app-info-line);border-radius:8px;padding:11px 15px;cursor:pointer;color:var(--app-info);background:var(--app-soft);font-size:12px;overflow-wrap:anywhere}.nf-payment-dialog .nf-upload svg{width:17px;height:17px;flex-shrink:0}.nf-payment-dialog .nf-upload input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}.nf-payment-dialog .nf-upload:focus-within{outline:3px solid #93b4ff;outline-offset:3px}.nf-payment-dialog .nf-upload strong{font-weight:600}
 .nf-payment-dialog .nf-info{padding:12px;background:var(--app-soft);border-radius:8px;color:var(--app-muted);font-size:11px}.nf-payment-dialog .nf-modal-footer{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px;padding-top:18px;margin-top:20px;border-top:1px solid #e8edf4}
 .nf-payment-dialog .nf-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;color:var(--app-muted);font-size:12px}.nf-payment-dialog .nf-preview-toolbar>span{display:flex;align-items:center;gap:8px}.nf-payment-dialog .nf-preview{height:75dvh;min-height:240px;overflow:auto;display:flex;justify-content:center;align-items:center;border:1px solid var(--app-line);border-radius:9px;background:var(--app-soft)}.nf-payment-dialog .nf-preview img{display:block;max-width:100%;max-height:100%;object-fit:contain}.nf-payment-dialog .nf-preview iframe{width:100%;height:100%;border:0;background:var(--app-surface)}
-@container(max-width:1050px){.nf-payment-requests .nf-table-wrap{display:none}.nf-payment-requests .nf-mobile-docs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 20px 20px}.nf-payment-requests .nf-mobile-doc{min-width:0;border:1px solid var(--app-line);border-radius:11px;overflow:hidden;background:white}.nf-payment-requests .nf-mobile-doc.expanded{grid-column:1/-1}.nf-payment-requests .nf-mobile-doc>header{display:flex;align-items:center;gap:9px;padding:16px;border-bottom:1px solid #edf1f6}.nf-payment-requests .nf-mobile-doc>header>div{flex:1;min-width:0;overflow-wrap:anywhere}.nf-payment-requests .nf-mobile-doc>header strong{font-size:12px}.nf-payment-requests .nf-mobile-doc>header small{display:block;font-size:11px;color:var(--app-muted)}.nf-payment-requests .nf-mobile-doc>dl{display:grid;gap:16px;padding:16px;margin:0}.nf-payment-requests .nf-mobile-doc dt{font-size:10px;color:var(--app-muted);margin-bottom:4px}.nf-payment-requests .nf-mobile-doc dd{margin:0;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}.nf-payment-requests .nf-mobile-doc dd small{display:block;font-size:12px;color:var(--app-muted);line-height:1.7;margin-top:6px}.nf-payment-requests .nf-mobile-doc>footer{display:flex;justify-content:flex-end;gap:8px;padding:0 16px 16px;flex-wrap:wrap}.nf-payment-requests .nf-mobile-doc .nf-detail{border-radius:0;border-width:1px 0 0}}
+@container(max-width:760px){.nf-payment-requests .nf-table-wrap{display:none}.nf-payment-requests .nf-mobile-docs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 20px 20px}.nf-payment-requests .nf-mobile-doc{min-width:0;border:1px solid var(--app-line);border-radius:11px;overflow:hidden;background:white}.nf-payment-requests .nf-mobile-doc.expanded{grid-column:1/-1}.nf-payment-requests .nf-mobile-doc>header{display:flex;align-items:center;gap:9px;padding:16px;border-bottom:1px solid #edf1f6}.nf-payment-requests .nf-mobile-doc>header>div{flex:1;min-width:0;overflow-wrap:anywhere}.nf-payment-requests .nf-mobile-doc>header strong{font-size:12px}.nf-payment-requests .nf-mobile-doc>header small{display:block;font-size:11px;color:var(--app-muted)}.nf-payment-requests .nf-mobile-doc>dl{display:grid;gap:16px;padding:16px;margin:0}.nf-payment-requests .nf-mobile-doc dt{font-size:10px;color:var(--app-muted);margin-bottom:4px}.nf-payment-requests .nf-mobile-doc dd{margin:0;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}.nf-payment-requests .nf-mobile-doc dd small{display:block;font-size:12px;color:var(--app-muted);line-height:1.7;margin-top:6px}.nf-payment-requests .nf-mobile-doc>footer{display:flex;justify-content:flex-end;gap:8px;padding:0 16px 16px;flex-wrap:wrap}.nf-payment-requests .nf-mobile-doc .nf-detail{border-radius:0;border-width:1px 0 0}}
 @container(max-width:620px){.nf-payment-requests .nf-header{align-items:flex-start;gap:10px}.nf-payment-requests .nf-header-actions .nf-btn{font-size:0;padding:10px}.nf-payment-requests .nf-header-actions .nf-btn svg{width:18px;height:18px}nf-payment-requests .nf-panel-top{padding:12px}.nf-payment-requests .nf-segment{display:flex}.nf-payment-requests .nf-segment button{flex:1;font-size:11px;padding:7px;gap:6px}.nf-payment-requests .nf-toolbar{padding:14px 12px;flex-direction:column;align-items:stretch;gap:8px}.nf-payment-requests .nf-list-heading{padding:2px 14px 14px}.nf-payment-requests .nf-mobile-docs{grid-template-columns:1fr;padding:0 12px 12px;gap:12px}.nf-payment-requests .nf-detail{grid-template-columns:1fr;padding:16px;gap:20px}.nf-payment-requests .nf-detail dl{grid-template-columns:1fr}.nf-payment-requests .nf-pagination{padding:14px 12px;flex-wrap:wrap;font-size:10px}.nf-payment-requests .nf-pagination>div{gap:8px}}
 @media(max-width:600px){.nf-payment-dialog .nf-dialog-header{padding:12px 14px}.nf-payment-dialog .nf-dialog-header h2{font-size:15px}.nf-payment-dialog .nf-dialog-content{padding:14px}.nf-payment-dialog .nf-form-grid.two{grid-template-columns:1fr}.nf-payment-dialog .nf-form-grid input,.nf-payment-dialog .nf-form-grid select,.nf-payment-dialog .nf-form-grid textarea{font-size:16px}.nf-payment-dialog .nf-payment-summary{flex-direction:column}.nf-payment-dialog .nf-modal-footer .nf-btn{flex:1}.nf-payment-dialog .nf-preview-toolbar{flex-wrap:wrap}.nf-payment-dialog .nf-preview{height:60dvh}}
 @media(prefers-reduced-motion:reduce){.nf-spin{animation:none}.nf-payment-requests *,.nf-payment-dialog *{transition:none!important}}

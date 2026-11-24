@@ -1,3 +1,5 @@
+import { tipificarBlobDocumento } from "./documentos-financeiros";
+export { tipificarBlobDocumento } from "./documentos-financeiros";
 import type {
   ParticipanteBalanco,
   RateioBalanco,
@@ -228,24 +230,6 @@ export async function carregarDocumentoFinanceiro(valor: string, signal?: AbortS
 
 }
 
-export async function tipificarBlobDocumento(blob: Blob, urlOrigem = ""): Promise<Blob> {
-  const declarado = blob.type.split(";")[0].trim().toLowerCase();
-  if (declarado === "application/pdf" || (declarado.startsWith("image/") && declarado !== "image/svg+xml")) return blob;
-  const b = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
-  const ascii = (inicio: number, fim: number) => String.fromCharCode(...b.slice(inicio, fim));
-  let tipo = "";
-  if (ascii(0, 5) === "%PDF-") tipo = "application/pdf";
-  else if (b[0] === 0xff && b[1] === 0xd8) tipo = "image/jpeg";
-  else if (ascii(1, 4) === "PNG") tipo = "image/png";
-  else if (ascii(0, 3) === "GIF") tipo = "image/gif";
-  else if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") tipo = "image/webp";
-  else {
-    const extensao = urlOrigem.split(/[?#]/)[0].split(".").pop()?.toLowerCase();
-    tipo = ({ pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif" } as Record<string, string>)[extensao ?? ""] ?? "";
-  }
-  return tipo ? new Blob([blob], { type: tipo }) : blob;
-}
-
 export function enviarComprovanteRecebimento(id: string, arquivo: File): Promise<{ url: string }> {
 
   const body = new FormData();
@@ -364,7 +348,9 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
 
     numerosDocumento: numerosDocumentoDaConta(row),
 
-    documentoUrl: resolverUrlDocumento(row.documentoUrl || row.url_doc || row.relatorio_pdf_url || row.url_demonstrativo || row.url_nf || row.url_recibo || row.url_boleto),
+    anexos_json: row.anexos ?? row.anexos_json ?? null,
+
+    documentoUrl: resolverUrlDocumento(row.documentoUrl || row.relatorio_pdf_url || row.url_doc || row.url_demonstrativo || row.url_nf || row.url_recibo || row.url_boleto),
 
     url_demonstrativo: resolverUrlDocumento(row.url_demonstrativo || row.urlDemonstrativo),
 
@@ -600,6 +586,15 @@ export async function darBaixaContaAPagar(id: string, dados: { dataPagamento: st
 
   return normalizarContaFinanceira<ContaAPagar>(resposta);
 
+}
+
+/** Confirma o pagamento da despesa Share pelo lançamento, com ou sem conta legada. */
+export function darBaixaPagamentoShare(id: string, dados: { dataPagamento: string; bancoPagamento: string; contaBancariaId?: string; comprovantePagamentoUrl?: string; formaPagamento?: string; observacoes?: string }) {
+  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/lancamentos/${encodeURIComponent(id)}/pagamento-share`, {
+    method: "POST",
+    body: JSON.stringify({ data_pagamento: dados.dataPagamento, conta_bancaria_id: dados.contaBancariaId || dados.bancoPagamento,
+      comprovante_url: dados.comprovantePagamentoUrl, forma_pagamento: dados.formaPagamento, motivo: dados.observacoes }),
+  });
 }
 
 export async function buscarContasAReceber(filtros: FiltrosContasAReceber = {}): Promise<ContaAReceber[]> {
@@ -1124,6 +1119,13 @@ export async function buscarOpcoesFinanceiroShare() {
 }
 
 export type CamposLancamento = {
+  documentoUrl?: string | null;
+  boletoUrl?: string | null;
+  nfUrl?: string | null;
+  comprovantePagamentoUrl?: string | null;
+  relatorio_pdf_url?: string | null;
+  anexos_json?: unknown;
+  anexos?: unknown;
 
   numero_nf?: string | null;
 

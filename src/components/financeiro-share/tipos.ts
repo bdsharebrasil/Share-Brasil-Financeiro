@@ -62,6 +62,8 @@ export interface Lancamento {
 }
 
 export interface ContaAPagar {
+  anexos?: Lancamento["anexos"];
+  anexos_json?: unknown;
   id: string;
   dataEmissao: string | null;
   dataVencimento: string;

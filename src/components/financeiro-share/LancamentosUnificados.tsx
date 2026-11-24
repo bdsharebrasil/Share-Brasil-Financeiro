@@ -29,6 +29,8 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { anexosFinanceiros } from "@/lib/documentos-financeiros";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { API_BASE } from "@/lib/api";
 import { IconeAnexo } from "./IconeAnexo";
 import { ContaBancariaCell } from "./ContaBancariaCell";
@@ -38,7 +40,7 @@ import {
   carregarDocumentoFinanceiro,
   darBaixaContaAPagar,
   darBaixaContaAReceber,
-  darBaixaLancamento,
+  darBaixaPagamentoShare,
   excluirLancamento,
   formatarData,
   formatarMoeda,
@@ -66,17 +68,6 @@ export type DetalhesLancamento = {
   observacoes?: string;
   anexos?: Array<{ nome: string; url: string; numero?: string | null }>;
 };
-
-const CAMPOS_ANEXO: Array<{ campo: string; rotulo: string; campoNumero?: string }> = [
-  { campo: "url_recibo", rotulo: "Recibo", campoNumero: "numero_recibo" },
-  { campo: "url_demonstrativo", rotulo: "Demonstrativo", campoNumero: "numero_demonstrativo" },
-  { campo: "url_nf", rotulo: "Nota fiscal", campoNumero: "numero_nf" },
-  { campo: "url_boleto", rotulo: "Boleto", campoNumero: "numero_boleto" },
-  { campo: "url_doc", rotulo: "Documento", campoNumero: "numero_doc" },
-  { campo: "comprovanteRecebimentoUrl", rotulo: "Comprovante de recebimento" },
-  { campo: "comprovantePagamentoUrl", rotulo: "Comprovante de pagamento" },
-  { campo: "documentoUrl", rotulo: "Documento principal" },
-];
 
 type AnexoLancamento = { nome: string; href: string; numero?: string | null };
 
@@ -166,10 +157,6 @@ function rotuloMes(mes: string) {
 function podeBaixar(linha: LinhaConta) {
   return linha.situacao !== "PAGO" && linha.situacao !== "CANCELADO";
 }
-function ehReembolsavelDireto(linha: LinhaConta) {
-  const conta = linha.raw as ContaAPagar;
-  return conta.fonteLancamento === true && conta.reembolsavel === true;
-}
 function ehLancamentoDireto(conta: ContaAPagar) {
   return conta.fonteLancamento === true && (conta.lancamentoId ?? conta.id) === conta.id;
 }
@@ -215,14 +202,7 @@ function urlSegura(valor: string) {
 
 function reunirAnexos(linha: LinhaConta, dados: DetalhesLancamento = {}): AnexoLancamento[] {
   const raw = linha.raw as unknown as Record<string, unknown>;
-  const candidatos = [
-    ...CAMPOS_ANEXO.map(({ campo, rotulo, campoNumero }) => ({
-      nome: rotulo,
-      url: raw[campo],
-      numero: campoNumero ? lerTexto(raw, campoNumero, campoNumero.replace(/_([a-z])/g, (_, letra: string) => letra.toUpperCase())) : null,
-    })),
-    ...(dados.anexos ?? []).map((anexo) => ({ nome: anexo.nome, url: anexo.url, numero: anexo.numero })),
-  ];
+  const candidatos = [...anexosFinanceiros(raw), ...(dados.anexos ?? [])];
   const urlsVistas = new Set<string>();
   return candidatos.flatMap(({ nome, url, numero }) => {
     if (typeof url !== "string") return [];
@@ -231,24 +211,6 @@ function reunirAnexos(linha: LinhaConta, dados: DetalhesLancamento = {}): AnexoL
     urlsVistas.add(href);
     return [{ nome: nome || "Anexo", href, numero }];
   });
-}
-
-function urlDeApiPrivada(href: string) {
-  try {
-    const alvo = new URL(href, window.location.origin);
-    const api = new URL(API_BASE || "/", window.location.origin);
-    return alvo.origin === api.origin && alvo.pathname.startsWith("/api/");
-  } catch {
-    return false;
-  }
-}
-
-function mimePelaUrl(href: string) {
-  const caminho = new URL(href, window.location.origin).pathname.toLowerCase();
-  if (/\.pdf$/.test(caminho)) return "application/pdf";
-  if (/\.svg$/.test(caminho)) return "image/svg+xml";
-  if (/\.(apng|avif|bmp|gif|jpe?g|png|webp)$/.test(caminho)) return "image/*";
-  return "";
 }
 
 function Checkbox({
@@ -295,15 +257,13 @@ function VisualizadorAnexo({ titulo, href, mime, aoFechar }: { titulo: string; h
 }
 
 function CartaoAnexo({ anexo }: { anexo: AnexoLancamento }) {
-  const privado = urlDeApiPrivada(anexo.href);
   const [recurso, setRecurso] = useState<{ url: string; mime: string } | null>(null);
-  const [carregando, setCarregando] = useState(privado);
+  const [carregando, setCarregando] = useState(true);
   const [falha, setFalha] = useState(false);
   const [tentativa, setTentativa] = useState(0);
   const [visualizando, setVisualizando] = useState(false);
 
   useEffect(() => {
-    if (!privado) return;
     const controller = new AbortController();
     let objectUrl: string | null = null;
     setCarregando(true);
@@ -312,8 +272,7 @@ function CartaoAnexo({ anexo }: { anexo: AnexoLancamento }) {
     void carregarDocumentoFinanceiro(anexo.href, controller.signal).then((blob) => {
       if (controller.signal.aborted) return;
       objectUrl = URL.createObjectURL(blob);
-      const mimeBlob = blob.type.toLowerCase().split(";")[0];
-      const mime = !mimeBlob || mimeBlob === "application/octet-stream" ? mimePelaUrl(anexo.href) || mimeBlob : mimeBlob;
+      const mime = blob.type.toLowerCase().split(";")[0];
       setRecurso({ url: objectUrl, mime });
     }).catch(() => {
       if (!controller.signal.aborted) setFalha(true);
@@ -324,13 +283,13 @@ function CartaoAnexo({ anexo }: { anexo: AnexoLancamento }) {
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [anexo.href, privado, tentativa]);
+  }, [anexo.href, tentativa]);
 
-  const href = privado ? recurso?.url : anexo.href;
+  const href = recurso?.url;
   const titulo = anexo.nome || "Anexo";
   const nomeCompleto = `${titulo}${anexo.numero ? ` · ${anexo.numero}` : ""}`;
 
-  const mime = privado ? (recurso?.mime ?? "") : mimePelaUrl(anexo.href);
+  const mime = recurso?.mime ?? "";
 
   return (
     <article className="erp-anexo-card">
@@ -463,15 +422,6 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     if (quantidade === 0) setAbaSaida("lancamentos");
   }, []);
 
-  useEffect(() => {
-    if (!menuLinhaId) return;
-    const fecharFora = (evento: PointerEvent) => {
-      if (evento.target instanceof Element && evento.target.closest(".erp-menu-linha")) return;
-      setMenuLinhaId(null);
-    };
-    document.addEventListener("pointerdown", fecharFora);
-    return () => document.removeEventListener("pointerdown", fecharFora);
-  }, [menuLinhaId]);
 
   useEffect(() => {
     let ativo = true;
@@ -1022,26 +972,14 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                           <ChevronRight size={15} aria-hidden="true" />
                         </button>
                         <Checkbox marcado={selecao.has(linha.id)} rotulo={`Selecionar ${linha.descricao}`} aoMudar={() => alternarSelecao(linha.id)} />
-                        <div className="erp-menu-linha">
-                          <button type="button" className="erp-botao-menu" aria-label={`Ações de ${linha.descricao}`} aria-haspopup="menu"
-                            aria-expanded={menuLinhaId === linha.id} onClick={() => setMenuLinhaId((atual) => atual === linha.id ? null : linha.id)}>
-                            <MoreVertical size={16} aria-hidden="true" />
-                          </button>
-                          {menuLinhaId === linha.id && <div className="erp-menu-acoes" role="menu">
-                            <button type="button" role="menuitem" onClick={() => editarLinha(linha)}><Pencil size={14} /> Editar</button>
-                            <button type="button" role="menuitem" disabled={!podeBaixar(linha)} onClick={() => {
-                              setMenuLinhaId(null);
-                              const conta = contaAPagarDaLinha(linha, pagar.contas);
-                              if (ehLancamentoDireto(conta) && conta.reembolsavel) {
-                                toast.error("A conta a pagar vinculada a este recibo não foi encontrada. Atualize a lista antes de dar baixa.");
-                                void recarregar();
-                                return;
-                              }
-                              setContaBaixa(linha);
-                            }}>{ehReembolsavelDireto(linha) ? "Dar baixa no pagamento Share" : "Baixar"}</button>
-                            <button type="button" role="menuitem" className="erp-menu-excluir" disabled={!linha.raw.lancamentoId} onClick={() => void excluirLinha(linha)}>Excluir</button>
-                          </div>}
-                        </div>
+                        <DropdownMenu open={menuLinhaId === linha.id} onOpenChange={(aberto) => setMenuLinhaId(aberto ? linha.id : null)} modal={false}>
+                          <DropdownMenuTrigger asChild><button type="button" className="erp-botao-menu" aria-label={`Ações de ${linha.descricao}`}><MoreVertical size={16} aria-hidden="true" /></button></DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onSelect={() => editarLinha(linha)}><Pencil size={14} /> Editar</DropdownMenuItem>
+                            <DropdownMenuItem disabled={!podeBaixar(linha)} onSelect={() => setContaBaixa(linha)}>Dar baixa</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" disabled={!linha.raw.lancamentoId} onSelect={() => void excluirLinha(linha)}>Excluir</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div></td>
                       {colunasExibidas.map((coluna) => celulaLancamento(coluna.chave, linha))}
                     </tr>
@@ -1096,13 +1034,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       {contaBaixa && contaBaixaReal && !ehEntrada && <ModalContaAPagar key={contaBaixaReal.id} conta={contaBaixaReal} aberto onFechar={() => setContaBaixa(null)} contasBancarias={contasBancarias}
         onConfirmar={async (dados) => {
           const conta = contaBaixaReal;
-          if (ehLancamentoDireto(conta) && !conta.reembolsavel) {
-            await darBaixaLancamento(conta.lancamentoId || conta.id, {
-              dataPagamento: dados.dataPagamento,
-              pagoPor: dados.bancoPagamento,
-              contaBancariaId: dados.contaBancariaId || conta.contaBancariaId,
-              comprovanteUrl: dados.comprovantePagamentoUrl,
-            });
+          if (ehLancamentoDireto(conta)) {
+            await darBaixaPagamentoShare(conta.lancamentoId || conta.id, dados);
           } else {
             await darBaixaContaAPagar(conta.id, dados);
           }
@@ -1265,13 +1198,8 @@ export const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-anexo-tentar { display: inline-flex; padding: 0; border: 0; color: var(--light-info, #80cfff); background: transparent; }
 .erp-financeiro .erp-anexos-vazio { margin: 0; padding: 10px 2px 2px; color: var(--erp-muted); font-size: 11px; }
 .erp-financeiro .erp-tabela td.erp-td-acoes { overflow: visible; }
-.erp-financeiro .erp-menu-linha { position: relative; display: flex; align-items: center; }
 .erp-financeiro .erp-botao-menu { display: flex; align-items: center; justify-content: center; width: 24px; height: 27px; padding: 0; border: 0; border-radius: 3px; color: var(--light-text, #d6e2ee); background: transparent; }
 .erp-financeiro .erp-botao-menu:hover { background: var(--light-soft, #27313c); }
-.erp-financeiro .erp-menu-acoes { position: absolute; top: calc(100% + 4px); left: 0; z-index: 40; min-width: 140px; padding: 4px; border: 1px solid var(--light-line, #394856); border-radius: 5px; background: var(--light-surface, #171f28); box-shadow: 0 12px 30px #0009; }
-.erp-financeiro .erp-menu-acoes button { display: block; width: 100%; padding: 6px 10px; border: 0; border-radius: 3px; background: transparent; color: var(--light-text, #d6e2ee); font-size: 12px; text-align: left; white-space: nowrap; }
-.erp-financeiro .erp-menu-acoes button:hover:not(:disabled) { background: var(--light-info-soft, #159dff22); color: var(--light-info, #61bbff); }
-.erp-financeiro .erp-menu-acoes button.erp-menu-excluir:hover:not(:disabled) { background: var(--light-danger-soft, #ff535922); color: var(--light-danger, #ff7b84); }
 .erp-financeiro .erp-tabela tfoot { background: var(--light-surface, #18202988); }
 .erp-financeiro .erp-tabela tfoot td { height: 25px; padding: 3px 10px; border-bottom: 0; border-top: 1px solid var(--erp-border); font-size: 11px; font-weight: 700; letter-spacing: .2px; }
 .erp-financeiro .erp-tabela tfoot .erp-total-rodape { color: var(--erp-total); text-align: right; padding-right: 16px; font-size: 14px; font-variant-numeric: tabular-nums; }

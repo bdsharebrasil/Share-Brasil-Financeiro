@@ -8,6 +8,7 @@ export function statusOperacao(status: string): string {
 }
 
 export function operacaoIniciada(voo: SolicitacaoVooInterna): boolean {
+  if (voo.solicitacao_origem_id) return false;
   const status = statusOperacao(voo.status);
   if (["encerrada", "concluida", "cancelada", "reprovada", "pendente"].includes(status)) return false;
   return ["acionado", "decolado", "em_solo", "em_voo", "em_rota"].includes(status)

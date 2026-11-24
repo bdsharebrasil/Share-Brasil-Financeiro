@@ -90,6 +90,8 @@ test("diário lista voos operacionais da aeronave e identifica para quem foram",
 
 test("lançamentos incluem despesas da aeronave e exibem uma coluna rateio por cotista", () => {
   assert.match(referencia, /d\?\.lancamentos \?\?/);
+  assert.match(referencia, /numerosDocumentosDoLancamento\(lancamento\)/);
+  assert.match(referencia, /<td className="fb-doc">\{numeroDocLancamento\(origem\) \|\| "—"\}<\/td>/);
   assert.match(referencia, /cotistas\.map\(\(cotista, i\) => <CabecalhoRateioCotista/);
   assert.match(referencia, /cotistas\.map\(\(cotista, i\) => <CelulaRateioCotista/);
   assert.match(referencia, /total rateado por cotista/);

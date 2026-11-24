@@ -155,7 +155,7 @@ export function numerosDocumentosDoLancamento(lancamento: LancamentoEconomico) {
     lancamento.numeroRecibo, lancamento.numeroDoc, lancamento.numeroBoleto,
     ...(lancamento.documentos ?? []).map((documento) => documento.numero),
     ...(lancamento.rateios ?? []).flatMap((rateio) => (rateio.documentos ?? []).map((documento) => documento.numero)),
-  ].map((numero) => numero?.trim()).filter((numero): numero is string => Boolean(numero));
+  ].map((numero) => numero == null ? null : String(numero).trim()).filter((numero): numero is string => Boolean(numero));
   return [...new Set(numeros)].join(" / ") || documentoDoLancamento(lancamento);
 }
 
@@ -173,4 +173,3 @@ export function valorPagoLancamento(lancamento: LancamentoEconomico) {
   }
   return Math.min(lancamento.valorCentavos, pagoInformado);
 }
-

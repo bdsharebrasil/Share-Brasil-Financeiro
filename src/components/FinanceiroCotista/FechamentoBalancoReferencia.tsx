@@ -24,6 +24,7 @@ import {
   documentoDoLancamento,
   nomeFornecedorLancamento,
   nomePagadoresDoLancamento,
+  numerosDocumentosDoLancamento,
   rateioDoCotista,
   tipoRateioLancamento,
   valorPagoLancamento,
@@ -596,7 +597,7 @@ function formatarDataSemAno(valor: string | null | undefined) {
 type LancamentoDoBalanco = DashboardBalanco["lancamentos"][number];
 
 function numeroDocLancamento(lancamento: LancamentoDoBalanco) {
-  return lancamento.numeroNf || documentoDoLancamento(lancamento) || null;
+  return numerosDocumentosDoLancamento(lancamento) || documentoDoLancamento(lancamento) || null;
 }
 
 function compararDocumentos(a: string | null, z: string | null) {

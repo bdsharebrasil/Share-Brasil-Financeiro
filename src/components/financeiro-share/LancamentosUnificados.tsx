@@ -573,15 +573,15 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   }
 
   const colunas = useMemo<Coluna[]>(() => [
-    { chave: "data", rotulo: "Data", largura: 172 },
-    { chave: "documento", rotulo: "DOC", largura: 162 },
-    { chave: "descricao", rotulo: "Descrição", largura: 320 },
+    { chave: "data", rotulo: "Data", largura: 118 },
+    { chave: "documento", rotulo: "DOC", largura: 124 },
+    { chave: "descricao", rotulo: "Descrição", largura: 250 },
     ...(ehEntrada
-      ? [{ chave: "favorecido" as const, rotulo: "Favorecido", largura: 280 }]
-      : [{ chave: "fornecedor" as const, rotulo: "Fornecedor", largura: 200 }]),
-    { chave: "contaBancaria", rotulo: "Conta", largura: 153 },
-    { chave: "situacao", rotulo: "Status", largura: 190 },
-    { chave: "valor", rotulo: "Valor", largura: 180 },
+      ? [{ chave: "favorecido" as const, rotulo: "Favorecido", largura: 200 }]
+      : [{ chave: "fornecedor" as const, rotulo: "Fornecedor", largura: 170 }]),
+    { chave: "contaBancaria", rotulo: "Conta", largura: 130 },
+    { chave: "situacao", rotulo: "Status", largura: 128 },
+    { chave: "valor", rotulo: "Valor", largura: 124 },
   ], [ehEntrada]);
 
   const colunasExibidas = useMemo<Coluna[]>(() => {
@@ -904,9 +904,9 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
             }
           }}
         >
-          <table className={`erp-tabela ${!ehEntrada ? "erp-tabela-saidas" : ""}`}>
+          <table className="erp-tabela">
             <caption className="erp-sr-only">{titulo} — {periodo}</caption>
-            <colgroup><col style={{ width: 120 }} />{colunasExibidas.map((coluna) => (
+            <colgroup><col style={{ width: 110 }} />{colunasExibidas.map((coluna) => (
               <col key={coluna.chave} style={{ width: larguras[coluna.chave] ?? coluna.largura }} />
             ))}</colgroup>
             <thead><tr>
@@ -1165,8 +1165,7 @@ export const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-erro { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; padding: 10px 12px; border: 1px solid var(--light-danger-line, #a83b4b); border-radius: 4px; color: var(--light-danger, #ffb7bf); background: var(--light-danger-soft, #7b263322); }
 .erp-financeiro .erp-tabela-container { overflow-x: auto; border: 1px solid var(--light-line, #2b3743); border-radius: 12px; background: var(--light-surface, #0d131a); box-shadow: 0 8px 24px #0002; scrollbar-color: #3c4b5d #10151a; cursor: grab; }
 .erp-financeiro .erp-tabela-container.erp-arrastando, .erp-financeiro .erp-tabela-container.erp-arrastando * { cursor: grabbing !important; user-select: none; }
-.erp-financeiro .erp-tabela { width: 100%; min-width: 1260px; border-collapse: separate; border-spacing: 0; table-layout: fixed; text-align: left; color: var(--erp-text); }
-.erp-financeiro .erp-tabela-saidas { min-width: 1550px; }
+.erp-financeiro .erp-tabela { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; text-align: left; color: var(--erp-text); }
 .erp-financeiro .erp-tabela thead { background: linear-gradient(var(--light-soft, #1a2732), var(--light-soft, #131c25)); }
 .erp-financeiro .erp-tabela th { position: relative; height: 34px; padding: 0 10px; border-bottom: 1px solid var(--light-line, #344352); border-right: 1px solid var(--light-line, #27313b66); font-weight: 600; }
 .erp-financeiro .erp-tabela th.erp-th-status { height: 42px; padding: 0 8px; }

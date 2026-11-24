@@ -1,41 +1,27 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, useRef, useId, type ReactNode } from "react";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, Clock, FileText, RefreshCw, Search, TriangleAlert, Upload, X, Download, Plane } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, FileText, RefreshCw, Search, TriangleAlert, X, Download } from "lucide-react";
 import { toast } from "sonner";
 import {
   buscarContasBancariasHolding,
   buscarSolicitacoesPagamento,
   darBaixaContaAPagar,
-  editarLancamento,
-  enviarComprovantePagamento,
   carregarDocumentoFinanceiro,
   formatarData,
   formatarMoeda,
-  parseValorReais,
   type CamposLancamento,
   type ContaBancaria,
   type ReembolsoColaborador,
   type SolicitacaoPagamento,
 } from "@/lib/financeiro-share-api";
 import { buscarAeronavesShare } from "@/lib/colaborador-api";
+import { ModalContaAPagar } from "./ModalContaAPagar";
+import type { ContaAPagar, StatusContaFinanceira } from "./tipos";
 import { createPortal } from "react-dom";
 
 const POR_PAGINA = 12;
 
 type AbaSolicitacao = "cotista" | "colaborador";
 type FiltroLista = { id: string; label: string; quantidade?: number };
-type DadosLancamentoEditavel = {
-  descricao: string;
-  fornecedor: string;
-  dataEmissao: string;
-  dataVencimento: string;
-  valor: string;
-  numeroDoc: string;
-  numeroNf: string;
-  numeroRecibo: string;
-  numeroBoleto: string;
-  numeroDemonstrativo: string;
-  observacoes: string;
-};
 type LinhaExibida = {
   chave: string;
   expandida: boolean;
@@ -71,11 +57,13 @@ function statusLegivel(valor: string): string {
   return labels[estado] ?? estado.replace(/_/g, " ");
 }
 
-function estadoBadge(valor: string): "paid" | "pending" | "neutral" {
+function tomStatus(valor: string): string {
   const estado = valor.toUpperCase();
-  if (["PAGO", "RECEBIDO", "REEMBOLSADO"].includes(estado)) return "paid";
-  if (["APROVADO", "EMAIL_ENVIADO", "CANCELADO", "REJEITADO"].includes(estado)) return "neutral";
-  return "pending";
+  if (["PAGO", "RECEBIDO", "REEMBOLSADO"].includes(estado)) return "sucesso";
+  if (["ATRASADO", "EM_ATRASO"].includes(estado)) return "atrasado";
+  if (["CANCELADO", "REJEITADO"].includes(estado)) return "cancelado";
+  if (["EM_ABERTO", "CONVERTIDO", "AGUARDANDO_REEMBOLSO", "APROVADO", "EMAIL_ENVIADO"].includes(estado)) return "aguardando";
+  return "pendente";
 }
 
 function atendeFiltroCaixaCliente(filtro: string, status: string): boolean {
@@ -87,8 +75,7 @@ function atendeFiltroCaixaCliente(filtro: string, status: string): boolean {
 }
 
 function StatusSolicitacao({ status }: { status: string }) {
-  const estado = estadoBadge(status);
-  return <span className={`nf-badge ${estado}`}>{estado === "paid" ? <CheckCircle2 /> : <Clock />}{statusLegivel(status)}</span>;
+  return <span className={`erp-status erp-status-${tomStatus(status)}`}>{statusLegivel(status)}</span>;
 }
 
 function dataLegivel(valor: string | null): string {
@@ -168,30 +155,77 @@ const FILTROS_CAIXA_CLIENTE: FiltroLista[] = [
   { id: "CANCELADOS", label: "Cancelados" },
 ];
 
+function contaDoReembolso(item: ReembolsoColaborador): ContaAPagar {
+  return {
+    id: item.id,
+    dataEmissao: item.dataEmissao ?? null,
+    dataVencimento: item.dataVencimento,
+    valor: item.valor,
+    categoriaId: null,
+    categoriaNome: item.categoriaNome ?? null,
+    descricao: item.descricao,
+    criadoPor: null,
+    aeronaveId: item.aeronaveId,
+    fornecedor: item.fornecedor ?? null,
+    fornecedorId: item.fornecedorId,
+    cotistaId: null,
+    cotistaNome: item.cotistaNome,
+    boletoUrl: null,
+    nfUrl: null,
+    dataPagamento: null,
+    bancoPagamento: null,
+    comprovantePagamentoUrl: null,
+    documento: item.documento ?? null,
+    documentoUrl: item.documentoUrl ?? null,
+    lancamentoId: item.lancamentoId,
+    status: item.status as StatusContaFinanceira,
+    criadoEm: item.dataVencimento,
+    atualizadoEm: item.dataVencimento,
+  };
+}
+
+function contaDaSolicitacao(item: SolicitacaoPagamento, id: string): ContaAPagar {
+  return {
+    id,
+    dataEmissao: item.data_emissao ?? item.data_despesa,
+    dataVencimento: item.data_vencimento ?? item.vencimento ?? "",
+    valor: item.valor_centavos != null ? item.valor_centavos / 100 : Number(item.valor ?? 0),
+    categoriaId: null,
+    categoriaNome: item.lancamento_categoria_nome ?? item.categoria_nome ?? null,
+    descricao: item.descricao,
+    criadoPor: item.criado_por,
+    aeronaveId: item.aeronave_id ?? null,
+    fornecedor: item.lancamento_fornecedor_nome ?? item.fornecedor_nome ?? item.fornecedor ?? null,
+    fornecedorId: item.fornecedor_id ?? null,
+    cotistaId: item.cotista_aeronave_id ?? null,
+    boletoUrl: item.url_boleto ?? null,
+    nfUrl: item.url_nf ?? null,
+    dataPagamento: item.data_pagamento ?? null,
+    bancoPagamento: null,
+    comprovantePagamentoUrl: item.comprovante_url ?? null,
+    documento: null,
+    documentoUrl: null,
+    lancamentoId: item.lancamento_id ?? null,
+    status: (item.conta_a_pagar_status ?? item.status) as StatusContaFinanceira,
+    criadoEm: item.criado_em,
+    atualizadoEm: item.criado_em,
+  };
+}
+
 export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade }: { contasBancarias: ContaBancaria[]; aoAlterarQuantidade?: (quantidade: number) => void }) {
   const [documentoAberto, setDocumentoAberto] = useState<DocumentoAberto | null>(null);
-  const uploadRef = useRef<{ arquivo: File; url: string } | null>(null);
   const [envios, setEnvios] = useState<SolicitacaoPagamento[]>([]);
   const [reembolsos, setReembolsos] = useState<ReembolsoColaborador[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [aba, setAba] = useState<AbaSolicitacao>("cotista");
   const [alvo, setAlvo] = useState<ReembolsoColaborador | null>(null);
-  const [alvoPagamentoCliente, setAlvoPagamentoCliente] = useState<SolicitacaoPagamento | null>(null);
-  const [edicaoLancamento, setEdicaoLancamento] = useState<DadosLancamentoEditavel>({
-    descricao: "", fornecedor: "", dataEmissao: "", dataVencimento: "", valor: "", numeroDoc: "", numeroNf: "", numeroRecibo: "", numeroBoleto: "", numeroDemonstrativo: "", observacoes: "",
-  });
-  const [formaPagamentoCliente, setFormaPagamentoCliente] = useState("TRANSFERENCIA");
+  const [contaBaixa, setContaBaixa] = useState<ContaAPagar | null>(null);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroEnvio, setFiltroEnvio] = useState("TODOS");
   const [filtroReembolso, setFiltroReembolso] = useState("TODOS");
   const [pagina, setPagina] = useState(1);
-  const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().slice(0, 10));
-  const [bancoId, setBancoId] = useState("");
-  const [comprovanteArquivo, setComprovanteArquivo] = useState<File | null>(null);
-  const [enviandoComprovante, setEnviandoComprovante] = useState(false);
-  const [salvando, setSalvando] = useState(false);
   const [contasParaPagamento, setContasParaPagamento] = useState<ContaBancaria[]>(contasBancarias);
   const [matriculasAeronaves, setMatriculasAeronaves] = useState<Record<string, string>>({});
 
@@ -243,58 +277,9 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
     return () => { ativo = false; };
   }, [alvo, contasBancarias]);
 
-  async function confirmarBaixa() {
-    if (salvando || !alvo?.id || !bancoId || !dataPagamento) return;
-    setSalvando(true);
-    try {
-      let comprovanteUrl: string | undefined;
-      if (comprovanteArquivo) {
-        setEnviandoComprovante(true);
-        comprovanteUrl = uploadRef.current?.arquivo === comprovanteArquivo
-          ? uploadRef.current.url
-          : (await enviarComprovantePagamento(alvo.id, comprovanteArquivo)).url;
-        if (!comprovanteUrl) throw new Error("O upload não retornou a URL do comprovante.");
-        uploadRef.current = { arquivo: comprovanteArquivo, url: comprovanteUrl };
-        setEnviandoComprovante(false);
-      }
-      await darBaixaContaAPagar(alvo.id, {
-        dataPagamento,
-        bancoPagamento: bancoId,
-        comprovantePagamentoUrl: comprovanteUrl,
-        formaPagamento: "TRANSFERENCIA",
-      });
-      toast.success("Reembolso do colaborador marcado como pago.");
-      setAlvo(null);
-      setComprovanteArquivo(null);
-      await carregar();
-    } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : "Não foi possível registrar o pagamento.");
-    } finally {
-      setEnviandoComprovante(false);
-      setSalvando(false);
-    }
-  }
-
-  function selecionarComprovante(arquivo?: File) {
-    if (!arquivo) return;
-    const tiposAceitos = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
-    if (!tiposAceitos.includes(arquivo.type)) {
-      toast.error("Escolha um arquivo PDF, JPG, PNG ou WebP.");
-      return;
-    }
-    if (arquivo.size < 1 || arquivo.size > 10 * 1024 * 1024) {
-      toast.error("O comprovante deve ter no máximo 10 MB.");
-      return;
-    }
-    setComprovanteArquivo(arquivo);
-  }
-
   function abrirBaixa(item: ReembolsoColaborador) {
-    uploadRef.current = null;
     setAlvo(item);
-    setDataPagamento(new Date().toISOString().slice(0, 10));
-    setBancoId("");
-    setComprovanteArquivo(null);
+    setContaBaixa(contaDoReembolso(item));
   }
 
   function abrirBaixaCliente(item: SolicitacaoPagamento) {
@@ -302,96 +287,12 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
       toast.error("Não foi encontrada uma conta a pagar vinculada a este lançamento.");
       return;
     }
-    const valorCentavos = Number(item.valor_centavos ?? Math.round(Number(item.valor ?? 0) * 100));
-    uploadRef.current = null;
-    setComprovanteArquivo(null);
-    setAlvoPagamentoCliente(item);
-    setEdicaoLancamento({
-      descricao: item.descricao ?? "",
-      fornecedor: item.lancamento_fornecedor_nome ?? item.fornecedor_nome ?? item.fornecedor ?? "",
-      dataEmissao: (item.data_emissao ?? item.data_despesa ?? "").slice(0, 10),
-      dataVencimento: (item.data_vencimento ?? item.vencimento ?? "").slice(0, 10),
-      valor: (valorCentavos / 100).toFixed(2).replace(".", ","),
-      numeroDoc: item.numero_doc ?? "",
-      numeroNf: item.numero_nf ?? "",
-      numeroRecibo: item.numero_recibo ?? "",
-      numeroBoleto: item.numero_boleto ?? "",
-      numeroDemonstrativo: item.numero_demonstrativo ?? "",
-      observacoes: item.observacoes ?? "",
-    });
-    setDataPagamento(new Date().toISOString().slice(0, 10));
-    setBancoId(contasBancarias[0]?.id ?? "");
-    setFormaPagamentoCliente("TRANSFERENCIA");
-  }
-
-  function fecharBaixaCliente() {
-    if (salvando) return;
-    setAlvoPagamentoCliente(null);
-    setBancoId("");
-  }
-
-  async function confirmarBaixaCliente() {
-    if (salvando || !alvoPagamentoCliente?.conta_a_pagar_id || !bancoId || !dataPagamento) return;
-    if (!edicaoLancamento.descricao.trim()) {
-      toast.error("Informe a descrição do lançamento.");
-      return;
-    }
-    const valorCentavos = parseValorReais(edicaoLancamento.valor);
-    if (!Number.isInteger(valorCentavos) || valorCentavos <= 0) {
-      toast.error("Informe um valor válido maior que zero.");
-      return;
-    }
-    setSalvando(true);
-    try {
-      let comprovanteUrl: string | undefined;
-      if (comprovanteArquivo) {
-        setEnviandoComprovante(true);
-        comprovanteUrl = uploadRef.current?.arquivo === comprovanteArquivo
-          ? uploadRef.current.url
-          : (await enviarComprovantePagamento(alvoPagamentoCliente.conta_a_pagar_id, comprovanteArquivo)).url;
-        if (!comprovanteUrl) throw new Error("O upload não retornou a URL do comprovante.");
-        uploadRef.current = { arquivo: comprovanteArquivo, url: comprovanteUrl };
-        setEnviandoComprovante(false);
-      }
-      const dados: Parameters<typeof editarLancamento>[1] = {
-        descricao: edicaoLancamento.descricao.trim(),
-        fornecedor_nome: edicaoLancamento.fornecedor.trim() || null,
-        data_emissao: edicaoLancamento.dataEmissao || undefined,
-        data_vencimento: edicaoLancamento.dataVencimento || null,
-        valor_centavos: valorCentavos,
-        numero_doc: edicaoLancamento.numeroDoc.trim() || null,
-        numero_nf: edicaoLancamento.numeroNf.trim() || null,
-        numero_recibo: edicaoLancamento.numeroRecibo.trim() || null,
-        numero_boleto: edicaoLancamento.numeroBoleto.trim() || null,
-        numero_demonstrativo: edicaoLancamento.numeroDemonstrativo.trim() || null,
-        observacoes: edicaoLancamento.observacoes.trim() || null,
-      };
-      await editarLancamento(alvoPagamentoCliente.lancamento_id ?? alvoPagamentoCliente.id, dados);
-      await darBaixaContaAPagar(alvoPagamentoCliente.conta_a_pagar_id, {
-        comprovantePagamentoUrl: comprovanteUrl,
-        dataPagamento,
-        bancoPagamento: bancoId,
-        formaPagamento: formaPagamentoCliente,
-        observacoes: edicaoLancamento.observacoes.trim() || undefined,
-      });
-      toast.success("Pagamento confirmado e lançamento do caixa SHARE atualizado.");
-      setAlvoPagamentoCliente(null);
-      setExpandido(null);
-      setBancoId("");
-      await carregar();
-    } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : "Não foi possível atualizar o lançamento e confirmar o pagamento.");
-    } finally {
-      setEnviandoComprovante(false);
-      setSalvando(false);
-    }
+    setContaBaixa(contaDaSolicitacao(item, item.conta_a_pagar_id));
   }
 
   function fecharBaixa() {
-    if (salvando) return;
     setAlvo(null);
-    setComprovanteArquivo(null);
-    setBancoId("");
+    setContaBaixa(null);
   }
 
   function trocarAba(novaAba: AbaSolicitacao) {
@@ -449,10 +350,6 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
     { id: "TODOS", label: "Todos", quantidade: reembolsos.length },
     { id: "VENCIDOS", label: "Vencidos", quantidade: reembolsosVencidos.length },
   ];
-
-  const lancamentosAbertos = envios.filter((item) => atendeFiltroCaixaCliente("ABERTOS", item.status));
-  const totalEmAberto = lancamentosAbertos.reduce((soma, item) => soma + Number(item.valor ?? 0), 0);
-  const totalVencidos = reembolsosVencidos.reduce((soma, item) => soma + item.valor, 0);
 
   const filtrosAtuais = aba === "cotista" ? opcoesEnvio : opcoesReembolso;
   const filtroAtual = aba === "cotista" ? filtroEnvio : filtroReembolso;
@@ -518,12 +415,6 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
           <button className="nf-btn" disabled={carregando} onClick={() => void carregar()}><RefreshCw className={carregando ? "nf-spin" : ""} /> Atualizar</button>
         </div>
       </header>
-      <section className="nf-stats" aria-label="Resumo das solicitações" aria-busy={carregando}>
-        {[
-          { label: "Em aberto", valor: formatarMoeda(totalEmAberto), nota: `${lancamentosAbertos.length} despesas aguardando pagamento`, Icon: Clock, cor: "cyan" },
-          { label: "Vencidos", valor: formatarMoeda(totalVencidos), nota: `${reembolsosVencidos.length} ${reembolsosVencidos.length === 1 ? "reembolso vencido" : "reembolsos vencidos"}`, Icon: TriangleAlert, cor: "amber" },
-        ].map(({ label, valor, nota, Icon, cor }) => <article className={`nf-stat ${cor}`} key={label}><div className="nf-stat-top"><span>{label}</span><Icon /></div><strong>{carregando || erro ? "—" : valor}</strong><small>{carregando ? "Atualizando solicitações…" : erro ? "Dados indisponíveis" : nota}</small></article>)}
-      </section>
       <section className="nf-panel" aria-label="Solicitações de pagamento">
         <div className="nf-panel-top">
           <div className="nf-segment" aria-label="Tipo de solicitação">
@@ -544,21 +435,35 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
           : erro ? <div className="nf-empty" role="alert"><TriangleAlert /><h3>Não foi possível carregar</h3><p>{erro}</p><button className="nf-btn" onClick={() => void carregar()}>Tentar novamente</button></div>
           : totalItens === 0 ? <div className="nf-empty"><Search /><h3>{temFiltro ? "Nenhum resultado encontrado" : "Nada por aqui"}</h3><p>{temFiltro ? "Ajuste a busca ou o filtro para encontrar o registro." : aba === "cotista" ? "Não há despesas reembolsáveis no caixa cliente." : "Não há reembolsos pendentes de colaboradores."}</p>{temFiltro && <button className="nf-btn" onClick={limparFiltros}>Limpar filtros</button>}</div>
           : <>
-            <div className="nf-table-wrap">
-              <table className="nf-table">
-                <caption className="nf-sr">{aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"}</caption>
-                <thead><tr><th scope="col">Doc / emissão</th>{aba === "cotista" ? <th scope="col">Cliente</th> : <th scope="col">Colaborador</th>}<th scope="col">Descrição</th><th scope="col">Vencimento</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead>
+            <div className="erp-tabela-container nf-table-wrap" role="region" aria-label={aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"} tabIndex={0}>
+              <table className="erp-tabela">
+                <caption className="erp-sr-only">{aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"}</caption>
+                <colgroup>
+                  <col style={{ width: 56 }} /><col style={{ width: 124 }} /><col style={{ width: 210 }} /><col style={{ width: 260 }} /><col style={{ width: 118 }} /><col style={{ width: 124 }} /><col style={{ width: 128 }} /><col style={{ width: 150 }} />
+                </colgroup>
+                <thead><tr>
+                  <th scope="col"><span className="nf-sr">Expandir</span></th>
+                  <th scope="col"><span className="erp-ordenar">Doc / emissão</span></th>
+                  <th scope="col"><span className="erp-ordenar">{aba === "cotista" ? "Cliente" : "Colaborador"}</span></th>
+                  <th scope="col"><span className="erp-ordenar">Descrição</span></th>
+                  <th scope="col"><span className="erp-ordenar">Vencimento</span></th>
+                  <th scope="col"><span className="erp-ordenar">Valor</span></th>
+                  <th scope="col" className="erp-th-status"><span className="erp-ordenar">Status</span></th>
+                  <th scope="col"><span className="erp-ordenar">Ações</span></th>
+                </tr></thead>
                 <tbody>
                   {linhas.map((linha) => <Fragment key={linha.chave}>
-                    <tr>
-                      <td><div className="nf-doc-cell"><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div></div></td>
+                    <tr className={`erp-linha${linha.expandida ? " erp-linha-aberta" : ""}`}>
+                      <td className="erp-td-acoes"><button type="button" className="erp-expandir" aria-expanded={linha.expandida} aria-label={`${linha.expandida ? "Recolher" : "Expandir"} ${linha.secundaria || linha.principal}`} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}</button></td>
+                      <td><span className="erp-documento">{linha.documento}</span><span className="erp-texto-secundario">Emissão {linha.dataEmissao}</span></td>
                       <td>{aba === "cotista" ? linha.cliente : linha.colaborador}</td>
-                      <td><div className="nf-doc-cell"><div><strong title={linha.secundaria}>{linha.secundaria || linha.principal}</strong>{linha.secundaria && <small className="nf-registration"><Plane size={12} />{linha.principal}</small>}</div></div></td><td className="nf-date">{linha.vencimento}</td>
-                      <td className="right nf-amount">{linha.valor}</td>
+                      <td><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.secundaria || linha.principal}>{linha.secundaria || linha.principal}</strong></div>{linha.secundaria && <span className="erp-texto-secundario">{linha.principal}</span>}</td>
+                      <td className="erp-td-data"><span>{linha.vencimento}</span></td>
+                      <td className="erp-valor">{linha.valor}</td>
                       <td><StatusSolicitacao status={linha.status} /></td>
-                      <td className="right"><div style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>{linha.acao}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></div></td>
+                      <td>{linha.acao}</td>
                     </tr>
-                    {linha.expandida && <tr className="nf-detail-row"><td colSpan={7}>{linha.detalhe}</td></tr>}
+                    {linha.expandida && <tr className="erp-linha-detalhes"><td colSpan={8}>{linha.detalhe}</td></tr>}
                   </Fragment>)}
                 </tbody>
               </table>
@@ -584,72 +489,19 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
 
       {documentoAberto && <VisualizadorDocumento documento={documentoAberto} onClose={() => setDocumentoAberto(null)} />}
 
-      {alvoPagamentoCliente && <Modal title="Editar lançamento e dar baixa" onClose={fecharBaixaCliente} busy={salvando} wide>
-        <form onSubmit={(e) => { e.preventDefault(); void confirmarBaixaCliente(); }}>
-          <div className="nf-payment-summary">
-            <span>Despesa reembolsável · Caixa SHARE<small>{alvoPagamentoCliente.cliente_razao_social || "Cliente"} · {edicaoLancamento.descricao || "Lançamento"}</small></span>
-            <strong>{formatarMoeda(parseValorReais(edicaoLancamento.valor) / 100)}</strong>
-          </div>
-          <fieldset disabled={salvando} className="nf-fieldset">
-            <legend><span>01</span> Dados editáveis do lançamento</legend>
-            <div className="nf-form-grid two">
-              <label className="span-2">Descrição *<input required value={edicaoLancamento.descricao} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, descricao: e.target.value }))} /></label>
-              <label>Fornecedor<input value={edicaoLancamento.fornecedor} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, fornecedor: e.target.value }))} /></label>
-              <label>Data de emissão<input type="date" value={edicaoLancamento.dataEmissao} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, dataEmissao: e.target.value }))} /></label>
-              <label>Vencimento<input type="date" value={edicaoLancamento.dataVencimento} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, dataVencimento: e.target.value }))} /></label>
-              <label>Valor da despesa (R$) *<input required inputMode="decimal" value={edicaoLancamento.valor} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, valor: e.target.value }))} /></label>
-              <label>Número do documento<input value={edicaoLancamento.numeroDoc} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, numeroDoc: e.target.value }))} /></label>
-              <label>Nota fiscal<input value={edicaoLancamento.numeroNf} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, numeroNf: e.target.value }))} /></label>
-              <label>Número do recibo<input value={edicaoLancamento.numeroRecibo} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, numeroRecibo: e.target.value }))} /></label>
-              <label>Número do boleto<input value={edicaoLancamento.numeroBoleto} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, numeroBoleto: e.target.value }))} /></label>
-              <label>Número do demonstrativo<input value={edicaoLancamento.numeroDemonstrativo} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, numeroDemonstrativo: e.target.value }))} /></label>
-              <label className="span-2">Observações<textarea rows={3} value={edicaoLancamento.observacoes} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, observacoes: e.target.value }))} /></label>
-            </div>
-          </fieldset>
-          <fieldset disabled={salvando} className="nf-fieldset">
-            <legend><span>02</span> Dados do pagamento</legend>
-            <div className="nf-form-grid two">
-              <label>Data do pagamento *<input required type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} /></label>
-              <label>Conta SHARE *<select required value={bancoId} onChange={(e) => setBancoId(e.target.value)}><option value="">Selecione a conta</option>{contasBancarias.map((conta) => <option key={conta.id} value={conta.id}>{conta.banco}{conta.numero_conta ? ` • ${conta.numero_conta}` : ""}</option>)}</select></label>
-              <label>Forma de pagamento<select value={formaPagamentoCliente} onChange={(e) => setFormaPagamentoCliente(e.target.value)}><option value="PIX">PIX</option><option value="TRANSFERENCIA">Transferência</option><option value="BOLETO">Boleto</option><option value="DINHEIRO">Dinheiro</option><option value="CARTAO">Cartão</option></select></label>
-            </div>
-          </fieldset>
-          <fieldset disabled={salvando} className="nf-fieldset">
-            <legend><span>03</span> Comprovante de pagamento</legend>
-            <label className="nf-upload"><Upload /><span><strong>{comprovanteArquivo ? comprovanteArquivo.name : "Upload de comprovante"}</strong></span><input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={(e) => { selecionarComprovante(e.target.files?.[0]); e.target.value = ""; }} /></label>
-            {comprovanteArquivo && <button type="button" className="nf-text-btn" onClick={() => setComprovanteArquivo(null)}>Remover comprovante</button>}
-            {enviandoComprovante && <p role="status">Enviando comprovante…</p>}
-          </fieldset>
-          <p className="nf-info">Ao confirmar, os dados editados serão salvos, a conta a pagar será liquidada e o lançamento do caixa SHARE passará para pago.</p>
-          <footer className="nf-modal-footer">
-            <button type="button" className="nf-btn" disabled={salvando} onClick={fecharBaixaCliente}>Cancelar</button>
-            <button type="submit" className="nf-btn primary" disabled={salvando || !bancoId || !dataPagamento}>{salvando ? "Salvando e confirmando…" : "Confirmar pagamento"}</button>
-          </footer>
-        </form>
-      </Modal>}
-
-      {alvo && <Modal title="Dar baixa no reembolso" onClose={fecharBaixa} busy={salvando}>
-        <form onSubmit={(e) => { e.preventDefault(); void confirmarBaixa(); }}>
-          <div className="nf-payment-summary">
-            <span>{alvo.solicitanteNome || "Colaborador"}<small>{alvo.descricao || "Despesa reembolsável"} · Vencimento {dataLegivel(alvo.dataVencimento)}</small></span>
-            <strong>{formatarMoeda(alvo.valor)}</strong>
-          </div>
-          <div className="nf-form-grid two">
-            <label>Data do pagamento *<input required type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} /></label>
-            <label>Conta {String(alvo.tipoCaixa).toUpperCase() === "HOLDING" ? "da holding" : "Share"} *<select required value={bancoId} onChange={(e) => setBancoId(e.target.value)}><option value="">Selecione a conta</option>{contasParaPagamento.map((conta) => <option key={conta.id} value={conta.id}>{conta.banco}{conta.numero_conta ? ` • ${conta.numero_conta}` : ""}</option>)}</select></label>
-          </div>
-          <fieldset disabled={salvando} className="nf-fieldset">
-            <legend><span>02</span> Comprovante de pagamento</legend>
-            <label className="nf-upload"><Upload /><span><strong>{comprovanteArquivo ? comprovanteArquivo.name : "Upload de comprovante"}</strong></span><input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={(e) => { selecionarComprovante(e.target.files?.[0]); e.target.value = ""; }} /></label>
-            {comprovanteArquivo && <button type="button" className="nf-text-btn" onClick={() => setComprovanteArquivo(null)}>Remover comprovante</button>}
-            {enviandoComprovante && <p role="status">Enviando comprovante…</p>}
-          </fieldset>
-          <footer className="nf-modal-footer">
-            <button type="button" className="nf-btn" disabled={salvando} onClick={fecharBaixa}>Cancelar</button>
-            <button type="submit" className="nf-btn primary" disabled={salvando || !bancoId || !dataPagamento}>{salvando ? enviandoComprovante ? "Enviando comprovante…" : "Registrando pagamento…" : "Confirmar pagamento"}</button>
-          </footer>
-        </form>
-      </Modal>}
+      {contaBaixa && <ModalContaAPagar
+        key={contaBaixa.id}
+        conta={contaBaixa}
+        aberto
+        onFechar={fecharBaixa}
+        contasBancarias={contasParaPagamento}
+        onConfirmar={async (dados) => {
+          await darBaixaContaAPagar(contaBaixa.id, dados);
+          toast.success("Baixa registrada.");
+          fecharBaixa();
+          await carregar();
+        }}
+      />}
     </div>
   );
 }
@@ -738,19 +590,15 @@ const STYLES = `
 .nf-payment-requests .nf-btn.primary:hover,.nf-payment-dialog .nf-btn.primary:hover{background:var(--app-info)}
 .nf-payment-requests .nf-btn svg,.nf-payment-dialog .nf-btn svg,.nf-payment-requests .nf-icon svg,.nf-payment-dialog .nf-icon svg{width:16px;height:16px;flex-shrink:0}
 .nf-payment-requests .nf-icon,.nf-payment-dialog .nf-icon{width:40px;padding:8px}
-.nf-payment-requests .nf-stats{display:grid;grid-template-columns:repeat(2,minmax(0,300px));gap:31px;padding:0 19px;margin:0 0 12px}
-.nf-payment-requests .nf-stat{position:relative;background:var(--app-surface);border:1px solid var(--nf-border);border-radius:10px;padding:12px 14px;box-shadow:0 3px 14px #20395904;overflow:hidden}
-.nf-payment-requests .nf-stat-top{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--app-muted);font-weight:600;font-size:11px;margin-bottom:6px}
-.nf-payment-requests .nf-stat-top svg{width:22px;height:22px;padding:4px;background:var(--app-soft);border-radius:6px;color:var(--app-info)}
-.nf-payment-requests .nf-stat.green .nf-stat-top svg{color:var(--app-success);background:var(--app-success-soft)}.nf-payment-requests .nf-stat.amber .nf-stat-top svg{color:var(--app-warning);background:var(--app-warning-soft)}
-.nf-payment-requests .nf-stat strong{display:block;font-size:clamp(16px,1.6vw,20px);letter-spacing:-.9px;font-weight:650;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.nf-payment-requests .nf-stat small{display:block;font-size:11px;color:var(--app-muted);margin-top:2px}
 .nf-payment-requests .nf-panel{background:var(--app-surface);border:1px solid var(--nf-border);border-radius:14px;box-shadow:0 4px 18px #19314d04;overflow:hidden;margin:0 -14px;padding:1px 0}
 .nf-payment-requests .nf-panel-top{padding:13px 20px;margin:-1px 0;border-bottom:1px solid #edf0f5}
 .nf-payment-requests .nf-segment{display:inline-flex;flex-wrap:wrap;background:var(--app-soft);border:1px solid var(--app-line);border-radius:10px;padding:4px;gap:3px}
 .nf-payment-requests .nf-segment button{display:flex;align-items:center;justify-content:center;gap:10px;padding:9px 15px;border:0;border-radius:7px;background:transparent;color:var(--app-muted);font-size:12px;font-weight:600;min-height:40px}
 .nf-payment-requests .nf-segment button.active{background:white;color:var(--app-info);box-shadow:0 1px 4px #1a34561a}
 .nf-payment-requests .nf-segment span{background:var(--app-soft);border-radius:5px;padding:1px 6px;font-size:10px}.nf-payment-requests .nf-segment .active span{background:var(--app-soft)}
+.nf-payment-requests.nf-workspace .nf-panel-top{display:flex;flex-direction:column;gap:31px}
+.nf-payment-requests.nf-workspace .nf-segment{gap:36px;border:0}
+.nf-payment-requests.nf-workspace .nf-segment button.active{border-color:rgba(37,124,179,1)}
 .nf-payment-requests .nf-toolbar{display:flex;align-items:center;gap:12px;padding:22px 22px 14px}
 .nf-payment-requests .nf-search{display:flex;align-items:center;gap:10px;flex:1;min-width:0;border:1px solid var(--nf-border);background:var(--app-surface);border-radius:9px;padding:0 12px}
 .nf-payment-requests .nf-search svg{width:17px;height:17px;color:var(--app-muted);flex-shrink:0}
@@ -758,16 +606,9 @@ const STYLES = `
 .nf-payment-requests .nf-toolbar select{border:1px solid var(--nf-border);border-radius:9px;min-height:42px;padding:8px 32px 8px 12px;background:var(--app-surface);color:var(--app-muted);font-size:12px;max-width:100%}
 .nf-payment-requests .nf-list-heading{padding:4px 22px 18px}.nf-payment-requests .nf-list-heading h2{font-size:15px;font-weight:650}.nf-payment-requests .nf-list-heading p{margin:3px 0 0;color:var(--app-muted);font-size:11px}
 .nf-payment-requests .nf-text-btn,.nf-payment-dialog .nf-text-btn{padding:5px 8px;border:0;background:transparent;color:var(--app-info);font-size:12px;font-weight:600;min-height:36px}
-.nf-payment-requests .nf-table-wrap{width:100%;overflow:auto}.nf-payment-requests .nf-table{width:100%;border-collapse:collapse;table-layout:fixed;text-align:left;white-space:normal}
-.nf-payment-requests .nf-table th{background:var(--app-soft);color:var(--app-muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;font-weight:650;border-block:1px solid #edf1f6;padding:12px 16px}
-.nf-payment-requests .nf-table td{border-bottom:1px solid #edf1f6;padding:18px 16px;vertical-align:top;font-size:12px;overflow-wrap:anywhere}
-.nf-payment-requests .nf-table th:nth-child(1){width:13%}.nf-payment-requests .nf-table th:nth-child(2){width:15%}.nf-payment-requests .nf-table th:nth-child(3){width:25%}.nf-payment-requests .nf-table th:nth-child(4){width:10%}.nf-payment-requests .nf-table th:nth-child(5){width:11%}.nf-payment-requests .nf-table th:nth-child(6){width:12%}.nf-payment-requests .nf-table th:nth-child(7){width:14%}.nf-payment-requests .nf-date{font-size:12px;color:var(--app-muted);white-space:nowrap}
-.nf-payment-requests .nf-table tbody tr:not(.nf-detail-row):hover{background:var(--app-surface)}.nf-payment-requests .right{text-align:right}
-.nf-payment-requests .nf-doc-cell{display:flex;align-items:flex-start;gap:9px;min-width:0}.nf-payment-requests .nf-doc-cell>div{min-width:0}.nf-payment-requests .nf-doc-cell strong{font-size:12px;font-weight:600}.nf-payment-requests .nf-doc-cell small{display:block;color:var(--app-muted);font-size:12px;margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65}
-.nf-payment-requests .nf-registration{display:flex;gap:6px;align-items:center;color:var(--app-text)}.nf-payment-requests .nf-registration svg{color:var(--app-muted);flex-shrink:0}
+.nf-payment-requests .nf-table-wrap{width:100%;overflow:auto}.nf-payment-requests .erp-tabela-container{cursor:auto}.nf-payment-requests .erp-linha{cursor:default}.nf-payment-requests .erp-linha-detalhes .nf-detail{margin:12px 16px}
 .nf-payment-requests .nf-doc-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:30px;height:34px;border:1px solid var(--app-line);border-radius:7px;background:var(--app-soft);color:var(--app-muted)}.nf-payment-requests .nf-doc-icon svg{width:15px;height:15px}
 .nf-payment-requests .nf-amount{font-weight:650;font-variant-numeric:tabular-nums;color:var(--app-text)}
-.nf-payment-requests .nf-badge{display:inline-flex;align-items:center;gap:5px;border-radius:6px;padding:5px 7px;font-size:10px;font-weight:600;line-height:1.4;max-width:100%;text-align:left}.nf-payment-requests .nf-badge svg{width:12px;height:12px;flex-shrink:0}.nf-payment-requests .nf-badge.pending{color:var(--app-warning);background:var(--app-warning-soft)}.nf-payment-requests .nf-badge.paid{color:var(--app-success);background:var(--app-success-soft)}.nf-payment-requests .nf-badge.neutral{color:var(--app-muted);background:var(--app-soft)}
 .nf-payment-requests .nf-detail{display:grid;grid-template-columns:minmax(160px,1fr) minmax(0,3fr);gap:24px;padding:22px;background:var(--app-soft);border:1px solid var(--app-line);border-radius:10px;white-space:normal}.nf-payment-requests .nf-detail h3{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--app-muted);margin-bottom:12px}.nf-payment-requests .nf-detail p{font-size:12px;color:var(--app-muted)}
 .nf-payment-requests .nf-attachment{display:flex;align-items:center;gap:9px;padding:11px 12px;width:100%;text-align:left;margin-bottom:8px;background:var(--app-surface);border:1px solid var(--app-line);border-radius:8px;font-size:12px;color:var(--app-muted)}.nf-payment-requests .nf-attachment svg:last-child{margin-left:auto}.nf-payment-requests .nf-attachment:hover{border-color:var(--app-info-line);background:var(--app-soft)}
 .nf-payment-requests .nf-detail dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px 24px;margin:0}.nf-payment-requests .nf-detail dt{font-size:10px;color:var(--app-muted);margin-bottom:3px}.nf-payment-requests .nf-detail dd{font-size:12px;color:var(--app-text);margin:0;white-space:pre-wrap;overflow-wrap:anywhere}.nf-payment-requests .nf-detail-actions{grid-column:1/-1;display:flex;justify-content:flex-end;border-top:1px solid #e4ebf4;padding-top:15px}
@@ -784,7 +625,7 @@ const STYLES = `
 .nf-payment-dialog .nf-info{padding:12px;background:var(--app-soft);border-radius:8px;color:var(--app-muted);font-size:11px}.nf-payment-dialog .nf-modal-footer{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px;padding-top:18px;margin-top:20px;border-top:1px solid #e8edf4}
 .nf-payment-dialog .nf-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;color:var(--app-muted);font-size:12px}.nf-payment-dialog .nf-preview-toolbar>span{display:flex;align-items:center;gap:8px}.nf-payment-dialog .nf-preview{height:65dvh;min-height:240px;overflow:auto;display:flex;justify-content:center;align-items:center;border:1px solid var(--app-line);border-radius:9px;background:var(--app-soft)}.nf-payment-dialog .nf-preview img{display:block;max-width:100%;max-height:100%;object-fit:contain}.nf-payment-dialog .nf-preview iframe{width:100%;height:100%;border:0;background:var(--app-surface)}
 @container(max-width:1050px){.nf-payment-requests .nf-table-wrap{display:none}.nf-payment-requests .nf-mobile-docs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 20px 20px}.nf-payment-requests .nf-mobile-doc{min-width:0;border:1px solid var(--app-line);border-radius:11px;overflow:hidden;background:white}.nf-payment-requests .nf-mobile-doc.expanded{grid-column:1/-1}.nf-payment-requests .nf-mobile-doc>header{display:flex;align-items:center;gap:9px;padding:16px;border-bottom:1px solid #edf1f6}.nf-payment-requests .nf-mobile-doc>header>div{flex:1;min-width:0;overflow-wrap:anywhere}.nf-payment-requests .nf-mobile-doc>header strong{font-size:12px}.nf-payment-requests .nf-mobile-doc>header small{display:block;font-size:11px;color:var(--app-muted)}.nf-payment-requests .nf-mobile-doc>dl{display:grid;gap:16px;padding:16px;margin:0}.nf-payment-requests .nf-mobile-doc dt{font-size:10px;color:var(--app-muted);margin-bottom:4px}.nf-payment-requests .nf-mobile-doc dd{margin:0;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}.nf-payment-requests .nf-mobile-doc dd small{display:block;font-size:12px;color:var(--app-muted);line-height:1.7;margin-top:6px}.nf-payment-requests .nf-mobile-doc>footer{display:flex;justify-content:flex-end;gap:8px;padding:0 16px 16px;flex-wrap:wrap}.nf-payment-requests .nf-mobile-doc .nf-detail{border-radius:0;border-width:1px 0 0}}
-@container(max-width:620px){.nf-payment-requests .nf-header{align-items:flex-start;gap:10px}.nf-payment-requests .nf-header-actions .nf-btn{font-size:0;padding:10px}.nf-payment-requests .nf-header-actions .nf-btn svg{width:18px;height:18px}nf-payment-requests .nf-stats{grid-template-columns:1fr;gap:9px;margin-bottom:16px}.nf-payment-requests .nf-stat{padding:14px 16px;display:grid;grid-template-columns:1fr auto;column-gap:12px;align-items:center}.nf-payment-requests .nf-stat-top{margin:0;font-size:11px}.nf-payment-requests .nf-stat-top svg{display:none}.nf-payment-requests .nf-stat strong{font-size:22px}.nf-payment-requests .nf-stat small{grid-column:1/-1;margin-top:2px}.nf-payment-requests .nf-panel-top{padding:12px}.nf-payment-requests .nf-segment{display:flex}.nf-payment-requests .nf-segment button{flex:1;font-size:11px;padding:7px;gap:6px}.nf-payment-requests .nf-toolbar{padding:14px 12px;flex-direction:column;align-items:stretch;gap:8px}.nf-payment-requests .nf-list-heading{padding:2px 14px 14px}.nf-payment-requests .nf-mobile-docs{grid-template-columns:1fr;padding:0 12px 12px;gap:12px}.nf-payment-requests .nf-detail{grid-template-columns:1fr;padding:16px;gap:20px}.nf-payment-requests .nf-detail dl{grid-template-columns:1fr}.nf-payment-requests .nf-pagination{padding:14px 12px;flex-wrap:wrap;font-size:10px}.nf-payment-requests .nf-pagination>div{gap:8px}}
+@container(max-width:620px){.nf-payment-requests .nf-header{align-items:flex-start;gap:10px}.nf-payment-requests .nf-header-actions .nf-btn{font-size:0;padding:10px}.nf-payment-requests .nf-header-actions .nf-btn svg{width:18px;height:18px}nf-payment-requests .nf-panel-top{padding:12px}.nf-payment-requests .nf-segment{display:flex}.nf-payment-requests .nf-segment button{flex:1;font-size:11px;padding:7px;gap:6px}.nf-payment-requests .nf-toolbar{padding:14px 12px;flex-direction:column;align-items:stretch;gap:8px}.nf-payment-requests .nf-list-heading{padding:2px 14px 14px}.nf-payment-requests .nf-mobile-docs{grid-template-columns:1fr;padding:0 12px 12px;gap:12px}.nf-payment-requests .nf-detail{grid-template-columns:1fr;padding:16px;gap:20px}.nf-payment-requests .nf-detail dl{grid-template-columns:1fr}.nf-payment-requests .nf-pagination{padding:14px 12px;flex-wrap:wrap;font-size:10px}.nf-payment-requests .nf-pagination>div{gap:8px}}
 @media(max-width:600px){.nf-payment-dialog .nf-dialog-header{padding:12px 14px}.nf-payment-dialog .nf-dialog-header h2{font-size:15px}.nf-payment-dialog .nf-dialog-content{padding:14px}.nf-payment-dialog .nf-form-grid.two{grid-template-columns:1fr}.nf-payment-dialog .nf-form-grid input,.nf-payment-dialog .nf-form-grid select,.nf-payment-dialog .nf-form-grid textarea{font-size:16px}.nf-payment-dialog .nf-payment-summary{flex-direction:column}.nf-payment-dialog .nf-modal-footer .nf-btn{flex:1}.nf-payment-dialog .nf-preview-toolbar{flex-wrap:wrap}.nf-payment-dialog .nf-preview{height:60dvh}}
 @media(prefers-reduced-motion:reduce){.nf-spin{animation:none}.nf-payment-requests *,.nf-payment-dialog *{transition:none!important}}
 `;

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, useRef, useId, type ReactNode } from "react";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, FileText, Pencil, RefreshCw, Search, TriangleAlert, X, Download } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, FileText, MoreVertical, Pencil, RefreshCw, Search, TriangleAlert, X, Download } from "lucide-react";
 import { toast } from "sonner";
 import {
   buscarContasBancariasHolding,
@@ -27,6 +27,7 @@ const LARGURA_MINIMA_COLUNA = 60;
 
 type AbaSolicitacao = "cotista" | "colaborador";
 type FiltroLista = { id: string; label: string; quantidade?: number };
+type AcaoLinha = { rotulo: ReactNode; aoClicar: () => void; desabilitada?: boolean; titulo?: string };
 type LinhaExibida = {
   chave: string;
   expandida: boolean;
@@ -39,7 +40,7 @@ type LinhaExibida = {
   secundaria: string;
   valor: string;
   status: string;
-  acao?: ReactNode;
+  acoes: AcaoLinha[];
   detalhe: ReactNode;
 };
 
@@ -227,6 +228,17 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   const [alvo, setAlvo] = useState<ReembolsoColaborador | null>(null);
   const [contaBaixa, setContaBaixa] = useState<ContaAPagar | null>(null);
   const [expandido, setExpandido] = useState<string | null>(null);
+  const [menuAberto, setMenuAberto] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!menuAberto) return;
+    const fecharFora = (evento: PointerEvent) => {
+      if (evento.target instanceof Element && evento.target.closest(".nf-menu-linha")) return;
+      setMenuAberto(null);
+    };
+    document.addEventListener("pointerdown", fecharFora);
+    return () => document.removeEventListener("pointerdown", fecharFora);
+  }, [menuAberto]);
   const [busca, setBusca] = useState("");
   const [filtroEnvio, setFiltroEnvio] = useState("TODOS");
   const [filtroReembolso, setFiltroReembolso] = useState("TODOS");
@@ -436,7 +448,10 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
       secundaria: item.descricao ?? "",
       valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : Number(item.valor ?? 0))}`,
       status: item.status,
-      acao: <>{<button type="button" className="nf-btn" onClick={() => editarSolicitacao(item)}><Pencil size={14} /> Editar</button>}{baixaDisponivel && <button type="button" className="nf-btn primary" disabled={!item.conta_a_pagar_id} title={!item.conta_a_pagar_id ? "Conta a pagar vinculada não encontrada" : undefined} onClick={() => abrirBaixaCliente(item)}>Dar baixa</button>}</>,
+      acoes: [
+        { rotulo: <><Pencil size={14} /> Editar</>, aoClicar: () => editarSolicitacao(item) },
+        ...(baixaDisponivel ? [{ rotulo: "Dar baixa", desabilitada: !item.conta_a_pagar_id, titulo: !item.conta_a_pagar_id ? "Conta a pagar vinculada não encontrada" : undefined, aoClicar: () => abrirBaixaCliente(item) }] : []),
+      ],
       detalhe: expandida ? detalheLancamento(item, setDocumentoAberto) : null,
     };
   });
@@ -455,12 +470,25 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
       secundaria: item.descricao ?? "",
       valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : item.valor)}`,
       status: item.status,
-      acao: <><button type="button" className="nf-btn" onClick={() => editarSolicitacao(item)}><Pencil size={14} /> Editar</button><button type="button" className="nf-btn primary" onClick={() => abrirBaixa(item)}><CheckCircle2 /> Dar baixa</button></>,
+      acoes: [
+        { rotulo: <><Pencil size={14} /> Editar</>, aoClicar: () => editarSolicitacao(item) },
+        { rotulo: "Dar baixa", aoClicar: () => abrirBaixa(item) },
+      ],
       detalhe: expandida ? detalheLancamento(item, setDocumentoAberto) : null,
     };
   });
 
   const linhas = aba === "cotista" ? linhasEnvio : linhasReembolso;
+
+  function celulaAcoes(linha: LinhaExibida) {
+    const aberto = menuAberto === linha.chave;
+    return <div className="nf-menu-linha">
+      <button type="button" className="nf-icon" aria-label={`Ações de ${linha.secundaria || linha.principal}`} aria-haspopup="menu" aria-expanded={aberto} onClick={() => setMenuAberto(aberto ? null : linha.chave)}><MoreVertical /></button>
+      {aberto && <div className="nf-menu-acoes" role="menu">
+        {linha.acoes.map((acao, indice) => <button key={indice} type="button" role="menuitem" disabled={acao.desabilitada} title={acao.titulo} onClick={() => { setMenuAberto(null); acao.aoClicar(); }}>{acao.rotulo}</button>)}
+      </div>}
+    </div>;
+  }
 
   return (
     <div className="nf-workspace nf-payment-requests">
@@ -518,7 +546,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
                       <td className="erp-td-data"><span>{linha.vencimento}</span></td>
                       <td className="erp-valor">{linha.valor}</td>
                       <td><StatusSolicitacao status={linha.status} /></td>
-                      <td>{linha.acao}</td>
+                      <td>{celulaAcoes(linha)}</td>
                     </tr>
                     {linha.expandida && <tr className="erp-linha-detalhes"><td colSpan={8}>{linha.detalhe}</td></tr>}
                   </Fragment>)}
@@ -529,7 +557,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
               {linhas.map((linha) => <article className={`nf-mobile-doc${linha.expandida ? " expanded" : ""}`} key={linha.chave}>
                 <header><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div><StatusSolicitacao status={linha.status} /></header>
                 <dl><div><dt>{aba === "cotista" ? "Cliente" : "Colaborador"}</dt><dd>{aba === "cotista" ? linha.cliente : linha.colaborador}</dd></div><div><dt>Descrição</dt><dd>{linha.secundaria || linha.principal}{linha.secundaria && <small>{linha.principal}</small>}</dd></div><div><dt>Vencimento</dt><dd>{linha.vencimento}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
-                <footer>{linha.acao}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
+                <footer>{celulaAcoes(linha)}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
                 {linha.detalhe}
               </article>)}
             </div>
@@ -642,6 +670,11 @@ const STYLES = `
 .nf-payment-requests .nf-dot{width:6px;height:6px;background:var(--nf-blue);border-radius:50%}
 .nf-payment-requests h1{font-size:27px;font-weight:650;letter-spacing:-1px;margin:-15px 0 4px}
 .nf-payment-requests .nf-subtitle{margin:0;color:var(--nf-muted);font-size:13px}
+.nf-payment-requests .nf-menu-linha{position:relative;display:inline-flex}
+.nf-payment-requests .nf-menu-acoes{position:absolute;top:calc(100% + 4px);right:0;z-index:40;min-width:160px;padding:4px;border:1px solid var(--app-line);border-radius:8px;background:var(--app-surface);box-shadow:0 12px 30px #0003}
+.nf-payment-requests .nf-menu-acoes button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:0;border-radius:6px;background:transparent;color:var(--app-text);font-size:12px;text-align:left;white-space:nowrap}
+.nf-payment-requests .nf-menu-acoes button:hover:not(:disabled){background:var(--app-soft)}
+.nf-payment-requests .nf-menu-acoes button:disabled{opacity:.45;cursor:not-allowed}
 .nf-payment-requests .nf-btn,.nf-payment-dialog .nf-btn,.nf-payment-requests .nf-icon,.nf-payment-dialog .nf-icon{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:9px 13px;border:1px solid var(--app-line);border-radius:9px;color:var(--app-text);background:var(--app-surface);font-size:12px;font-weight:600;text-decoration:none;transition:background .15s,box-shadow .15s}
 .nf-payment-requests .nf-btn:hover,.nf-payment-dialog .nf-btn:hover{background:var(--app-soft);box-shadow:0 2px 5px #162c4510}
 .nf-payment-requests .nf-btn.primary,.nf-payment-dialog .nf-btn.primary{background:var(--nf-blue);border-color:var(--nf-blue);color:var(--app-primary-text);box-shadow:0 2px 4px #245bd81a}

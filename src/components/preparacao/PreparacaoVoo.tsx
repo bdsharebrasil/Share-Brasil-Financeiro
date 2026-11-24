@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { AlertCircle, Check, ChevronDown, Download, Loader2, Paperclip, Phone, Plane, Plus, RefreshCw, Send, Trash2, Users } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, Download, Loader2, Paperclip, Phone, Plane, Plus, RefreshCw, Send, Trash2, Users, X } from 'lucide-react';
 import { mesclar } from './mesclar';
 import DragReorder from '@/components/ui/drag-reorder';
 import { SlidingTabs, SlidingTabsList, SlidingTabsPanel, SlidingTabsPanels, SlidingTabsTab } from '@/components/ui/animated-sliding-tabs';
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/animated-sheet';
 import './preparacao.css';
+import './etapa-sheet.css';
 export type TransportePreparacao = {
   json: (path:string, body?:any)=>Promise<any>;
   arquivo: (path:string)=>Promise<Blob>;
@@ -12,6 +14,7 @@ export type TransportePreparacao = {
 };
 const ROTULOS:Record<string,string>={PENDENTE:'Pendente',EM_ANDAMENTO:'Em andamento',CONCLUIDO:'Confirmado / realizado',NAO_REALIZADO:'Não realizado',NAO_APLICAVEL:'Não se aplica'};
 const CAFES:Record<string,string>={INCLUIDO:'Incluído na diária',A_PARTE:'Pago à parte',NAO_OFERECE:'Não oferece',A_CONFIRMAR:'A confirmar'};
+const FUSOS:[string,string][]=[['','A confirmar'],['UTC','UTC'],['America/Sao_Paulo','Brasília'],['America/Cuiaba','Cuiabá'],['America/Manaus','Manaus'],['America/Rio_Branco','Rio Branco']];
 const resolvido=(s:any)=>['CONCLUIDO','NAO_APLICAVEL'].includes(s?.estado);
 const hoje=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const dataBR=(v:string)=>/^\d{4}-\d{2}-\d{2}$/.test(v)?v.split('-').reverse().join('/'):v;
@@ -35,9 +38,11 @@ export default function PreparacaoVoo({ vooId, api, aoSalvar, aoProgresso, escur
   const [erro,setErro]=useState(''),[aviso,setAviso]=useState(''),[ocupado,setOcupado]=useState(''),[sujo,setSujo]=useState(false),[offline,setOffline]=useState(false);
   const [versoes,setVersoes]=useState<any[]|null>(null),[conflito,setConflito]=useState<any>(null),[combustivel,setCombustivel]=useState<any>(null);
   const [busca,setBusca]=useState(''),[todos,setTodos]=useState(false),[mostrarPendencias,setMostrarPendencias]=useState(false);
+  const [etapaAberta,setEtapaAberta]=useState<string|null>(null);
   const ref=useRef<any>(null),atual=useRef<any>(null),base=useRef<any>(null),busy=useRef(false),dirty=useRef(false),sequencia=useRef(0),cache=useRef(''),vivo=useRef(true),conflitando=useRef(false);
   const enviarRef=useRef<(concluir?:boolean)=>Promise<any>>(async()=>null);
   const carregouRascunho=useRef(false);
+  const pendenciasRef=useRef<HTMLElement>(null);
   const reqEmail=useRef<Record<string,{assinatura:string;id:string}>>({});
   useEffect(()=>{vivo.current=true;return()=>{vivo.current=false;};},[]);
   const aplicar=useCallback((r:any,manter=false)=>{atual.current=r;base.current=clone(r.dados);if(!manter){ref.current=clone(r.dados);setDados(ref.current);dirty.current=false;setSujo(false);}setRegistro(r);if(cache.current)try{sessionStorage.setItem(cache.current,JSON.stringify(r));}catch{};aoProgresso?.(Object.values(r.dados.itens||{}).filter((x:any)=>x.estado!=='PENDENTE').length);},[aoProgresso]);
@@ -108,13 +113,16 @@ export default function PreparacaoVoo({ vooId, api, aoSalvar, aoProgresso, escur
   if(!registro||!dados)return <section className="pv" data-escuro={escuro}><p role="status">{erro||'Carregando preparação do voo…'}</p>{erro&&<button onClick={()=>void carregar()}>Tentar novamente</button>}</section>;
   const respostas=[...Object.values(dados.itens),...dados.escalas.flatMap((e:any)=>e.servicos)] as any[];
   const pendenciasDetalhadas:any[]=[
-    ...Object.entries(dados.itens).filter(([,r]:any)=>!resolvido(r)).map(([id,r]:any)=>{const sec=registro.secoes.find((x:any)=>x.itens.some((i:any)=>i.id===id));const item=sec?.itens.find((i:any)=>i.id===id);return {etapa:sec?.titulo||'Checklist',item:item?.label||id,estado:r.estado};}),
-    ...dados.escalas.flatMap((e:any)=>e.servicos.filter((s:any)=>!resolvido(s)).map((s:any)=>({etapa:`Escala ${e.icao||e.cidade||'sem aeroporto'}`,item:registro.tipos_servico.find((t:any)=>t.id===s.tipo)?.nome||s.tipo,estado:s.estado}))),
-    ...dados.escalas.flatMap((e:any)=>e.servicos.filter((s:any)=>s.tipo==='HOTEL'&&s.estado==='CONCLUIDO'&&!['INCLUIDO','A_PARTE','NAO_OFERECE'].includes(s.dados.cafe_estado)).map((s:any)=>({etapa:`Escala ${e.icao||e.cidade||'sem aeroporto'}`,item:`${registro.tipos_servico.find((t:any)=>t.id===s.tipo)?.nome||'Hotel'} · situação do café da manhã`,estado:'A_CONFIRMAR'}))),
-    ...(!dados.nivel_oleo.trim()?[{etapa:'Aeronave',item:'Nível de óleo LH / RH',estado:'PENDENTE'}]:[]),
-    ...dados.trechos.filter((t:any)=>!t.origem||!t.destino||!t.data||!t.horario||!t.fuso).map((t:any,i:number)=>({etapa:'Roteiro e horários planejados',item:`Trecho ${i+1}: ${[!t.origem&&'origem',!t.destino&&'destino',!t.data&&'data',!t.horario&&'horário',!t.fuso&&'fuso horário'].filter(Boolean).join(', ')}`,estado:'INCOMPLETO'})),
+    ...Object.entries(dados.itens).filter(([,r]:any)=>!resolvido(r)).map(([id,r]:any)=>{const sec=registro.secoes.find((x:any)=>x.itens.some((i:any)=>i.id===id));const item=sec?.itens.find((i:any)=>i.id===id);return {etapa:sec?.titulo||'Checklist',item:item?.label||id,estado:r.estado,tipo:'item',id};}),
+    ...dados.escalas.flatMap((e:any)=>e.servicos.filter((s:any)=>!resolvido(s)).map((s:any)=>({etapa:`Escala ${e.icao||e.cidade||'sem aeroporto'}`,item:registro.tipos_servico.find((t:any)=>t.id===s.tipo)?.nome||s.tipo,estado:s.estado,tipo:'servico',id:s.id}))),
+    ...dados.escalas.flatMap((e:any)=>e.servicos.filter((s:any)=>s.tipo==='HOTEL'&&s.estado==='CONCLUIDO'&&!['INCLUIDO','A_PARTE','NAO_OFERECE'].includes(s.dados.cafe_estado)).map((s:any)=>({etapa:`Escala ${e.icao||e.cidade||'sem aeroporto'}`,item:`${registro.tipos_servico.find((t:any)=>t.id===s.tipo)?.nome||'Hotel'} · situação do café da manhã`,estado:'A_CONFIRMAR',tipo:'cafe',id:s.id}))),
+    ...(!dados.nivel_oleo.trim()?[{etapa:'Aeronave',item:'Nível de óleo LH / RH',estado:'PENDENTE',tipo:'oleo'}]:[]),
+    ...dados.trechos.flatMap((t:any,i:number)=>!t.origem||!t.destino||!t.data||!t.horario||!t.fuso?[{etapa:'Roteiro e horários planejados',item:`Trecho ${i+1}: ${[!t.origem&&'origem',!t.destino&&'destino',!t.data&&'data',!t.horario&&'horário',!t.fuso&&'fuso horário'].filter(Boolean).join(', ')}`,estado:'INCOMPLETO',tipo:'trecho',indice:i}]:[]),
   ];
   const pendencias=pendenciasDetalhadas.length;
+  const servicoPorId=(id:string)=>dados.escalas.flatMap((e:any)=>e.servicos).find((s:any)=>s.id===id);
+  const atualizarPendencia=(p:any,patch:any)=>p.tipo==='item'?item(p.id,patch):servico(p.id,patch);
+  const abrirPendencias=()=>{setMostrarPendencias(true);requestAnimationFrame(()=>pendenciasRef.current?.scrollIntoView({behavior:'smooth',block:'start'}));};
   const marcarEtapaConcluida=(itens:any[])=>alterar(d=>{for(const i of itens)d.itens[i.id]={...d.itens[i.id],estado:'CONCLUIDO'};});
   const itensOrdenados=(sec:any)=>{const ordem=dados.ordem_checklist?.[sec.id];if(!Array.isArray(ordem))return sec.itens;const posicao=new Map(ordem.map((id:string,index:number)=>[id,index]));return [...sec.itens].sort((a:any,b:any)=>(posicao.get(a.id)??Number.MAX_SAFE_INTEGER)-(posicao.get(b.id)??Number.MAX_SAFE_INTEGER));};
   const reordenarItens=(secId:string,itens:any[])=>alterar(d=>{d.ordem_checklist={...(d.ordem_checklist||{}),[secId]:itens.map(i=>i.id)};});
@@ -123,9 +131,17 @@ export default function PreparacaoVoo({ vooId, api, aoSalvar, aoProgresso, escur
   const status=registro.finalizado_em?(pendencias?`Finalizada com ${pendencias} pendência(s)`:'Preparação finalizada'):'Em preparação';
   const secoes=registro.secoes.filter((s:any)=>s.segmento===aba);
   const filtro=busca.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const etapaSheet=secoes.find((s:any)=>s.id===etapaAberta);
+  const marcadosEtapa=etapaSheet?etapaSheet.itens.filter((i:any)=>dados.itens[i.id]?.estado&&dados.itens[i.id].estado!=='PENDENTE').length:0;
+  async function concluirEtapa(id:string){
+    if(!await salvar(false))return;
+    const proxima=secoes[secoes.findIndex((s:any)=>s.id===id)+1];
+    setEtapaAberta(null);
+    if(proxima)setTimeout(()=>setEtapaAberta(proxima.id),200);
+  }
   return <section className="pv" data-escuro={escuro}>
     <header className="pv-cabecalho"><div><span className="pv-legenda">PREPARAÇÃO DO VOO</span><h2>{registro.voo.numero_voo||'Voo'} · {registro.voo.matricula_registro||'Aeronave'}</h2><p>{dados.trechos.map((t:any,i:number)=><span key={t.id}>{i?' · ':''}{t.origem} → {t.destino}</span>)}</p></div>
-      <span className="pv-selo" data-estado={pendencias?'EM_ANDAMENTO':'CONCLUIDO'}>{status}</span>
+      {pendencias?<button type="button" className="pv-selo pv-selo-botao" data-estado="EM_ANDAMENTO" aria-label={`Ver ${pendencias} pendência(s)`} onClick={abrirPendencias}>{status}</button>:<span className="pv-selo" data-estado="CONCLUIDO">{status}</span>}
       <div className="pv-acoes"><button aria-pressed={aba==='resumo'} onClick={()=>setAba('resumo')}>Ver briefing</button><button onClick={()=>void briefing()} disabled={!!ocupado||!!conflito||offline}><Download size={16}/>Briefing PDF</button><button aria-label="Atualizar preparação" onClick={()=>void carregar()} disabled={sujo||!!ocupado}><RefreshCw size={16}/></button></div>
     </header>
     <p className="pv-meta">{registro.voo.piloto_nome||'Comandante a confirmar'}{registro.voo.copiloto_nome?' · '+registro.voo.copiloto_nome:''} · {registro.voo.numero_passageiros??'—'} passageiros</p>
@@ -134,29 +150,12 @@ export default function PreparacaoVoo({ vooId, api, aoSalvar, aoProgresso, escur
     {conflito&&<div className="pv-aviso" role="alert"><p>{conflito.total} campo(s) foram alterados também por outra pessoa. As alterações em campos diferentes já foram combinadas.</p><div className="pv-acoes"><button onClick={()=>resolver('local')}>Manter minhas alterações nesses campos</button><button onClick={()=>resolver('remoto')}>Usar alterações da equipe nesses campos</button></div></div>}
     <nav className="pv-tabs" aria-label="Segmentos da preparação"><button aria-pressed={aba==='aeronave'} onClick={()=>setAba('aeronave')}><Plane size={17}/>Aeronave</button><button aria-pressed={aba==='tripulacao'} onClick={()=>setAba('tripulacao')}><Users size={17}/>Tripulação</button></nav>
     {aba==='aeronave'&&<>
-      <SlidingTabs value={secao} onValueChange={(value)=>{if(typeof value==='string')setSecao(value);}} activation="automatic" className="pv-etapas-sliding">
+      <SlidingTabs value={secao} onValueChange={(value)=>{if(typeof value==='string')setSecao(value);}} activation="manual" className="pv-etapas-sliding">
         <SlidingTabsList aria-label="Etapas da aeronave" className="pv-etapas pv-sliding-list">
-          {secoes.map((s:any)=><SlidingTabsTab key={s.id} value={s.id} className="pv-sliding-tab">{s.titulo}</SlidingTabsTab>)}
+          {secoes.map((s:any)=><SlidingTabsTab key={s.id} value={s.id} className="pv-sliding-tab" onClick={()=>setEtapaAberta(s.id)}>{s.titulo}</SlidingTabsTab>)}
           <SlidingTabsTab value="combustivel" className="pv-sliding-tab">Abastecimento realizado</SlidingTabsTab>
         </SlidingTabsList>
         <SlidingTabsPanels className="pv-sliding-panels">
-          {secoes.map((s:any)=>{
-            const itens=itensOrdenados(s);
-            return <SlidingTabsPanel key={s.id} value={s.id} className="pv-sliding-panel">
-              <div className="pv-lista">
-                <div className="pv-etapa-cabecalho"><div><h3>{s.titulo}</h3><p className="pv-meta">Arraste para reordenar ou use as setas para mudar a posição dos itens.</p></div><button type="button" disabled={readonly||!s.itens.length} onClick={()=>marcarEtapaConcluida(s.itens)}><Check size={15}/>Marcar etapa como concluída</button></div>
-                <DragReorder
-                  items={itens}
-                  ariaLabel={`Itens da etapa ${s.titulo}`}
-                  disabled={readonly}
-                  label={(i:any)=>i.label}
-                  onReorder={(proximos:any[])=>reordenarItens(s.id,proximos)}
-                  renderItem={(i:any)=><div className="pv-item" data-estado={dados.itens[i.id]?.estado}><div className="pv-item-topo"><span>{i.label}</span>{situacao(dados.itens[i.id]||{estado:'PENDENTE'},estado=>item(i.id,{estado}))}</div><textarea aria-label={`Observação: ${i.label}`} placeholder="Observação ou motivo, se necessário" value={dados.itens[i.id]?.observacao||''} onChange={e=>item(i.id,{observacao:e.target.value})} disabled={readonly}/>{dados.itens[i.id]?.responsavel&&<small>{dados.itens[i.id].responsavel} · {momento(dados.itens[i.id].atualizado_em)}</small>}</div>}
-                />
-                {s.itens.some((i:any)=>i.tipo==='oleo')&&campo('Nível de óleo LH / RH',dados.nivel_oleo,v=>alterar(d=>{d.nivel_oleo=v;}))}
-              </div>
-            </SlidingTabsPanel>;
-          })}
           <SlidingTabsPanel value="combustivel" className="pv-sliding-panel">
             <div className="pv-lista"><h3>Abastecimento realizado</h3><p className="pv-meta">Registre aqui o combustível efetivamente abastecido. As previsões ficam nos serviços de cada escala.</p>{registro.abastecimentos?.map((a:any)=><div className="pv-item" key={a.id}>{a.local} · {a.data} · {a.litros} L · R$ {a.valor_unitario}/L</div>)}
               <label className="pv-campo"><span>Escala do abastecimento</span><select value={eAtual?.id||''} onChange={e=>setEscala(e.target.value)}>{dados.escalas.map((e:any)=><option key={e.id} value={e.id}>{e.icao}</option>)}</select></label>
@@ -166,10 +165,35 @@ export default function PreparacaoVoo({ vooId, api, aoSalvar, aoProgresso, escur
           </SlidingTabsPanel>
         </SlidingTabsPanels>
       </SlidingTabs>
+      <Sheet open={Boolean(etapaAberta)} onOpenChange={(aberto)=>{if(!aberto)setEtapaAberta(null);}}>
+        <SheetContent className="pv pv-etapa-sheet">
+          {etapaSheet&&<>
+            <div className="pv-etapa-sheet-cabecalho">
+              <div><SheetTitle>{etapaSheet.titulo}</SheetTitle><SheetDescription>{marcadosEtapa} de {etapaSheet.itens.length} itens marcados</SheetDescription></div>
+              <SheetClose><button type="button" className="pv-etapa-sheet-fechar" aria-label="Fechar etapa"><X size={16}/></button></SheetClose>
+            </div>
+            <div className="pv-etapa-sheet-corpo">
+              <div className="pv-etapa-cabecalho"><p className="pv-meta">Marque a situação de cada item. Arraste para reordenar ou use as setas.</p><button type="button" disabled={readonly||!etapaSheet.itens.length} onClick={()=>marcarEtapaConcluida(etapaSheet.itens)}><Check size={15}/>Marcar etapa como concluída</button></div>
+              <DragReorder
+                items={itensOrdenados(etapaSheet)}
+                ariaLabel={`Itens da etapa ${etapaSheet.titulo}`}
+                disabled={readonly}
+                label={(i:any)=>i.label}
+                onReorder={(proximos:any[])=>reordenarItens(etapaSheet.id,proximos)}
+                renderItem={(i:any)=><div className="pv-item" data-estado={dados.itens[i.id]?.estado}><div className="pv-item-topo"><span>{i.label}</span>{situacao(dados.itens[i.id]||{estado:'PENDENTE'},estado=>item(i.id,{estado}))}</div><textarea aria-label={`Observação: ${i.label}`} placeholder="Observação ou motivo, se necessário" value={dados.itens[i.id]?.observacao||''} onChange={e=>item(i.id,{observacao:e.target.value})} disabled={readonly}/>{dados.itens[i.id]?.responsavel&&<small>{dados.itens[i.id].responsavel} · {momento(dados.itens[i.id].atualizado_em)}</small>}</div>}
+              />
+              {etapaSheet.itens.some((i:any)=>i.tipo==='oleo')&&campo('Nível de óleo LH / RH',dados.nivel_oleo,v=>alterar(d=>{d.nivel_oleo=v;}))}
+            </div>
+            <div className="pv-etapa-sheet-rodape">
+              <button type="button" className="pv-principal" disabled={readonly||!!ocupado||!!conflito} onClick={()=>void concluirEtapa(etapaSheet.id)}>{ocupado==='salvar'?<Loader2 size={16} className="pv-giro"/>:<Check size={16}/>}Salvar e fechar</button>
+            </div>
+          </>}
+        </SheetContent>
+      </Sheet>
     </>}
     {aba==='aeronave'&&registro.finalizado_em&&painelAeronave}
     {aba==='tripulacao'&&<>
-      <details className="pv-rota" open><summary>Roteiro e horários planejados</summary><p className="pv-meta">Datas e horários pertencem a cada trecho; selecione o fuso utilizado.</p>{dados.trechos.map((t:any,i:number)=><div className="pv-trecho" key={t.id}><strong>Trecho {i+1}</strong><div className="pv-campos">{[['origem','Origem (ICAO)'],['destino','Destino (ICAO)'],['data','Data'],['horario','Horário']].map(([k,label])=>campo(label,t[k],v=>mudarTrecho(i,k,v.toUpperCase()),k==='data'?'date':k==='horario'?'time':'text'))}<label className="pv-campo"><span>Fuso</span><select value={t.fuso} disabled={readonly} onChange={e=>mudarTrecho(i,'fuso',e.target.value)}>{[['','A confirmar'],['UTC','UTC'],['America/Sao_Paulo','Brasília'],['America/Cuiaba','Cuiabá'],['America/Manaus','Manaus'],['America/Rio_Branco','Rio Branco']].map(([v,n])=><option key={v} value={v}>{n}</option>)}</select></label><label className="pv-check"><input type="checkbox" checked={t.pernoite} disabled={readonly} onChange={e=>alterar(d=>{d.trechos[i].pernoite=e.target.checked;for(const id of [t.origem_escala_id,t.destino_escala_id]){const e=d.escalas.find((e:any)=>e.id===id);if(e)reconfirmar(e);}})}/>Pernoite após este trecho</label></div></div>)}{!readonly&&<button onClick={()=>alterar(d=>{const id=crypto.randomUUID(),ultimo=d.trechos.at(-1);d.escalas.push(criarEscala(id));d.trechos.push({id:crypto.randomUUID(),origem:ultimo?.destino||'',origem_escala_id:ultimo.destino_escala_id,destino_escala_id:id,destino:'',data:'',horario:'',fuso:'',pernoite:false});})}><Plus size={15}/>Adicionar trecho</button>}</details>
+      <details className="pv-rota" open><summary>Roteiro e horários planejados</summary><p className="pv-meta">Datas e horários pertencem a cada trecho; selecione o fuso utilizado.</p>{dados.trechos.map((t:any,i:number)=><div className="pv-trecho" key={t.id}><strong>Trecho {i+1}</strong><div className="pv-campos">{[['origem','Origem (ICAO)'],['destino','Destino (ICAO)'],['data','Data'],['horario','Horário']].map(([k,label])=>campo(label,t[k],v=>mudarTrecho(i,k,v.toUpperCase()),k==='data'?'date':k==='horario'?'time':'text'))}<label className="pv-campo"><span>Fuso</span><select value={t.fuso} disabled={readonly} onChange={e=>mudarTrecho(i,'fuso',e.target.value)}>{FUSOS.map(([v,n])=><option key={v} value={v}>{n}</option>)}</select></label><label className="pv-check"><input type="checkbox" checked={t.pernoite} disabled={readonly} onChange={e=>alterar(d=>{d.trechos[i].pernoite=e.target.checked;for(const id of [t.origem_escala_id,t.destino_escala_id]){const e=d.escalas.find((e:any)=>e.id===id);if(e)reconfirmar(e);}})}/>Pernoite após este trecho</label></div></div>)}{!readonly&&<button onClick={()=>alterar(d=>{const id=crypto.randomUUID(),ultimo=d.trechos.at(-1);d.escalas.push(criarEscala(id));d.trechos.push({id:crypto.randomUUID(),origem:ultimo?.destino||'',origem_escala_id:ultimo.destino_escala_id,destino_escala_id:id,destino:'',data:'',horario:'',fuso:'',pernoite:false});})}><Plus size={15}/>Adicionar trecho</button>}</details>
       <div className="pv-lista"><div className="pv-etapa-cabecalho"><h3>Coordenação e conferência da tripulação</h3><button type="button" disabled={readonly} onClick={()=>marcarEtapaConcluida(registro.secoes.filter((s:any)=>s.segmento==='tripulacao').flatMap((s:any)=>s.itens))}><Check size={15}/>Marcar etapa como concluída</button></div>{registro.secoes.filter((s:any)=>s.segmento==='tripulacao').flatMap((s:any)=>s.itens).map((i:any)=><div className="pv-item" key={i.id}><div className="pv-item-topo"><span>{i.label}</span>{situacao(dados.itens[i.id],estado=>item(i.id,{estado}))}</div><textarea aria-label={`Observação: ${i.label}`} placeholder="Observação ou motivo" value={dados.itens[i.id].observacao} disabled={readonly} onChange={e=>item(i.id,{observacao:e.target.value})}/></div>)}</div>
       <div className="pv-escalas"><nav aria-label="Escalas">{dados.escalas.map((e:any)=><button key={e.id} aria-pressed={eAtual?.id===e.id} onClick={()=>{setEscala(e.id);setAberto('');setBusca('');}}>{e.icao||'Nova escala'}</button>)}{!readonly&&<button aria-label="Adicionar escala" onClick={()=>{const id=crypto.randomUUID();alterar(d=>{d.escalas.push(criarEscala(id));});setEscala(id);}}><Plus size={16}/></button>}</nav>
         {eAtual&&<><div className="pv-etapa-cabecalho pv-escala-cabecalho"><h3>{eAtual.icao||'Nova escala'}{eAtual.cidade?` · ${eAtual.cidade}`:''}</h3>{!readonly&&escalaPodeSerExcluida(eAtual)&&<button type="button" onClick={()=>removerEscala(eAtual.id)} title="Excluir escala vazia"><Trash2 size={15}/>Excluir escala vazia</button>}</div><div className="pv-campos">{campo('Aeroporto da escala (ICAO)',eAtual.icao,v=>alterar(d=>{const esc=d.escalas.find((e:any)=>e.id===eAtual.id);esc.icao=v.toUpperCase();reconfirmar(esc);for(const t of d.trechos)for(const lado of ['origem','destino'])if(t[lado+'_escala_id']===esc.id)t[lado]=esc.icao;}))}{campo('Cidade da escala',eAtual.cidade,v=>alterar(d=>{d.escalas.find((e:any)=>e.id===eAtual.id).cidade=v;}))}</div>
@@ -209,7 +233,7 @@ export default function PreparacaoVoo({ vooId, api, aoSalvar, aoProgresso, escur
     </div>}
     <label className="pv-campo"><span>Observações gerais da preparação</span><textarea value={dados.observacoes} disabled={readonly} onChange={e=>alterar(d=>{d.observacoes=e.target.value;})}/></label>
     <footer className="pv-rodape"><button type="button" className="pv-pendencias-botao" aria-expanded={mostrarPendencias} onClick={()=>setMostrarPendencias(v=>!v)}>{pendencias} pendência(s) · {mostrarPendencias?'Ocultar detalhes':'Ver pendências'}</button><div className="pv-acoes"><button disabled={readonly||!!ocupado||!!conflito} onClick={()=>void salvar(false)}>{ocupado==='salvar'?<Loader2 size={16} className="pv-giro"/>:null}Salvar agora</button><button className="pv-principal" disabled={readonly||!!ocupado||!!conflito} onClick={()=>void salvar(true)}>{ocupado==='concluir'?<Loader2 size={16} className="pv-giro"/>:<Check size={16}/>}Concluir preparação</button></div></footer>
-    {mostrarPendencias&&<section className="pv-pendencias-lista" aria-label="Detalhes das pendências"><h3>Pendências da preparação</h3>{pendenciasDetalhadas.length?pendenciasDetalhadas.map((p:any,i:number)=><article key={`${p.etapa}-${p.item}-${i}`}><div><strong>{p.item}</strong><small>{p.etapa}</small></div><span>{ROTULOS[p.estado]||p.estado}</span></article>):<p>Nenhuma pendência. Todos os itens foram resolvidos.</p>}</section>}
+    {mostrarPendencias&&<section ref={pendenciasRef} className="pv-pendencias-lista" aria-label="Detalhes das pendências"><h3>Pendências da preparação</h3>{pendenciasDetalhadas.length?pendenciasDetalhadas.map((p:any,i:number)=><div className="pv-pendencia" key={`${p.tipo}-${p.id??p.indice}-${i}`}><div className="pv-pendencia-topo"><strong>{p.item}</strong><small>{p.etapa}</small></div>{(p.tipo==='item'||p.tipo==='servico')&&<div className="pv-pendencia-controles pv-pendencia-situacao">{situacao(p.tipo==='item'?dados.itens[p.id]:servicoPorId(p.id),estado=>atualizarPendencia(p,{estado}))}<textarea aria-label={`Observação: ${p.item}`} placeholder="Observação ou motivo, se necessário" value={(p.tipo==='item'?dados.itens[p.id]:servicoPorId(p.id))?.observacao||''} disabled={readonly} onChange={e=>atualizarPendencia(p,{observacao:e.target.value})}/><button type="button" disabled={readonly} onClick={()=>atualizarPendencia(p,{estado:'CONCLUIDO'})}><Check size={15}/>Concluir</button></div>}{p.tipo==='cafe'&&<div className="pv-pendencia-controles"><label className="pv-campo"><span>Café da manhã</span><select value="" disabled={readonly} onChange={e=>{if(e.target.value)servico(p.id,{cafe_estado:e.target.value},true);}}><option value="">Defina a situação</option>{['INCLUIDO','A_PARTE','NAO_OFERECE'].map(k=><option key={k} value={k}>{CAFES[k]}</option>)}</select></label></div>}{p.tipo==='oleo'&&<div className="pv-pendencia-controles">{campo('Nível de óleo LH / RH',dados.nivel_oleo,v=>alterar(d=>{d.nivel_oleo=v;}))}</div>}{p.tipo==='trecho'&&<div className="pv-pendencia-controles"><div className="pv-campos">{[['origem','Origem (ICAO)'],['destino','Destino (ICAO)'],['data','Data'],['horario','Horário']].map(([k,label])=>campo(label,dados.trechos[p.indice][k],v=>mudarTrecho(p.indice,k,v.toUpperCase()),k==='data'?'date':k==='horario'?'time':'text'))}<label className="pv-campo"><span>Fuso</span><select value={dados.trechos[p.indice].fuso} disabled={readonly} onChange={e=>mudarTrecho(p.indice,'fuso',e.target.value)}>{FUSOS.map(([v,n])=><option key={v} value={v}>{n}</option>)}</select></label></div></div>}</div>):<p>Nenhuma pendência. Todos os itens foram resolvidos.</p>}</section>}
     <button onClick={()=>void api.json(root+'/versoes').then(setVersoes).catch(e=>setErro(mensagem(e)))}>Versões do briefing / histórico</button>{versoes&&<ul className="pv-versoes">{versoes.map((v:any)=><li key={v.versao}><span>Versão {v.versao} · {momento(v.criado_em)} · {v.tipo==='CONCLUSAO'?'Conclusão':'Atualização'}</span><button onClick={()=>void baixar(root+'/pdf?versao='+v.versao,`briefing-v${v.versao}.pdf`)}>Baixar PDF</button></li>)}</ul>}
   </section>;
 }

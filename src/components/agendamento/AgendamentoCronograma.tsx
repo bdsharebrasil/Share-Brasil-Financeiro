@@ -1,5 +1,4 @@
 import { visualStatusAgendamento } from "@/components/agendamento/agendamentoVisual";
-import PesoBalanceamentoFicha from "@/components/agendamento/PesoBalanceamentoFicha";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -413,12 +412,6 @@ export function AcoesDetalhe({
         >
           {rotuloJornada}
         </Button>
-      )}
-
-      {acoes.checklistConcluido && (
-        <div className="[&>button]:h-10 [&>button]:rounded-lg [&>button]:border-border [&>button]:text-xs [&>button]:font-semibold">
-          <PesoBalanceamentoFicha item={item} />
-        </div>
       )}
 
       {acoes.historico && (

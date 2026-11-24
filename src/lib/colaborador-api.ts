@@ -693,7 +693,7 @@ export function criarAgendamento(dados: NovoAgendamento) {
   });
 }
 
-export type AtualizacaoAgendamento = Partial<Pick<NovoAgendamento, 'aeronave_id' | 'origem' | 'destino' | 'data_agendada' | 'data_fim' | 'horario_previsto_agendamento' | 'numero_passageiros' | 'piloto_id' | 'copiloto_id' | 'observacoes'>>;
+export type AtualizacaoAgendamento = Partial<Pick<NovoAgendamento, 'aeronave_id' | 'origem' | 'destino' | 'data_agendada' | 'data_fim' | 'horario_previsto_agendamento' | 'numero_passageiros' | 'passageiros' | 'piloto_id' | 'copiloto_id' | 'observacoes'>>;
 export function atualizarAgendamento(id: string, dados: AtualizacaoAgendamento) {
   return colaboradorRequest<{ success: boolean; id: string }>(`/api/interno/agendamento/${encodeURIComponent(id)}`, {
     method: 'PATCH',
@@ -1789,7 +1789,7 @@ export function removerLogoAssinatura() { return Promise.resolve({ success: true
 export type CtmRegistro = Record<string, any>
 export type CtmDashboard = { aeronaves: CtmRegistro[]; aeronave: CtmRegistro | null; programa: CtmRegistro[]; diretrizes: CtmRegistro[]; componentes: CtmRegistro[]; oas: CtmRegistro[]; orcamentos: CtmRegistro[]; ras: CtmRegistro[]; carregamentos: CtmRegistro[]; resumo: Record<string, number> }
 export function buscarCtmDashboard(aeronaveId?: string) { return colaboradorRequest<{ data: CtmDashboard }>(`/api/ctm/dashboard${aeronaveId ? `?aeronave_id=${encodeURIComponent(aeronaveId)}` : ""}`); }
-export type CtmDocumentoAeronave = { id: string; nome: string; descricao: string | null; tipo_arquivo: string | null; tamanho_arquivo: number | null; enviado_por: string | null; criado_em: string | null; aeronave_id: string; tipo_documento: string | null; data_validade: string | null; atualizado_em: string | null; dias_alerta: number | null; arquivo_url?: string };
+export type CtmDocumentoAeronave = { arquivado?: number; id: string; nome: string; descricao: string | null; tipo_arquivo: string | null; tamanho_arquivo: number | null; enviado_por: string | null; criado_em: string | null; aeronave_id: string; tipo_documento: string | null; data_validade: string | null; atualizado_em: string | null; dias_alerta: number | null; arquivo_url?: string };
 export type CtmDocumentoAeronavePayload = { nome: string; descricao?: string | null; tipo_documento?: string | null; data_validade?: string | null; dias_alerta?: number };
 export function buscarCtmDocumentosAeronave(aeronaveId: string) { return colaboradorRequest<{ documentos: CtmDocumentoAeronave[] }>(`/api/ctm/aeronaves/${encodeURIComponent(aeronaveId)}/documentos`); }
 export function enviarCtmDocumentoAeronave(aeronaveId: string, payload: CtmDocumentoAeronavePayload, arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo, arquivo.name); body.append("nome", payload.nome); body.append("descricao", payload.descricao || ""); body.append("tipo_documento", payload.tipo_documento || "outro"); body.append("data_validade", payload.data_validade || ""); body.append("dias_alerta", String(payload.dias_alerta ?? 30)); return colaboradorRequest<{ documento: CtmDocumentoAeronave }>(`/api/ctm/aeronaves/${encodeURIComponent(aeronaveId)}/documentos`, { method: "POST", body }); }

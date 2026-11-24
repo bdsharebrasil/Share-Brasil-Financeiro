@@ -18,7 +18,7 @@ import {
 } from "@/lib/colaborador-api";
 
 type TomDocumento = "green" | "amber" | "red" | "neutral";
-type FiltroDocumento = "todos" | "em_dia" | "atencao" | "criticos";
+type FiltroDocumento = "todos" | "em_dia" | "atencao" | "criticos" | "arquivados";
 type FormDocumento = { nome: string; descricao: string; tipo_documento: string; data_validade: string; dias_alerta: string };
 type DocumentoVisual = CtmDocumentoAeronave & { diasRestantes: number | null; tom: TomDocumento; alertaAtivo: boolean };
 type Props = { aeronaveId: string; aeronaves: CtmRegistro[]; onSelecionarAeronave: (id: string) => void };
@@ -130,11 +130,13 @@ export default function CtmDocumentosAeronave({ aeronaveId, aeronaves, onSelecio
   }), [documentos, hoje]);
   const resumo = useMemo(() => ({
     total: documentosVisuais.length,
-    emDia: documentosVisuais.filter((item) => item.tom === "green").length,
-    atencao: documentosVisuais.filter((item) => item.tom === "amber").length,
-    criticos: documentosVisuais.filter((item) => item.tom === "red").length,
+    emDia: documentosVisuais.filter((item) => !item.arquivado && item.tom === "green").length,
+    atencao: documentosVisuais.filter((item) => !item.arquivado && item.tom === "amber").length,
+    criticos: documentosVisuais.filter((item) => !item.arquivado && item.tom === "red").length,
   }), [documentosVisuais]);
   const visiveis = useMemo(() => documentosVisuais.filter((item) => {
+    if(filtro==="arquivados")return !!item.arquivado;
+    if(item.arquivado)return false;
     if (filtro === "em_dia") return item.tom === "green";
     if (filtro === "atencao") return item.tom === "amber";
     if (filtro === "criticos") return item.tom === "red";
@@ -179,7 +181,7 @@ export default function CtmDocumentosAeronave({ aeronaveId, aeronaves, onSelecio
     setExcluindo(true);
     try {
       await excluirCtmDocumentoAeronave(aeronaveId, exclusaoPendente.id);
-      toast({ title: "Documento removido", description: "O registro e o arquivo foram removidos." });
+      toast({ title: "Documento arquivado", description: "Disponível no filtro Arquivados." });
       setExclusaoPendente(null);
       await carregar(true);
     } catch (error) {
@@ -232,7 +234,7 @@ export default function CtmDocumentosAeronave({ aeronaveId, aeronaves, onSelecio
     {erro && <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm text-rose-200"><span>{erro}</span><Button type="button" variant="outline" size="sm" onClick={() => void carregar()} className="border-rose-400/30">Tentar novamente</Button></div>}
 
     <section className="overflow-hidden rounded-[24px] border border-border/80 bg-card/45 shadow-xl">
-      <div className="flex justify-end border-b border-border/70 p-3 sm:p-4"><div className="flex flex-wrap gap-2">{filtroBotao("todos", "Todos", documentosVisuais.length)}{filtroBotao("em_dia", "Em dia", resumo.emDia)}{filtroBotao("atencao", "Atenção", resumo.atencao)}{filtroBotao("criticos", "Críticos", resumo.criticos)}</div></div>
+      <div className="flex justify-end border-b border-border/70 p-3 sm:p-4"><div className="flex flex-wrap gap-2">{filtroBotao("todos", "Ativos", documentosVisuais.filter(r=>!r.arquivado).length)}{filtroBotao("em_dia", "Em dia", resumo.emDia)}{filtroBotao("atencao", "Atenção", resumo.atencao)}{filtroBotao("criticos", "Críticos", resumo.criticos)}{filtroBotao("arquivados","Arquivados",documentosVisuais.filter(r=>r.arquivado).length)}</div></div>
       {carregando ? <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">{[1, 2, 3].map((item) => <div key={item} className="h-48 animate-pulse rounded-2xl border border-border/70 bg-secondary/35" />)}</div> : visiveis.length ? <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3 sm:p-5">{visiveis.map((item) => <CartaoDocumento key={item.id} documento={item} onVisualizar={() => void visualizar(item)} onEditar={() => abrirEdicao(item)} onExcluir={() => setExclusaoPendente(item)} visualizando={carregandoPreview === item.id} />)}</div> : <div className="flex flex-col items-center px-5 py-14 text-center"><span className="mb-4 rounded-2xl border border-sky-400/15 bg-sky-400/10 p-4 text-sky-300"><FileCheck2 className="h-7 w-7" /></span>{documentos.length > 0 && <p className="mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">Altere o filtro para visualizar outros documentos.</p>}{!documentos.length && <Button type="button" onClick={abrirNovo} className="mt-5 gap-2 rounded-xl"><Plus className="h-4 w-4" />Enviar primeiro documento</Button>}</div>}
     </section>
 
@@ -258,7 +260,7 @@ export default function CtmDocumentosAeronave({ aeronaveId, aeronaves, onSelecio
     </Dialog>
 
     <Dialog open={Boolean(exclusaoPendente)} onOpenChange={(aberto) => { if (!aberto && !excluindo) setExclusaoPendente(null); }}>
-      <DialogContent className="rounded-2xl border-border bg-background text-foreground sm:max-w-md"><DialogHeader><DialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-rose-400" />Excluir documento?</DialogTitle><DialogDescription>O registro e o arquivo associado serão removidos permanentemente da lista de documentos desta aeronave. Esta ação não pode ser desfeita.</DialogDescription></DialogHeader><div className="rounded-xl border border-rose-400/20 bg-rose-400/[0.06] p-3 text-sm font-semibold">{exclusaoPendente?.nome}</div><DialogFooter className="gap-2"><Button type="button" variant="outline" disabled={excluindo} onClick={() => setExclusaoPendente(null)}>Cancelar</Button><Button type="button" variant="destructive" disabled={excluindo} onClick={() => void excluir()} className="gap-2">{excluindo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{excluindo ? "Excluindo…" : "Excluir arquivo"}</Button></DialogFooter></DialogContent>
+      <DialogContent className="rounded-2xl border-border bg-background text-foreground sm:max-w-md"><DialogHeader><DialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-rose-400" />Arquivar documento?</DialogTitle><DialogDescription>O arquivo continuará disponível no filtro Arquivados.</DialogDescription></DialogHeader><div className="rounded-xl border border-rose-400/20 bg-rose-400/[0.06] p-3 text-sm font-semibold">{exclusaoPendente?.nome}</div><DialogFooter className="gap-2"><Button type="button" variant="outline" disabled={excluindo} onClick={() => setExclusaoPendente(null)}>Cancelar</Button><Button type="button" variant="destructive" disabled={excluindo} onClick={() => void excluir()} className="gap-2">{excluindo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{excluindo ? "Arquivando…" : "Arquivar documento"}</Button></DialogFooter></DialogContent>
     </Dialog>
   </div>;
 }
@@ -278,6 +280,6 @@ function CartaoDocumento({ documento, onVisualizar, onEditar, onExcluir, visuali
     {documento.descricao && <p className="mt-3 line-clamp-2 min-h-8 text-[11px] leading-relaxed text-muted-foreground">{documento.descricao}</p>}
     <div className={`mt-4 flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-background/45 px-3 py-2.5 ${!documento.descricao ? "mt-5" : ""}`}><div className="flex min-w-0 items-center gap-2"><CalendarDays className={`h-4 w-4 shrink-0 ${estilo.texto}`} /><div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Validade</p><p className="mt-0.5 truncate text-xs font-semibold">{dataBr(documento.data_validade)}</p></div></div><p className={`shrink-0 text-[11px] font-bold ${estilo.texto}`}>{textoVencimento(documento.diasRestantes)}</p></div>
     <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><span className={`inline-flex items-center gap-1.5 text-[10px] ${documento.alertaAtivo ? "font-bold text-amber-300" : "text-muted-foreground"}`}><Clock3 className="h-3.5 w-3.5" />{documento.diasRestantes === null ? `Alerta configurado: ${diasAlerta} dias` : documento.alertaAtivo ? `Alerta ativo · limite ${diasAlerta} dias` : `Alertar ${diasAlerta} dias antes`}</span><span className="text-[9px] text-muted-foreground">Atualizado {documento.atualizado_em ? dataBr(documento.atualizado_em) : "—"}</span></div>
-    <div className="mt-4 flex items-center gap-2 border-t border-border/60 pt-3"><Button type="button" onClick={onVisualizar} disabled={visualizando} className="h-9 flex-1 gap-2 rounded-lg text-xs">{visualizando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}Visualizar arquivo</Button><Button type="button" variant="outline" size="icon" onClick={onEditar} className="h-9 w-9 rounded-lg" aria-label={`Editar ${documento.nome}`} title="Editar dados e vencimento"><Pencil className="h-4 w-4" /></Button><Button type="button" variant="outline" size="icon" onClick={onExcluir} className="h-9 w-9 rounded-lg border-rose-400/20 text-rose-300 hover:border-rose-400/40 hover:bg-rose-400/10 hover:text-rose-200" aria-label={`Excluir ${documento.nome}`} title="Excluir documento"><Trash2 className="h-4 w-4" /></Button></div>
+    <div className="mt-4 flex items-center gap-2 border-t border-border/60 pt-3"><Button type="button" onClick={onVisualizar} disabled={visualizando} className="h-9 flex-1 gap-2 rounded-lg text-xs">{visualizando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}Visualizar arquivo</Button><Button type="button" variant="outline" size="icon" disabled={!!documento.arquivado} onClick={onEditar} className="h-9 w-9 rounded-lg" aria-label={`Editar ${documento.nome}`} title="Editar dados e vencimento"><Pencil className="h-4 w-4" /></Button><Button type="button" variant="outline" size="icon" disabled={!!documento.arquivado} onClick={onExcluir} className="h-9 w-9 rounded-lg border-rose-400/20 text-rose-300 hover:border-rose-400/40 hover:bg-rose-400/10 hover:text-rose-200" aria-label={`Excluir ${documento.nome}`} title="Excluir documento"><Trash2 className="h-4 w-4" /></Button></div>
   </article>;
 }

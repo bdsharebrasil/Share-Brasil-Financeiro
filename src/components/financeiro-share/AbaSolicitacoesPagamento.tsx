@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, useRef, useId, type ReactNode } from "react";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, FileText, Pencil, RefreshCw, Search, TriangleAlert, X, Download } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, FileText, Pencil, RefreshCw, Search, TriangleAlert, X, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
 import {
   buscarContasBancariasHolding,
@@ -21,6 +21,7 @@ import type { ContaAPagar, StatusContaFinanceira } from "./tipos";
 import { createPortal } from "react-dom";
 
 const POR_PAGINA = 12;
+const ZOOM_TABELA = [70, 80, 90, 100, 110, 125, 150];
 
 type AbaSolicitacao = "cotista" | "colaborador";
 type FiltroLista = { id: string; label: string; quantidade?: number };
@@ -233,6 +234,16 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   const [opcoes, setOpcoes] = useState<{ categorias: any[]; fornecedores: Array<{ id: string; nome: string; cidade?: string | null; origem: string }> }>({ categorias: [], fornecedores: [] });
   const [lancamentoEditando, setLancamentoEditando] = useState<LancamentoEdicao | null>(null);
   const tabelaRef = useRef<HTMLDivElement>(null);
+  const [zoomTabela, setZoomTabela] = useState<number>(() => {
+    const salvo = Number(typeof window === "undefined" ? NaN : window.localStorage.getItem("nf-solicitacoes-zoom"));
+    return ZOOM_TABELA.includes(salvo) ? salvo : 100;
+  });
+  function alterarZoomTabela(passo: number) {
+    const indice = ZOOM_TABELA.indexOf(zoomTabela);
+    const novo = ZOOM_TABELA[Math.min(ZOOM_TABELA.length - 1, Math.max(0, indice + passo))];
+    setZoomTabela(novo);
+    window.localStorage.setItem("nf-solicitacoes-zoom", String(novo));
+  }
   const arrasteRef = useRef<{ x: number; scrollLeft: number; id: number } | null>(null);
 
   const carregar = useCallback(async () => {
@@ -451,10 +462,15 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
           <label className="nf-search"><Search /><span className="nf-sr">{placeholderBusca}</span><input type="search" value={busca} onChange={(e) => alterarBusca(e.target.value)} placeholder={placeholderBusca} /></label>
           <select aria-label="Filtrar solicitações" value={filtroAtual} onChange={(e) => alterarFiltro(e.target.value)}>{filtrosAtuais.map((filtro) => <option key={filtro.id} value={filtro.id}>{filtro.label}{filtro.quantidade !== undefined ? ` (${filtro.quantidade})` : ""}</option>)}</select>
         </div>
-        <div className="nf-list-heading">
+        <div className="nf-list-heading" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div>
             <h2>{aba === "cotista" ? "Caixa cliente" : "Reembolsos de colaboradores"}</h2>
             <p>{carregando ? "Carregando…" : `${totalItens} ${aba === "cotista" ? (totalItens === 1 ? "lançamento" : "lançamentos") : (totalItens === 1 ? "título" : "títulos")} encontrados`}{temFiltro && <button className="nf-text-btn" onClick={limparFiltros}>Limpar filtros</button>}</p>
+          </div>
+          <div className="nf-zoom" role="group" aria-label="Tamanho da tabela" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button type="button" className="nf-icon" aria-label="Diminuir tabela" title="Diminuir tabela" disabled={zoomTabela === ZOOM_TABELA[0]} onClick={() => alterarZoomTabela(-1)}><ZoomOut /></button>
+            <button type="button" className="nf-text-btn" title="Restaurar tamanho padrão" aria-label="Restaurar tamanho padrão" onClick={() => { setZoomTabela(100); window.localStorage.setItem("nf-solicitacoes-zoom", "100"); }} style={{ minWidth: 48 }}>{zoomTabela}%</button>
+            <button type="button" className="nf-icon" aria-label="Aumentar tabela" title="Aumentar tabela" disabled={zoomTabela === ZOOM_TABELA[ZOOM_TABELA.length - 1]} onClick={() => alterarZoomTabela(1)}><ZoomIn /></button>
           </div>
         </div>
         {carregando ? <div className="nf-empty" role="status"><RefreshCw className="nf-spin" /><h3>Carregando solicitações</h3><p>Organizando as informações de pagamento.</p></div>
@@ -462,7 +478,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
           : totalItens === 0 ? <div className="nf-empty"><Search /><h3>{temFiltro ? "Nenhum resultado encontrado" : "Nada por aqui"}</h3><p>{temFiltro ? "Ajuste a busca ou o filtro para encontrar o registro." : aba === "cotista" ? "Não há despesas reembolsáveis no caixa cliente." : "Não há reembolsos pendentes de colaboradores."}</p>{temFiltro && <button className="nf-btn" onClick={limparFiltros}>Limpar filtros</button>}</div>
           : <>
             <div ref={tabelaRef} onPointerDown={iniciarArraste} className="erp-tabela-container nf-table-wrap" role="region" aria-label={aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"} tabIndex={0}>
-              <table className="erp-tabela">
+              <table className="erp-tabela" style={{ zoom: zoomTabela / 100 }}>
                 <caption className="erp-sr-only">{aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"}</caption>
                 <colgroup>
                   <col style={{ width: 56 }} /><col style={{ width: 124 }} /><col style={{ width: 210 }} /><col style={{ width: 260 }} /><col style={{ width: 118 }} /><col style={{ width: 124 }} /><col style={{ width: 128 }} /><col style={{ width: 150 }} />

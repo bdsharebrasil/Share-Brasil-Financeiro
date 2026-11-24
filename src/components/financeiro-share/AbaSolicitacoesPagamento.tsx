@@ -22,7 +22,7 @@ import type { ContaAPagar, StatusContaFinanceira } from "./tipos";
 import { createPortal } from "react-dom";
 
 const POR_PAGINA = 12;
-const LARGURAS_COLUNAS = [56, 124, 210, 260, 118, 124, 128, 150];
+const LARGURAS_COLUNAS = [100, 124, 210, 260, 118, 124, 128];
 const LARGURA_MINIMA_COLUNA = 60;
 
 type AbaSolicitacao = "cotista" | "colaborador";
@@ -527,28 +527,26 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
                   {larguras.map((largura, indice) => <col key={indice} style={{ width: largura }} />)}
                 </colgroup>
                 <thead><tr>
-                  <th scope="col"><span className="nf-sr">Expandir</span></th>
+                  <th scope="col"><span className="nf-sr">Expandir e ações</span></th>
                   <th scope="col"><span className="erp-ordenar">Doc / emissão</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 1)} /></th>
                   <th scope="col"><span className="erp-ordenar">{aba === "cotista" ? "Cliente" : "Colaborador"}</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 2)} /></th>
                   <th scope="col"><span className="erp-ordenar">Descrição</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 3)} /></th>
                   <th scope="col"><span className="erp-ordenar">Vencimento</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 4)} /></th>
                   <th scope="col"><span className="erp-ordenar">Valor</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 5)} /></th>
                   <th scope="col" className="erp-th-status"><span className="erp-ordenar">Status</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 6)} /></th>
-                  <th scope="col"><span className="erp-ordenar">Ações</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 7)} /></th>
                 </tr></thead>
                 <tbody>
                   {linhas.map((linha) => <Fragment key={linha.chave}>
                     <tr className={`erp-linha${linha.expandida ? " erp-linha-aberta" : ""}`}>
-                      <td className="erp-td-acoes"><button type="button" className="erp-expandir" aria-expanded={linha.expandida} aria-label={`${linha.expandida ? "Recolher" : "Expandir"} ${linha.secundaria || linha.principal}`} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}</button></td>
+                      <td className="erp-td-acoes"><div className="erp-celula-selecao"><button type="button" className="erp-expandir" aria-expanded={linha.expandida} aria-label={`${linha.expandida ? "Recolher" : "Expandir"} ${linha.secundaria || linha.principal}`} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}</button>{celulaAcoes(linha)}</div></td>
                       <td><span className="erp-documento">{linha.documento}</span><span className="erp-texto-secundario">Emissão {linha.dataEmissao}</span></td>
                       <td>{aba === "cotista" ? linha.cliente : linha.colaborador}</td>
                       <td><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.secundaria || linha.principal}>{linha.secundaria || linha.principal}</strong></div>{linha.secundaria && <span className="erp-texto-secundario">{linha.principal}</span>}</td>
                       <td className="erp-td-data"><span>{linha.vencimento}</span></td>
                       <td className="erp-valor">{linha.valor}</td>
                       <td><StatusSolicitacao status={linha.status} /></td>
-                      <td>{celulaAcoes(linha)}</td>
                     </tr>
-                    {linha.expandida && <tr className="erp-linha-detalhes"><td colSpan={8}>{linha.detalhe}</td></tr>}
+                    {linha.expandida && <tr className="erp-linha-detalhes"><td colSpan={7}>{linha.detalhe}</td></tr>}
                   </Fragment>)}
                 </tbody>
               </table>

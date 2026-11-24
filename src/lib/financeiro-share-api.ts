@@ -216,7 +216,7 @@ export async function carregarDocumentoFinanceiro(valor: string, signal?: AbortS
 
   }
 
-  const response = await fetch(url.href, { headers, signal, credentials: "omit", redirect: privado ? "error" : "follow" });
+  const response = await fetch(url.href, { headers, signal, credentials: "omit", redirect: "follow" });
 
   if (!response.ok) throw new Error(`Não foi possível abrir o documento (${response.status}).`);
 

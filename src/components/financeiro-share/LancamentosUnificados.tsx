@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { anexosFinanceiros } from "@/lib/documentos-financeiros";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { API_BASE } from "@/lib/api";
+import { buscarAeronavesShare } from "@/lib/colaborador-api";
 import { IconeAnexo } from "./IconeAnexo";
 import { ContaBancariaCell } from "./ContaBancariaCell";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -78,7 +79,7 @@ type Props = {
 };
 
 type ChaveColuna =
-  | "documento" | "descricao" | "favorecido"
+  | "documento" | "aeronave" | "descricao" | "favorecido"
   | "fornecedor" | "contaBancaria" | "data" | "situacao" | "valor";
 type Coluna = { chave: ChaveColuna; rotulo: string; largura?: number };
 type FiltroSituacao = "TODAS" | "EM_ABERTO" | "PAGO" | "EM_ATRASO" | "RECEBIDO" | "AGUARDANDO_REEMBOLSO" | "REEMBOLSADO" | "CANCELADO";
@@ -339,6 +340,8 @@ function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
       return <td key={chave} className="erp-td-data"><span>{dataOuTraco(linha.dataLancamento)}</span>{linha.dataVencimento && <span className="erp-texto-secundario">Venc. {dataOuTraco(linha.dataVencimento)}</span>}</td>;
     case "documento":
       return <td key={chave} className="erp-documento" title={linha.documento || undefined}>{linha.documento || "—"}</td>;
+    case "aeronave":
+      return <td key={chave} title={linha.aeronave || undefined}>{linha.aeronave || "—"}</td>;
     case "descricao":
       return <td key={chave}><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.descricao}>{linha.descricao}</strong></div><span className="erp-texto-secundario" title={linha.categoria}>{linha.categoria || "—"}</span></td>;
     case "favorecido":
@@ -375,9 +378,14 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const [arrastandoTabela, setArrastandoTabela] = useState(false);
   const { zoom, alterar: alterarZoom, definir: definirZoom } = useZoomTabela("erp-lancamentos-zoom");
 
-  const lancamentos = useMemo(() => (
-    ehEntrada ? linhasDeContasAReceber(receber.contas) : linhasDeContasAPagar(pagar.contas)
-  ), [ehEntrada, receber.contas, pagar.contas]);
+  const [matriculasAeronaves, setMatriculasAeronaves] = useState<Record<string, string>>({});
+  const lancamentos = useMemo(() => {
+    const linhas = ehEntrada ? linhasDeContasAReceber(receber.contas) : linhasDeContasAPagar(pagar.contas);
+    return linhas.map((linha) => ({
+      ...linha,
+      aeronave: linha.aeronave || (linha.aeronaveId ? matriculasAeronaves[linha.aeronaveId] : null) || null,
+    }));
+  }, [ehEntrada, receber.contas, pagar.contas, matriculasAeronaves]);
 
   const [busca, setBusca] = useState("");
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -429,6 +437,20 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       if (ativo) { setCategorias(opcoes.categorias); setContasBancarias(opcoes.contas_bancarias); setFornecedores(opcoes.fornecedores ?? []); }
     }).catch(() => {
       if (ativo) toast.error("Não foi possível carregar as opções financeiras. Tente novamente.");
+    });
+    return () => { ativo = false; };
+  }, []);
+
+  useEffect(() => {
+    let ativo = true;
+    void Promise.all([
+      buscarAeronavesShare("ativa").catch(() => ({ aeronaves: [] })),
+      buscarAeronavesShare("inativa").catch(() => ({ aeronaves: [] })),
+    ]).then(([ativas, inativas]) => {
+      if (!ativo) return;
+      setMatriculasAeronaves(Object.fromEntries(
+        [...ativas.aeronaves, ...inativas.aeronaves].map((aeronave) => [aeronave.id, aeronave.matricula_registro]),
+      ));
     });
     return () => { ativo = false; };
   }, []);
@@ -530,6 +552,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const colunas = useMemo<Coluna[]>(() => [
     { chave: "data", rotulo: "Data", largura: 118 },
     { chave: "documento", rotulo: "DOC", largura: 124 },
+    { chave: "aeronave", rotulo: "Aeronave", largura: 112 },
     { chave: "descricao", rotulo: "Descrição", largura: 250 },
     ...(ehEntrada
       ? [{ chave: "favorecido" as const, rotulo: "Favorecido", largura: 200 }]
@@ -602,7 +625,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       if (contaFiltro !== null && linha.contaBancaria !== contaFiltro) return false;
       if (docFiltro !== null && tipoDocumento(linha) !== docFiltro) return false;
       const texto = [linha.documento, ...(linha.raw.numerosDocumento ?? []), linha.descricao, linha.categoria, linha.favorecido,
-        linha.favorecidoPessoa, linha.fornecedor, linha.contaBancaria, linha.fluxo].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
+        linha.favorecidoPessoa, linha.fornecedor, linha.aeronave, linha.contaBancaria, linha.fluxo].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
       return texto.includes(textoBusca);
     }).sort((a, b) => {
       const chave = ordenacao.chave;
@@ -1015,7 +1038,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
         <h1>{titulo}</h1><p>Período: {periodoImpressao}</p><p>Emitido em {new Date().toLocaleString("pt-BR")}</p>
         <table><thead><tr>{colunas.map((coluna) => <th key={coluna.chave}>{coluna.rotulo}</th>)}</tr></thead>
           <tbody>{itensRelatorio.map((linha) => <tr key={linha.id}>
-            <td>{dataOuTraco(linha.dataLancamento)}</td><td>{linha.documento || "—"}</td><td>{linha.descricao}</td>
+            <td>{dataOuTraco(linha.dataLancamento)}</td><td>{linha.documento || "—"}</td><td>{linha.aeronave || "—"}</td><td>{linha.descricao}</td>
             {ehEntrada ? <td>{linha.favorecido || "—"}</td> : <td>{linha.fornecedor || "—"}</td>}
             <td>{linha.contaBancaria}</td>
             <td>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</td><td className="erp-direita">{formatarMoeda(linha.valor)}</td>

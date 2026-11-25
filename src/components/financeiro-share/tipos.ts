@@ -75,6 +75,7 @@ export interface ContaAPagar {
   descricao: string | null;
   criadoPor: string | null;
   aeronaveId: string | null;
+  aeronaveMatricula?: string | null;
   fornecedor: string | null;
   fornecedorId: string | null;
   cotistaId: string | null;

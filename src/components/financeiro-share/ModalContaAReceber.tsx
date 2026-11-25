@@ -51,6 +51,7 @@ interface ModalContaAReceberProps {
   onFechar: () => void;
   onConfirmar: (dados: DadosBaixaReceber) => Promise<void>;
   contasBancarias: ContaBancaria[];
+  progresso?: string;
 }
 
 type Opcao = { id: string; label: string };
@@ -222,7 +223,7 @@ export function ModalContaAReceber(props: ModalContaAReceberProps) {
 
 type RecebimentoProps = ModalContaAReceberProps & { envioEmCurso: { current: boolean } };
 
-function Recebimento({ conta, onFechar, onConfirmar, contasBancarias, envioEmCurso }: RecebimentoProps) {
+function Recebimento({ conta, onFechar, onConfirmar, contasBancarias, envioEmCurso, progresso }: RecebimentoProps) {
   const descricaoId = useId();
   const comprovantes = useRef(new WeakMap<File, Promise<string>>());
   const [status, setStatus] = useState<'editando' | 'enviando' | 'concluido'>('editando');
@@ -373,7 +374,7 @@ function Recebimento({ conta, onFechar, onConfirmar, contasBancarias, envioEmCur
       className="despesas-theme baixa-dialog [&>button]:hidden"
     >
       <DialogHeader className="baixa-header relative pr-14">
-        <p className="baixa-kicker">Financeiro Share · Entrada</p>
+        <p className="baixa-kicker">Financeiro Share · Entrada{progresso ? ` · ${progresso}` : ""}</p>
         <DialogTitle className="baixa-titulo"><ArrowDownToLine size={20}/>Registrar recebimento</DialogTitle>
         <p id={descricaoId}>Registre os pagamentos recebidos na conta da Share, com datas, pagadores e comprovantes individuais.</p>
         <Button type="button" variant="ghost" size="icon" aria-label="Fechar" disabled={enviando} onClick={onFechar} className="absolute right-3 top-3 text-muted-foreground"><X size={18}/></Button>

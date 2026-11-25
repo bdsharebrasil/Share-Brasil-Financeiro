@@ -26,6 +26,7 @@ import {
   Printer,
   RotateCw,
   Search,
+  Trash2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -415,6 +416,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [expandidos, setExpandidos] = useState<string[]>([]);
   const [contaBaixa, setContaBaixa] = useState<LinhaConta | null>(null);
+  const [loteBaixa, setLoteBaixa] = useState<{ total: number; fila: LinhaConta[] } | null>(null);
   const [lancamentoEditando, setLancamentoEditando] = useState<LancamentoEdicao | null>(null);
   const contaBaixaReal = useMemo(
     () => contaBaixa ? contaAPagarDaLinha(contaBaixa, pagar.contas) : null,
@@ -459,6 +461,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     setSelecionados([]);
     setExpandidos([]);
     setContaBaixa(null);
+    setLoteBaixa(null);
     setNovo(false);
     setLarguras({});
     setOrdemColunas([]);
@@ -640,6 +643,9 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const selecao = useMemo(() => new Set(selecionados), [selecionados]);
   const expansao = useMemo(() => new Set(expandidos), [expandidos]);
   const selecionadosVisiveis = filtrados.filter((linha) => selecao.has(linha.id));
+  const baixaveisSelecionados = selecionadosVisiveis.filter(podeBaixar);
+  const excluiveisSelecionados = selecionadosVisiveis.flatMap((linha) => linha.raw.lancamentoId ? [{ linha, lancamentoId: linha.raw.lancamentoId }] : []);
+  const progressoBaixa = loteBaixa && loteBaixa.total > 1 ? `Lançamento ${loteBaixa.total - loteBaixa.fila.length} de ${loteBaixa.total}` : undefined;
   const totalListado = filtrados.reduce((soma, linha) => soma + linha.valor, 0);
   const paginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
   const paginaAtual = Math.max(1, Math.min(pagina, paginas));
@@ -713,6 +719,45 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       toast.success("Lançamento excluído.");
     } catch (erro) {
       toast.error(erro instanceof Error ? erro.message : "Não foi possível excluir o lançamento.");
+    }
+  }
+
+  async function excluirSelecionados() {
+    const alvos = excluiveisSelecionados;
+    const rotulo = alvos.length === 1 ? "lançamento selecionado" : "lançamentos selecionados";
+    if (!window.confirm(`Excluir ${alvos.length} ${rotulo}? Esta ação não pode ser desfeita.`)) return;
+    let excluidos = 0;
+    try {
+      for (const { linha, lancamentoId } of alvos) {
+        await excluirLancamento(lancamentoId);
+        excluidos += 1;
+        setSelecionados((atuais) => atuais.filter((item) => item !== linha.id));
+      }
+      toast.success(`${excluidos} ${excluidos === 1 ? "lançamento excluído" : "lançamentos excluídos"}.`);
+    } catch (erro) {
+      toast.error(`${excluidos} de ${alvos.length} excluídos. ${erro instanceof Error ? erro.message : "Não foi possível excluir o restante."}`);
+    } finally {
+      await recarregar();
+    }
+  }
+
+  function iniciarBaixaEmLote() {
+    const [primeiro, ...restante] = baixaveisSelecionados;
+    if (!primeiro) return;
+    setLoteBaixa({ total: baixaveisSelecionados.length, fila: restante });
+    setContaBaixa(primeiro);
+  }
+  function fecharBaixa() {
+    setContaBaixa(null);
+    setLoteBaixa(null);
+  }
+  function concluirBaixa() {
+    const [proximo, ...restante] = loteBaixa?.fila ?? [];
+    if (proximo && loteBaixa) {
+      setLoteBaixa({ total: loteBaixa.total, fila: restante });
+      setContaBaixa(proximo);
+    } else {
+      fecharBaixa();
     }
   }
 
@@ -873,6 +918,17 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
           </div>
         </div>
 
+        {selecionadosVisiveis.length > 1 && (
+          <div className="erp-barra-selecao" role="region" aria-label="Ações para os lançamentos selecionados">
+            <span>{selecionadosVisiveis.length} selecionados</span>
+            <button type="button" className="erp-btn erp-btn-primario" disabled={!baixaveisSelecionados.length} onClick={iniciarBaixaEmLote}>
+              DAR BAIXA ({baixaveisSelecionados.length})
+            </button>
+            <button type="button" className="erp-btn erp-btn-perigo" disabled={!excluiveisSelecionados.length} onClick={() => void excluirSelecionados()}>
+              <Trash2 size={16} aria-hidden="true" />EXCLUIR ({excluiveisSelecionados.length})
+            </button>
+          </div>
+        )}
         {mostrarFiltros && <div className="erp-filtros" id={`${id}-filtros`}>
           <label className="erp-busca"><span className="erp-sr-only">Buscar lançamento</span><Search size={16} aria-hidden="true" />
             <input type="search" placeholder="Buscar lançamento..." value={busca} onChange={(e) => setBusca(e.target.value)} />
@@ -1050,13 +1106,16 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       <NovoLancamentoShareDialog aberto={novo || Boolean(lancamentoEditando)} aoFechar={() => { setNovo(false); setLancamentoEditando(null); }} categorias={categorias}
         fornecedores={fornecedores} lancamentoInicial={lancamentoEditando ?? undefined}
         aoCriar={() => void recarregar()} somenteDespesa={!ehEntrada} somenteEntrada={ehEntrada} />
-      {contaBaixa && ehEntrada && <ModalContaAReceber conta={contaBaixa.raw as ContaAReceber} aberto onFechar={() => setContaBaixa(null)} contasBancarias={contasBancarias}
+      {contaBaixa && ehEntrada && <ModalContaAReceber conta={contaBaixa.raw as ContaAReceber} aberto onFechar={fecharBaixa} contasBancarias={contasBancarias}
+        progresso={progressoBaixa}
         onConfirmar={async (dados) => {
           await darBaixaContaAReceber(contaBaixa.id, dados);
-          setContaBaixa(null); setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
+          setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
+          concluirBaixa();
           await recarregar(); toast.success("Baixa registrada.");
         }} />}
-      {contaBaixa && contaBaixaReal && !ehEntrada && <ModalContaAPagar key={contaBaixaReal.id} conta={contaBaixaReal} aberto onFechar={() => setContaBaixa(null)} contasBancarias={contasBancarias}
+      {contaBaixa && contaBaixaReal && !ehEntrada && <ModalContaAPagar key={contaBaixaReal.id} conta={contaBaixaReal} aberto onFechar={fecharBaixa} contasBancarias={contasBancarias}
+        progresso={progressoBaixa}
         onConfirmar={async (dados) => {
           const conta = contaBaixaReal;
           if (ehLancamentoDireto(conta)) {
@@ -1064,7 +1123,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
           } else {
             await darBaixaContaAPagar(conta.id, dados);
           }
-          setContaBaixa(null); setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
+          setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
+          concluirBaixa();
           await recarregar(); toast.success("Baixa registrada.");
         }} />}
     </section>
@@ -1122,6 +1182,9 @@ export const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-btn-primario { margin: 0 2px; padding: 0 17px; background: rgba(7, 46, 97, 1); border-color: var(--light-line, rgba(3, 85, 139, 1)); border-width: 1px; box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0.133); color: #fff; }
 .erp-financeiro .erp-btn-primario:hover:not(:disabled) { background: #1aa8ff; border-color: var(--light-line, #4dbaff); }
 .erp-financeiro .erp-btn-texto { border-color: transparent; background: transparent; box-shadow: none; padding: 0 10px; }
+.erp-financeiro .erp-btn-perigo { color: var(--erp-danger); border-color: var(--erp-danger-border); background: var(--erp-danger-bg); }
+.erp-financeiro .erp-barra-selecao { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; padding: 7px 8px; border: 1px solid var(--erp-accent-border); border-radius: 8px; background: var(--erp-accent-bg); }
+.erp-financeiro .erp-barra-selecao > span { margin-right: auto; padding-left: 4px; color: var(--erp-text); font-size: 12px; font-weight: 600; }
 .erp-financeiro .erp-btn-ativo { border-color: var(--light-line, #078fe6); background: var(--light-info-soft, #078fe61a); }
 .erp-financeiro .erp-btn-icone { width: 38px; padding: 0; }
 .erp-financeiro .erp-divisor { width: 1px; height: 34px; background: var(--erp-border); margin: 0 2px; }

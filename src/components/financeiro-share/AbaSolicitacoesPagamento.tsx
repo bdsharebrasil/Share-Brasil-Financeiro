@@ -25,7 +25,7 @@ import type { ContaAPagar, StatusContaFinanceira } from "./tipos";
 import { createPortal } from "react-dom";
 
 const POR_PAGINA = 12;
-const LARGURAS_COLUNAS = [100, 124, 112, 210, 260, 118, 124, 128];
+const LARGURAS_COLUNAS = [132, 124, 112, 210, 260, 118, 124, 128];
 const LARGURA_MINIMA_COLUNA = 60;
 
 type AbaSolicitacao = "cotista" | "colaborador";
@@ -46,6 +46,7 @@ type LinhaExibida = {
   status: string;
   acoes: AcaoLinha[];
   detalhe: ReactNode;
+  selecionavel: boolean;
 };
 
 function statusLegivel(valor: string): string {
@@ -211,6 +212,13 @@ function contaDaSolicitacao(item: SolicitacaoPagamento, id: string): ContaAPagar
   };
 }
 
+type ItemBaixa = { tipo: "cotista"; item: SolicitacaoPagamento } | { tipo: "colaborador"; item: ReembolsoColaborador };
+
+function podeDarBaixaCliente(item: SolicitacaoPagamento): boolean {
+  return !(["PAGO", "CANCELADO"].includes(item.status.toUpperCase()))
+    && !(["PAGO", "CANCELADO"].includes((item.conta_a_pagar_status ?? "").toUpperCase()));
+}
+
 export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade }: { contasBancarias: ContaBancaria[]; aoAlterarQuantidade?: (quantidade: number) => void }) {
   const [documentoAberto, setDocumentoAberto] = useState<DocumentoAberto | null>(null);
   const [envios, setEnvios] = useState<SolicitacaoPagamento[]>([]);
@@ -222,6 +230,9 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   const [contaBaixa, setContaBaixa] = useState<ContaAPagar | null>(null);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [menuAberto, setMenuAberto] = useState<string | null>(null);
+  const [selecionados, setSelecionados] = useState<Set<string>>(() => new Set());
+  const [filaBaixa, setFilaBaixa] = useState<ItemBaixa[]>([]);
+  const [totalFila, setTotalFila] = useState(0);
 
   const [busca, setBusca] = useState("");
   const [filtroEnvio, setFiltroEnvio] = useState("TODOS");
@@ -343,6 +354,22 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   function fecharBaixa() {
     setAlvo(null);
     setContaBaixa(null);
+    setFilaBaixa([]);
+    setTotalFila(0);
+  }
+
+  function abrirBaixaItem(entrada: ItemBaixa) {
+    if (entrada.tipo === "colaborador") abrirBaixa(entrada.item);
+    else abrirBaixaCliente(entrada.item);
+  }
+
+  function alternarSelecao(chave: string) {
+    setSelecionados((atuais) => {
+      const proximo = new Set(atuais);
+      if (proximo.has(chave)) proximo.delete(chave);
+      else proximo.add(chave);
+      return proximo;
+    });
   }
 
   function trocarAba(novaAba: AbaSolicitacao) {
@@ -417,13 +444,13 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
     const chave = `envio:${item.id}`;
     const expandida = expandido === chave;
     const aeronave = rotuloAeronave(item.aeronave_id, item.matricula_registro ?? item.aeronave_matricula);
-    const baixaDisponivel = !["PAGO", "CANCELADO"].includes(item.status.toUpperCase())
-      && !["PAGO", "CANCELADO"].includes((item.conta_a_pagar_status ?? "").toUpperCase());
+    const baixaDisponivel = podeDarBaixaCliente(item);
     return {
       chave,
       expandida,
       documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo) ?? "—",
       aeronave: aeronave ?? "—",
+      selecionavel: baixaDisponivel,
       dataEmissao: dataLegivel(item.data_emissao ?? item.data_despesa),
       vencimento: dataLegivel(item.data_vencimento ?? item.vencimento ?? null),
       cliente: primeiroTexto(item.cliente_razao_social, item.cliente_nome, item.razao_social, item.socio_nome, item.hold_socios_nome, item.hold_socios?.nome, item.cotista_nome, item.holding_nome) ?? "—",
@@ -448,6 +475,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
       expandida,
       documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo, item.documento) ?? "—",
       aeronave: aeronave ?? "—",
+      selecionavel: true,
       dataEmissao: dataLegivel(item.data_emissao ?? item.dataEmissao ?? null),
       vencimento: dataLegivel(item.dataVencimento),
       colaborador: primeiroTexto(item.user_profiles?.nome_completo, item.nome_completo, item.solicitanteNome) ?? "—",
@@ -464,6 +492,31 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   });
 
   const linhas = aba === "cotista" ? linhasEnvio : linhasReembolso;
+
+  const itensParaBaixa: ItemBaixa[] = aba === "cotista"
+    ? enviosFiltrados.filter((item) => selecionados.has(`envio:${item.id}`) && podeDarBaixaCliente(item)).map((item) => ({ tipo: "cotista" as const, item }))
+    : reembolsosFiltrados.filter((item) => selecionados.has(`reembolso:${item.id}`)).map((item) => ({ tipo: "colaborador" as const, item }));
+  const chavesSelecionaveisPagina = linhas.filter((linha) => linha.selecionavel).map((linha) => linha.chave);
+  const todasPaginaSelecionadas = chavesSelecionaveisPagina.length > 0 && chavesSelecionaveisPagina.every((chave) => selecionados.has(chave));
+
+  function alternarSelecaoPagina() {
+    setSelecionados((atuais) => {
+      const proximo = new Set(atuais);
+      for (const chave of chavesSelecionaveisPagina) {
+        if (todasPaginaSelecionadas) proximo.delete(chave);
+        else proximo.add(chave);
+      }
+      return proximo;
+    });
+  }
+
+  function iniciarBaixaEmLote() {
+    const [primeiro, ...restante] = itensParaBaixa;
+    if (!primeiro) return;
+    setTotalFila(itensParaBaixa.length);
+    setFilaBaixa(restante);
+    abrirBaixaItem(primeiro);
+  }
 
   function celulaAcoes(linha: LinhaExibida, apresentacao: "tabela" | "mobile") {
     const chaveMenu = `${apresentacao}:${linha.chave}`;
@@ -499,7 +552,10 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
             <h2>{aba === "cotista" ? "Caixa cliente" : "Reembolsos de colaboradores"}</h2>
             <p>{carregando ? "Carregando…" : `${totalItens} ${aba === "cotista" ? (totalItens === 1 ? "lançamento" : "lançamentos") : (totalItens === 1 ? "título" : "títulos")} encontrados`}{temFiltro && <button className="nf-text-btn" onClick={limparFiltros}>Limpar filtros</button>}</p>
           </div>
-          <ControleZoomTabela zoom={zoom} alterar={alterarZoom} restaurar={() => definirZoom(100)} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button type="button" className="nf-btn primary" disabled={itensParaBaixa.length === 0} onClick={iniciarBaixaEmLote}>DAR BAIXA{itensParaBaixa.length > 0 ? ` (${itensParaBaixa.length})` : ""}</button>
+            <ControleZoomTabela zoom={zoom} alterar={alterarZoom} restaurar={() => definirZoom(100)} />
+          </div>
         </div>
         {carregando ? <div className="nf-empty" role="status"><RefreshCw className="nf-spin" /><h3>Carregando solicitações</h3><p>Organizando as informações de pagamento.</p></div>
           : erro ? <div className="nf-empty" role="alert"><TriangleAlert /><h3>Não foi possível carregar</h3><p>{erro}</p><button className="nf-btn" onClick={() => void carregar()}>Tentar novamente</button></div>
@@ -512,7 +568,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
                   {larguras.map((largura, indice) => <col key={indice} style={{ width: largura }} />)}
                 </colgroup>
                 <thead><tr>
-                  <th scope="col"><span className="nf-sr">Expandir e ações</span></th>
+                  <th scope="col"><input type="checkbox" className="nf-check" aria-label="Selecionar lançamentos desta página" checked={todasPaginaSelecionadas} disabled={chavesSelecionaveisPagina.length === 0} onChange={alternarSelecaoPagina} /></th>
                   <th scope="col"><span className="erp-ordenar">Doc / emissão</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 1)} /></th>
                   <th scope="col"><span className="erp-ordenar">Aeronave</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 2)} /></th>
                   <th scope="col"><span className="erp-ordenar">{aba === "cotista" ? "Cliente" : "Colaborador"}</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 3)} /></th>
@@ -524,7 +580,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
                 <tbody>
                   {linhas.map((linha) => <Fragment key={linha.chave}>
                     <tr className={`erp-linha${linha.expandida ? " erp-linha-aberta" : ""}`}>
-                      <td className="erp-td-acoes"><div className="erp-celula-selecao"><button type="button" className="erp-expandir" aria-expanded={linha.expandida} aria-label={`${linha.expandida ? "Recolher" : "Expandir"} ${linha.secundaria || linha.principal}`} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}</button>{celulaAcoes(linha, "tabela")}</div></td>
+                      <td className="erp-td-acoes"><div className="erp-celula-selecao"><input type="checkbox" className="nf-check" aria-label={`Selecionar ${linha.secundaria || linha.principal}`} disabled={!linha.selecionavel} checked={selecionados.has(linha.chave)} onChange={() => alternarSelecao(linha.chave)} /><button type="button" className="erp-expandir" aria-expanded={linha.expandida} aria-label={`${linha.expandida ? "Recolher" : "Expandir"} ${linha.secundaria || linha.principal}`} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}</button>{celulaAcoes(linha, "tabela")}</div></td>
                       <td><span className="erp-documento">{linha.documento}</span><span className="erp-texto-secundario">Emissão {linha.dataEmissao}</span></td>
                       <td>{linha.aeronave}</td>
                       <td>{aba === "cotista" ? linha.cliente : linha.colaborador}</td>
@@ -540,7 +596,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
             </div>
             <div className="nf-mobile-docs">
               {linhas.map((linha) => <article className={`nf-mobile-doc${linha.expandida ? " expanded" : ""}`} key={linha.chave}>
-                <header><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div><StatusSolicitacao status={linha.status} /></header>
+                <header><input type="checkbox" className="nf-check" aria-label={`Selecionar ${linha.secundaria || linha.principal}`} disabled={!linha.selecionavel} checked={selecionados.has(linha.chave)} onChange={() => alternarSelecao(linha.chave)} /><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div><StatusSolicitacao status={linha.status} /></header>
                 <dl><div><dt>Aeronave</dt><dd>{linha.aeronave}</dd></div><div><dt>{aba === "cotista" ? "Cliente" : "Colaborador"}</dt><dd>{aba === "cotista" ? linha.cliente : linha.colaborador}</dd></div><div><dt>Descrição</dt><dd>{linha.secundaria || linha.principal}{linha.secundaria && <small>{linha.principal}</small>}</dd></div><div><dt>Vencimento</dt><dd>{linha.vencimento}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
                 <footer>{celulaAcoes(linha, "mobile")}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
                 {linha.detalhe}
@@ -563,13 +619,21 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
         key={contaBaixa.id}
         conta={contaBaixa}
         aberto
+        progresso={totalFila > 1 ? `Lançamento ${totalFila - filaBaixa.length} de ${totalFila}` : undefined}
         onFechar={fecharBaixa}
         contasBancarias={contasParaPagamento}
         onConfirmar={async (dados) => {
           if (contaBaixa.fonteLancamento) await darBaixaPagamentoShare(contaBaixa.lancamentoId || contaBaixa.id, dados);
           else await darBaixaContaAPagar(contaBaixa.id, dados);
           toast.success("Baixa registrada.");
-          fecharBaixa();
+          const [proximo, ...restante] = filaBaixa;
+          if (proximo) {
+            setFilaBaixa(restante);
+            abrirBaixaItem(proximo);
+          } else {
+            fecharBaixa();
+            setSelecionados(new Set());
+          }
           await carregar();
         }}
       />}
@@ -703,7 +767,7 @@ html .nf-workspace.nf-payment-requests .nf-icon{width:30px;min-height:30px;heigh
 .nf-payment-requests .nf-detail dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px 24px;margin:0}.nf-payment-requests .nf-detail dt{font-size:10px;color:var(--app-muted);margin-bottom:3px}.nf-payment-requests .nf-detail dd{font-size:12px;color:var(--app-text);margin:0;white-space:pre-wrap;overflow-wrap:anywhere}.nf-payment-requests .nf-detail-actions{grid-column:1/-1;display:flex;justify-content:flex-end;border-top:1px solid #e4ebf4;padding-top:15px}
 .nf-payment-requests .nf-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 22px;font-size:11px;color:var(--app-muted)}.nf-payment-requests .nf-pagination>div{display:flex;align-items:center;gap:14px}.nf-payment-requests .nf-mobile-docs{display:none}
 .nf-payment-requests .nf-empty,.nf-payment-dialog .nf-empty{padding:60px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;color:var(--app-muted)}.nf-payment-requests .nf-empty h3,.nf-payment-dialog .nf-empty h3{font-size:16px}.nf-payment-requests .nf-empty p,.nf-payment-dialog .nf-empty p{margin:0;font-size:12px;max-width:380px}
-.nf-payment-requests .nf-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.nf-spin{animation:nf-payment-spin 1s linear infinite}@keyframes nf-payment-spin{to{transform:rotate(360deg)}}
+.nf-payment-requests .nf-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.nf-payment-requests .erp-celula-selecao{display:flex;align-items:center;gap:8px}.nf-payment-requests .nf-check{width:16px;height:16px;margin:0;flex-shrink:0;cursor:pointer;accent-color:var(--app-info)}.nf-payment-requests .nf-check:disabled{opacity:.35;cursor:not-allowed}.nf-spin{animation:nf-payment-spin 1s linear infinite}@keyframes nf-payment-spin{to{transform:rotate(360deg)}}
 .nf-payment-dialog{border:1px solid var(--app-line);border-radius:16px;padding:0;background:var(--app-surface);width:min(620px,calc(100vw - 28px));max-width:calc(100vw - 28px);max-height:calc(100dvh - 32px);box-shadow:0 24px 90px #091a4433;overflow:auto}.nf-payment-dialog.wide{width:min(1200px,calc(100vw - 28px))}.nf-payment-dialog::backdrop{background:#14253d99;backdrop-filter:blur(4px)}
 .nf-payment-dialog .nf-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:2;background:var(--app-surface);border-bottom:1px solid #e8edf4;padding:16px 22px}.nf-payment-dialog .nf-dialog-header h2{font-size:17px;font-weight:650}.nf-payment-dialog .nf-dialog-content{padding:22px}
 .nf-payment-dialog .nf-payment-summary{display:flex;justify-content:space-between;gap:16px;padding:16px;background:var(--app-soft);border:1px solid var(--app-info-line);border-radius:10px;margin-bottom:22px}.nf-payment-dialog .nf-payment-summary span{font-size:12px;font-weight:600}.nf-payment-dialog .nf-payment-summary small{display:block;color:var(--app-muted);font-weight:400;margin-top:5px;overflow-wrap:anywhere}.nf-payment-dialog .nf-payment-summary strong{font-size:20px;white-space:nowrap}

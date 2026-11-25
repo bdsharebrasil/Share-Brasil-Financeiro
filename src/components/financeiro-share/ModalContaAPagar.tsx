@@ -42,6 +42,7 @@ interface ModalContaAPagarProps {
   onFechar: () => void;
   onConfirmar: (dados: DadosBaixa) => Promise<void>;
   contasBancarias: ContaBancaria[];
+  progresso?: string;
 }
 
 const FORMAS_PAGAMENTO = ["PIX", "Transferência", "Boleto", "Dinheiro", "Cartão"];
@@ -69,6 +70,7 @@ export function ModalContaAPagar({
   onFechar,
   onConfirmar,
   contasBancarias,
+  progresso,
 }: ModalContaAPagarProps) {
   const contaInicial = contasBancarias.find((item) => item.id === conta.contaBancariaId)
     ?? contasBancarias.find((item) => nomeConta(item) === conta.bancoPagamento);
@@ -163,7 +165,7 @@ export function ModalContaAPagar({
         onPointerDownOutside={(evento) => { if (ocupada) evento.preventDefault(); }}
       >
         <DialogHeader className="baixa-header">
-          <p className="baixa-kicker">Financeiro Share · Saída</p>
+          <p className="baixa-kicker">Financeiro Share · Saída{progresso ? ` · ${progresso}` : ""}</p>
           <DialogTitle className="baixa-titulo"><CircleDollarSign size={20}/>Registrar pagamento</DialogTitle>
           <DialogDescription>Registre a saída da conta bancária da Share com a data e o comprovante do pagamento.</DialogDescription>
         </DialogHeader>
@@ -241,4 +243,3 @@ export function ModalContaAPagar({
     </Dialog>
   );
 }
-

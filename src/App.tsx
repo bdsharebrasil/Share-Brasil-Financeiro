@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import LayoutInterno from "@/components/layout/LayoutInterno";
 
@@ -60,6 +61,7 @@ export default function App() {
         </Routes>
       </Suspense>
       <Toaster />
+      <SonnerToaster />
     </>
   );
 }

@@ -832,12 +832,27 @@ export default function RelatorioDespesaViagem({
     if (pdfPreview) URL.revokeObjectURL(pdfPreview.url);
     setPdfPreview(null);
   };
-  const enviarAprovacao = async (pos: 1 | 2) => {
-    if (!relatorio) return;
+  const toastClassificacaoId = relatorio ? `classificar-relatorio-${relatorio.id}` : undefined;
+  useEffect(() => () => {
+    if (toastClassificacaoId) toast.dismiss(toastClassificacaoId);
+  }, [toastClassificacaoId]);
+
+  const enviarAprovacao = async (pos: 1 | 2, reembolsoCaixaShare?: boolean) => {
+    if (!relatorio || salvando) return;
+    if (relatorio.reembolso_caixa_share == null && reembolsoCaixaShare === undefined) {
+      toast("ESSE RELATÓRIO É REEMBOLSO CAIXA SHARE?", {
+        id: toastClassificacaoId,
+        position: "top-center",
+        duration: Infinity,
+        action: { label: "Sim", onClick: () => void enviarAprovacao(pos, true) },
+        cancel: { label: "Não", onClick: () => void enviarAprovacao(pos, false) },
+      });
+      return;
+    }
     setSalvando(true);
     try {
       if (!relatorio.pdf_path && !relatorio.pdf_url) await gerarPdf(relatorio);
-      const resposta = await enviarRelatorioParaAprovacao(relatorio.id, pos);
+      const resposta = await enviarRelatorioParaAprovacao(relatorio.id, pos, reembolsoCaixaShare);
       setRelatorio(resposta.relatorio);
       setRelatorios((atuais) =>
         atuais.map((item) =>
@@ -890,6 +905,7 @@ export default function RelatorioDespesaViagem({
       setMensagem({ tipo: "erro", texto: "Não foi possível copiar a mensagem." });
     }
   };
+  const envioDireto = relatorio?.reembolso_caixa_share === 0;
   const enviarCliente = async () => {
     if (!relatorio) return;
     try {
@@ -926,10 +942,13 @@ export default function RelatorioDespesaViagem({
       setRelatorio(relatorioAtualizado as Relatorio);
       setRelatorios((atuais) => atuais.map((item) => item.id === relatorio.id ? relatorioAtualizado as Relatorio : item));
       setReembolsoForm((atual) => ({ ...atual, aberto: false }));
-      toast.success("Programação concluída", { description: "O reembolso foi enviado para Contas a Receber e os lançamentos financeiros foram gerados." });
-      setMensagem({ tipo: "ok", texto: "Reembolso programado e enviado para o cliente." });
+      const texto = envioDireto
+        ? "Despesa enviada diretamente ao cliente."
+        : "Reembolso programado e enviado para o cliente.";
+      toast.success(texto);
+      setMensagem({ tipo: "ok", texto });
     } catch (error) {
-      setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível programar o reembolso." });
+      setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível registrar o envio da despesa." });
       setReembolsoForm((atual) => ({ ...atual, aberto: true }));
     } finally { setSalvando(false); }
   };
@@ -1566,7 +1585,9 @@ export default function RelatorioDespesaViagem({
                   onClick={() => void enviarCliente()}
                   className="gap-2"
                 >
-                  <Send size={15} /> {relatorio.status === "enviado_cliente" ? "Reembolso enviado ao cliente" : "Programar para pagamento"}
+                  <Send size={15} /> {envioDireto
+                    ? (relatorio.status === "enviado_cliente" ? "Despesa enviada ao cliente" : "Enviar despesa ao cliente")
+                    : (relatorio.status === "enviado_cliente" ? "Reembolso enviado ao cliente" : "Programar para pagamento")}
                 </Button>
               </div>
             )}
@@ -1640,11 +1661,11 @@ export default function RelatorioDespesaViagem({
       <Dialog open={reembolsoForm.aberto} onOpenChange={(open) => setReembolsoForm((atual) => ({ ...atual, aberto: open }))}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Programar reembolso ao cotista</DialogTitle>
+            <DialogTitle>{envioDireto ? "Enviar despesa ao cotista" : "Programar reembolso ao cotista"}</DialogTitle>
             <DialogDescription>Confira os dados antes de enviar a despesa e gerar os lançamentos financeiros.</DialogDescription>
           </DialogHeader>
           {reembolsoForm.prefill && <div className="space-y-4">
-            <div className="break-words rounded-md border bg-muted/30 p-3 text-sm"><p><strong>Descrição:</strong> {reembolsoForm.prefill.descricao}</p><p><strong>Valor a reembolsar:</strong> {moeda(reembolsoForm.prefill.valor)}</p><p><strong>Fornecedor:</strong> {reembolsoForm.prefill.fornecedor}</p><p><strong>Categoria:</strong> {reembolsoForm.prefill.subcategoria}</p><p><strong>Aeronave:</strong> {reembolsoForm.prefill.aeronave_matricula || "—"}</p></div>
+            <div className="break-words rounded-md border bg-muted/30 p-3 text-sm"><p><strong>Descrição:</strong> {reembolsoForm.prefill.descricao}</p><p><strong>{envioDireto ? "Valor a pagar:" : "Valor a reembolsar:"}</strong> {moeda(reembolsoForm.prefill.valor)}</p>{reembolsoForm.prefill.fornecedor && <p><strong>Fornecedor:</strong> {reembolsoForm.prefill.fornecedor}</p>}<p><strong>Categoria:</strong> {reembolsoForm.prefill.subcategoria}</p><p><strong>Aeronave:</strong> {reembolsoForm.prefill.aeronave_matricula || "—"}</p></div>
             <div><Label htmlFor="reembolso-vencimento">Vencimento</Label><Input id="reembolso-vencimento" type="date" value={reembolsoForm.vencimento} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, vencimento: e.target.value }))} /></div>
             <div><Label htmlFor="reembolso-periodicidade">Periodicidade</Label><select id="reembolso-periodicidade" className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reembolsoForm.periodicidade} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, periodicidade: e.target.value as Periodicidade }))}>{opcoesPeriodicidade.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}</select></div>
             <div><Label htmlFor="reembolso-rateio">Tipo de rateio</Label><select id="reembolso-rateio" className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reembolsoForm.tipoRateio} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, tipoRateio: e.target.value }))}>{["FIXO", "VARIAVEL POR VOO", "VARIAVEL POR HORA", "EXTRA"].map((item) => <option key={item}>{item}</option>)}</select></div>
@@ -1660,7 +1681,7 @@ export default function RelatorioDespesaViagem({
         }}
         onSent={(emailId) => void programarDepoisDoEmail(emailId)}
         assuntoSugerido={`Relatório de despesa de viagem ${relatorio.numero_relatorio}`}
-        mensagemSugerida={`Prezados,\n\nSegue o relatório de despesa de viagem ${relatorio.numero_relatorio}${relatorio.rota ? ` - ${relatorio.rota}` : ""} dos dias ${dataBr(relatorio.data_inicio)} e ${dataBr(relatorio.data_fim)} com a aeronave ${reembolsoForm.prefill.aeronave_matricula || "—"}\nValor a reembolsar: ${moeda(reembolsoForm.prefill.valor)}\nVencimento: ${dataBr(reembolsoForm.vencimento)}`}
+        mensagemSugerida={`Prezados,\n\nSegue o relatório de despesa de viagem ${relatorio.numero_relatorio}${relatorio.rota ? ` - ${relatorio.rota}` : ""} dos dias ${dataBr(relatorio.data_inicio)} e ${dataBr(relatorio.data_fim)} com a aeronave ${reembolsoForm.prefill.aeronave_matricula || "—"}\n${envioDireto ? "Valor a pagar" : "Valor a reembolsar"}: ${moeda(reembolsoForm.prefill.valor)}\nVencimento: ${dataBr(reembolsoForm.vencimento)}`}
         anexos={[{ id: `relatorio_pdf:${relatorio.id}`, url: reembolsoForm.prefill.pdf_url, label: `Relatório ${relatorio.numero_relatorio}.pdf`, filename: `relatorio-${relatorio.numero_relatorio}.pdf` }]}
       />}
     </div>

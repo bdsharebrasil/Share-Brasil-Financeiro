@@ -22,6 +22,8 @@ export type LinhaConta = {
   favorecidoPessoa: string | null;
   fornecedor: string | null;
   contaBancaria: string;
+  aeronaveId: string | null;
+  aeronave: string | null;
   dataLancamento: string;
   dataVencimento: string | null;
   situacao: SituacaoLinha;
@@ -70,6 +72,8 @@ export function linhasDeContasAPagar(contas: ContaAPagar[]): LinhaConta[] {
     favorecidoPessoa: c.cotistaNome || c.cotista || null,
     fornecedor: c.fornecedorId ? c.fornecedor : null,
     contaBancaria: c.bancoPagamento || c.contaBancariaId || "—",
+    aeronaveId: c.aeronaveId || null,
+    aeronave: c.aeronaveMatricula || null,
     dataLancamento: c.dataEmissao || c.criadoEm || "",
     dataVencimento: c.dataVencimento || null,
     situacao: situacaoDaConta(statusOriginal(c), c.dataVencimento),
@@ -92,6 +96,8 @@ export function linhasDeContasAReceber(contas: ContaAReceber[]): LinhaConta[] {
     favorecidoPessoa: c.cotistaNome || c.cotista || null,
     fornecedor: c.fornecedorId ? c.fornecedor : null,
     contaBancaria: c.bancoRecebimento || c.contaBancariaId || "—",
+    aeronaveId: c.aeronaveId || null,
+    aeronave: c.aeronaveMatricula || null,
     dataLancamento: c.dataEmissao || c.criadoEm || "",
     dataVencimento: c.dataVencimento || null,
     situacao: situacaoDaConta(statusOriginal(c), c.dataVencimento),

@@ -26,12 +26,14 @@ import {
   Printer,
   RotateCw,
   Search,
+  Trash2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { anexosFinanceiros } from "@/lib/documentos-financeiros";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { API_BASE } from "@/lib/api";
+import { buscarAeronavesShare } from "@/lib/colaborador-api";
 import { IconeAnexo } from "./IconeAnexo";
 import { ContaBancariaCell } from "./ContaBancariaCell";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -78,7 +80,7 @@ type Props = {
 };
 
 type ChaveColuna =
-  | "documento" | "descricao" | "favorecido"
+  | "documento" | "aeronave" | "descricao" | "favorecido"
   | "fornecedor" | "contaBancaria" | "data" | "situacao" | "valor";
 type Coluna = { chave: ChaveColuna; rotulo: string; largura?: number };
 type FiltroSituacao = "TODAS" | "EM_ABERTO" | "PAGO" | "EM_ATRASO" | "RECEBIDO" | "AGUARDANDO_REEMBOLSO" | "REEMBOLSADO" | "CANCELADO";
@@ -339,6 +341,8 @@ function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
       return <td key={chave} className="erp-td-data"><span>{dataOuTraco(linha.dataLancamento)}</span>{linha.dataVencimento && <span className="erp-texto-secundario">Venc. {dataOuTraco(linha.dataVencimento)}</span>}</td>;
     case "documento":
       return <td key={chave} className="erp-documento" title={linha.documento || undefined}>{linha.documento || "—"}</td>;
+    case "aeronave":
+      return <td key={chave} title={linha.aeronave || undefined}>{linha.aeronave || "—"}</td>;
     case "descricao":
       return <td key={chave}><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.descricao}>{linha.descricao}</strong></div><span className="erp-texto-secundario" title={linha.categoria}>{linha.categoria || "—"}</span></td>;
     case "favorecido":
@@ -375,9 +379,14 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const [arrastandoTabela, setArrastandoTabela] = useState(false);
   const { zoom, alterar: alterarZoom, definir: definirZoom } = useZoomTabela("erp-lancamentos-zoom");
 
-  const lancamentos = useMemo(() => (
-    ehEntrada ? linhasDeContasAReceber(receber.contas) : linhasDeContasAPagar(pagar.contas)
-  ), [ehEntrada, receber.contas, pagar.contas]);
+  const [matriculasAeronaves, setMatriculasAeronaves] = useState<Record<string, string>>({});
+  const lancamentos = useMemo(() => {
+    const linhas = ehEntrada ? linhasDeContasAReceber(receber.contas) : linhasDeContasAPagar(pagar.contas);
+    return linhas.map((linha) => ({
+      ...linha,
+      aeronave: linha.aeronave || (linha.aeronaveId ? matriculasAeronaves[linha.aeronaveId] : null) || null,
+    }));
+  }, [ehEntrada, receber.contas, pagar.contas, matriculasAeronaves]);
 
   const [busca, setBusca] = useState("");
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -407,6 +416,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [expandidos, setExpandidos] = useState<string[]>([]);
   const [contaBaixa, setContaBaixa] = useState<LinhaConta | null>(null);
+  const [loteBaixa, setLoteBaixa] = useState<{ total: number; fila: LinhaConta[] } | null>(null);
   const [lancamentoEditando, setLancamentoEditando] = useState<LancamentoEdicao | null>(null);
   const contaBaixaReal = useMemo(
     () => contaBaixa ? contaAPagarDaLinha(contaBaixa, pagar.contas) : null,
@@ -434,9 +444,24 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   }, []);
 
   useEffect(() => {
+    let ativo = true;
+    void Promise.all([
+      buscarAeronavesShare("ativa").catch(() => ({ aeronaves: [] })),
+      buscarAeronavesShare("inativa").catch(() => ({ aeronaves: [] })),
+    ]).then(([ativas, inativas]) => {
+      if (!ativo) return;
+      setMatriculasAeronaves(Object.fromEntries(
+        [...ativas.aeronaves, ...inativas.aeronaves].map((aeronave) => [aeronave.id, aeronave.matricula_registro]),
+      ));
+    });
+    return () => { ativo = false; };
+  }, []);
+
+  useEffect(() => {
     setSelecionados([]);
     setExpandidos([]);
     setContaBaixa(null);
+    setLoteBaixa(null);
     setNovo(false);
     setLarguras({});
     setOrdemColunas([]);
@@ -530,6 +555,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const colunas = useMemo<Coluna[]>(() => [
     { chave: "data", rotulo: "Data", largura: 118 },
     { chave: "documento", rotulo: "DOC", largura: 124 },
+    { chave: "aeronave", rotulo: "Aeronave", largura: 112 },
     { chave: "descricao", rotulo: "Descrição", largura: 250 },
     ...(ehEntrada
       ? [{ chave: "favorecido" as const, rotulo: "Favorecido", largura: 200 }]
@@ -602,7 +628,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       if (contaFiltro !== null && linha.contaBancaria !== contaFiltro) return false;
       if (docFiltro !== null && tipoDocumento(linha) !== docFiltro) return false;
       const texto = [linha.documento, ...(linha.raw.numerosDocumento ?? []), linha.descricao, linha.categoria, linha.favorecido,
-        linha.favorecidoPessoa, linha.fornecedor, linha.contaBancaria, linha.fluxo].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
+        linha.favorecidoPessoa, linha.fornecedor, linha.aeronave, linha.contaBancaria, linha.fluxo].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
       return texto.includes(textoBusca);
     }).sort((a, b) => {
       const chave = ordenacao.chave;
@@ -617,6 +643,9 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const selecao = useMemo(() => new Set(selecionados), [selecionados]);
   const expansao = useMemo(() => new Set(expandidos), [expandidos]);
   const selecionadosVisiveis = filtrados.filter((linha) => selecao.has(linha.id));
+  const baixaveisSelecionados = selecionadosVisiveis.filter(podeBaixar);
+  const excluiveisSelecionados = selecionadosVisiveis.flatMap((linha) => linha.raw.lancamentoId ? [{ linha, lancamentoId: linha.raw.lancamentoId }] : []);
+  const progressoBaixa = loteBaixa && loteBaixa.total > 1 ? `Lançamento ${loteBaixa.total - loteBaixa.fila.length} de ${loteBaixa.total}` : undefined;
   const totalListado = filtrados.reduce((soma, linha) => soma + linha.valor, 0);
   const paginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
   const paginaAtual = Math.max(1, Math.min(pagina, paginas));
@@ -690,6 +719,45 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       toast.success("Lançamento excluído.");
     } catch (erro) {
       toast.error(erro instanceof Error ? erro.message : "Não foi possível excluir o lançamento.");
+    }
+  }
+
+  async function excluirSelecionados() {
+    const alvos = excluiveisSelecionados;
+    const rotulo = alvos.length === 1 ? "lançamento selecionado" : "lançamentos selecionados";
+    if (!window.confirm(`Excluir ${alvos.length} ${rotulo}? Esta ação não pode ser desfeita.`)) return;
+    let excluidos = 0;
+    try {
+      for (const { linha, lancamentoId } of alvos) {
+        await excluirLancamento(lancamentoId);
+        excluidos += 1;
+        setSelecionados((atuais) => atuais.filter((item) => item !== linha.id));
+      }
+      toast.success(`${excluidos} ${excluidos === 1 ? "lançamento excluído" : "lançamentos excluídos"}.`);
+    } catch (erro) {
+      toast.error(`${excluidos} de ${alvos.length} excluídos. ${erro instanceof Error ? erro.message : "Não foi possível excluir o restante."}`);
+    } finally {
+      await recarregar();
+    }
+  }
+
+  function iniciarBaixaEmLote() {
+    const [primeiro, ...restante] = baixaveisSelecionados;
+    if (!primeiro) return;
+    setLoteBaixa({ total: baixaveisSelecionados.length, fila: restante });
+    setContaBaixa(primeiro);
+  }
+  function fecharBaixa() {
+    setContaBaixa(null);
+    setLoteBaixa(null);
+  }
+  function concluirBaixa() {
+    const [proximo, ...restante] = loteBaixa?.fila ?? [];
+    if (proximo && loteBaixa) {
+      setLoteBaixa({ total: loteBaixa.total, fila: restante });
+      setContaBaixa(proximo);
+    } else {
+      fecharBaixa();
     }
   }
 
@@ -850,6 +918,17 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
           </div>
         </div>
 
+        {selecionadosVisiveis.length > 1 && (
+          <div className="erp-barra-selecao" role="region" aria-label="Ações para os lançamentos selecionados">
+            <span>{selecionadosVisiveis.length} selecionados</span>
+            <button type="button" className="erp-btn erp-btn-primario" disabled={!baixaveisSelecionados.length} onClick={iniciarBaixaEmLote}>
+              DAR BAIXA ({baixaveisSelecionados.length})
+            </button>
+            <button type="button" className="erp-btn erp-btn-perigo" disabled={!excluiveisSelecionados.length} onClick={() => void excluirSelecionados()}>
+              <Trash2 size={16} aria-hidden="true" />EXCLUIR ({excluiveisSelecionados.length})
+            </button>
+          </div>
+        )}
         {mostrarFiltros && <div className="erp-filtros" id={`${id}-filtros`}>
           <label className="erp-busca"><span className="erp-sr-only">Buscar lançamento</span><Search size={16} aria-hidden="true" />
             <input type="search" placeholder="Buscar lançamento..." value={busca} onChange={(e) => setBusca(e.target.value)} />
@@ -1015,7 +1094,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
         <h1>{titulo}</h1><p>Período: {periodoImpressao}</p><p>Emitido em {new Date().toLocaleString("pt-BR")}</p>
         <table><thead><tr>{colunas.map((coluna) => <th key={coluna.chave}>{coluna.rotulo}</th>)}</tr></thead>
           <tbody>{itensRelatorio.map((linha) => <tr key={linha.id}>
-            <td>{dataOuTraco(linha.dataLancamento)}</td><td>{linha.documento || "—"}</td><td>{linha.descricao}</td>
+            <td>{dataOuTraco(linha.dataLancamento)}</td><td>{linha.documento || "—"}</td><td>{linha.aeronave || "—"}</td><td>{linha.descricao}</td>
             {ehEntrada ? <td>{linha.favorecido || "—"}</td> : <td>{linha.fornecedor || "—"}</td>}
             <td>{linha.contaBancaria}</td>
             <td>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</td><td className="erp-direita">{formatarMoeda(linha.valor)}</td>
@@ -1027,13 +1106,16 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       <NovoLancamentoShareDialog aberto={novo || Boolean(lancamentoEditando)} aoFechar={() => { setNovo(false); setLancamentoEditando(null); }} categorias={categorias}
         fornecedores={fornecedores} lancamentoInicial={lancamentoEditando ?? undefined}
         aoCriar={() => void recarregar()} somenteDespesa={!ehEntrada} somenteEntrada={ehEntrada} />
-      {contaBaixa && ehEntrada && <ModalContaAReceber conta={contaBaixa.raw as ContaAReceber} aberto onFechar={() => setContaBaixa(null)} contasBancarias={contasBancarias}
+      {contaBaixa && ehEntrada && <ModalContaAReceber conta={contaBaixa.raw as ContaAReceber} aberto onFechar={fecharBaixa} contasBancarias={contasBancarias}
+        progresso={progressoBaixa}
         onConfirmar={async (dados) => {
           await darBaixaContaAReceber(contaBaixa.id, dados);
-          setContaBaixa(null); setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
+          setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
+          concluirBaixa();
           await recarregar(); toast.success("Baixa registrada.");
         }} />}
-      {contaBaixa && contaBaixaReal && !ehEntrada && <ModalContaAPagar key={contaBaixaReal.id} conta={contaBaixaReal} aberto onFechar={() => setContaBaixa(null)} contasBancarias={contasBancarias}
+      {contaBaixa && contaBaixaReal && !ehEntrada && <ModalContaAPagar key={contaBaixaReal.id} conta={contaBaixaReal} aberto onFechar={fecharBaixa} contasBancarias={contasBancarias}
+        progresso={progressoBaixa}
         onConfirmar={async (dados) => {
           const conta = contaBaixaReal;
           if (ehLancamentoDireto(conta)) {
@@ -1041,7 +1123,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
           } else {
             await darBaixaContaAPagar(conta.id, dados);
           }
-          setContaBaixa(null); setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
+          setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
+          concluirBaixa();
           await recarregar(); toast.success("Baixa registrada.");
         }} />}
     </section>
@@ -1099,6 +1182,9 @@ export const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-btn-primario { margin: 0 2px; padding: 0 17px; background: rgba(7, 46, 97, 1); border-color: var(--light-line, rgba(3, 85, 139, 1)); border-width: 1px; box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0.133); color: #fff; }
 .erp-financeiro .erp-btn-primario:hover:not(:disabled) { background: #1aa8ff; border-color: var(--light-line, #4dbaff); }
 .erp-financeiro .erp-btn-texto { border-color: transparent; background: transparent; box-shadow: none; padding: 0 10px; }
+.erp-financeiro .erp-btn-perigo { color: var(--erp-danger); border-color: var(--erp-danger-border); background: var(--erp-danger-bg); }
+.erp-financeiro .erp-barra-selecao { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; padding: 7px 8px; border: 1px solid var(--erp-accent-border); border-radius: 8px; background: var(--erp-accent-bg); }
+.erp-financeiro .erp-barra-selecao > span { margin-right: auto; padding-left: 4px; color: var(--erp-text); font-size: 12px; font-weight: 600; }
 .erp-financeiro .erp-btn-ativo { border-color: var(--light-line, #078fe6); background: var(--light-info-soft, #078fe61a); }
 .erp-financeiro .erp-btn-icone { width: 38px; padding: 0; }
 .erp-financeiro .erp-divisor { width: 1px; height: 34px; background: var(--erp-border); margin: 0 2px; }

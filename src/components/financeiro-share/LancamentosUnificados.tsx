@@ -775,6 +775,13 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       fornecedor: linha.fornecedor ?? linha.favorecido, numeroDoc: String(raw.numeroDoc ?? raw.numero_doc ?? raw.numero_nf ?? linha.documento ?? "") || null,
       observacoes: String(raw.observacoes ?? "") || null,
       categoriaClienteId: String(raw.categoriaClienteId ?? raw.categoria_cliente_id ?? "") || null,
+      dataPagamento: String(raw.dataPagamento ?? raw.data_pagamento ?? raw.dataRecebimento ?? raw.data_recebimento ?? "") || null,
+      contaBancariaId: String(raw.contaBancariaId ?? raw.conta_bancaria_id ?? raw.bancoPagamento ?? raw.banco_pagamento ?? raw.bancoRecebimento ?? raw.banco_recebimento ?? "") || null,
+      contaBancariaRotulo: String(raw.bancoPagamento ?? raw.banco_pagamento ?? raw.bancoRecebimento ?? raw.banco_recebimento ?? "") || null,
+      formaPagamento: String(raw.formaPagamento ?? raw.forma_pagamento ?? "") || null,
+      comprovanteUrl: String(raw.comprovantePagamentoUrl ?? raw.comprovante_url ?? raw.comprovanteRecebimentoUrl ?? raw.comprovante_recebimento_url ?? "") || null,
+      pagoPor: String(raw.pagoPor ?? raw.pago_por ?? "") || null,
+      status: linha.statusOriginal,
       anexos: (() => { const valor = raw.anexos ?? raw.anexos_json; try { const itens = Array.isArray(valor) ? valor : valor ? JSON.parse(String(valor)) : []; return Array.isArray(itens) ? itens.filter((item) => item && item.url).map((item) => ({ id: item.id, nome: String(item.nome ?? "Documento"), url: String(item.url), tipo: item.tipo ?? null })) : []; } catch { return []; } })(),
     });
   }
@@ -1104,7 +1111,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       </div>
 
       <NovoLancamentoShareDialog aberto={novo || Boolean(lancamentoEditando)} aoFechar={() => { setNovo(false); setLancamentoEditando(null); }} categorias={categorias}
-        fornecedores={fornecedores} lancamentoInicial={lancamentoEditando ?? undefined}
+        fornecedores={fornecedores} contasBancarias={contasBancarias} lancamentoInicial={lancamentoEditando ?? undefined}
         aoCriar={() => void recarregar()} somenteDespesa={!ehEntrada} somenteEntrada={ehEntrada} />
       {contaBaixa && ehEntrada && <ModalContaAReceber conta={contaBaixa.raw as ContaAReceber} aberto onFechar={fecharBaixa} contasBancarias={contasBancarias}
         progresso={progressoBaixa}

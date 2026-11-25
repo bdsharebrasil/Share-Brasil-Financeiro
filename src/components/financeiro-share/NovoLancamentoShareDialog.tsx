@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { anexarDocumentoLancamento, criarDespesa, editarLancamento, emitirReceita, type CategoriaCaixaShare, type FornecedorLancamento } from "@/lib/financeiro-share-api";
+import { anexarDocumentoLancamento, criarDespesa, editarLancamento, emitirReceita, type CategoriaCaixaShare, type ContaBancaria, type FornecedorLancamento } from "@/lib/financeiro-share-api";
 import { buscarOpcoesNotasSaida, enviarAnexoDocumentoSaida, type CategoriaDespesaOpcao } from "@/lib/nfSaidaApi";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { API_BASE } from "@/lib/api";
@@ -28,6 +28,13 @@ export type LancamentoEdicao = {
   numeroDoc?: string | null;
   observacoes?: string | null;
   categoriaClienteId?: string | null;
+  dataPagamento?: string | null;
+  contaBancariaId?: string | null;
+  contaBancariaRotulo?: string | null;
+  formaPagamento?: string | null;
+  comprovanteUrl?: string | null;
+  pagoPor?: string | null;
+  status?: string | null;
   anexos?: Array<{ id?: string; nome: string; url: string; tipo?: string | null }>;
 };
 
@@ -40,11 +47,15 @@ type Props = {
   fluxoInicial?: "entrada" | "saida";
   somenteEntrada?: boolean;
   fornecedores?: FornecedorLancamento[];
+  contasBancarias?: ContaBancaria[];
   lancamentoInicial?: LancamentoEdicao;
 };
 
-export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCriar, somenteDespesa = false, fluxoInicial, somenteEntrada = false, fornecedores = [], lancamentoInicial }: Props) {
+const FORMAS_BAIXA = ["PIX", "Transferência", "Boleto", "Dinheiro", "Cartão"];
+
+export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCriar, somenteDespesa = false, fluxoInicial, somenteEntrada = false, fornecedores = [], contasBancarias = [], lancamentoInicial }: Props) {
   const editando = Boolean(lancamentoInicial);
+  const temBaixaEditavel = Boolean(editando && (lancamentoInicial?.dataPagamento || ["PAGO", "RECEBIDO"].includes(String(lancamentoInicial?.status ?? "").toUpperCase())));
   const [salvando, setSalvando] = useState(false);
   const [fluxo, setFluxo] = useState("saida");
   const [grupoDespesa, setGrupoDespesa] = useState("DESPESAS EMPRESA");
@@ -58,6 +69,11 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
   const [numeroDoc, setNumeroDoc] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [categoriaClienteId, setCategoriaClienteId] = useState("");
+  const [dataPagamento, setDataPagamento] = useState("");
+  const [contaBancariaId, setContaBancariaId] = useState("nenhuma");
+  const [formaPagamento, setFormaPagamento] = useState("nenhuma");
+  const [comprovanteUrl, setComprovanteUrl] = useState("");
+  const [pagoPor, setPagoPor] = useState("");
   const [categoriasCliente, setCategoriasCliente] = useState<CategoriaDespesaOpcao[]>([]);
   const [imagens, setImagens] = useState<File[]>([]);
   const [inputImagemKey, setInputImagemKey] = useState(0);
@@ -86,6 +102,11 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
     setNumeroDoc(lancamentoInicial.numeroDoc ?? "");
     setObservacoes(lancamentoInicial.observacoes ?? "");
     setCategoriaClienteId(lancamentoInicial.categoriaClienteId ?? "");
+    setDataPagamento((lancamentoInicial.dataPagamento ?? "").slice(0, 10));
+    setContaBancariaId(lancamentoInicial.contaBancariaId || "nenhuma");
+    setFormaPagamento(lancamentoInicial.formaPagamento || "nenhuma");
+    setComprovanteUrl(lancamentoInicial.comprovanteUrl ?? "");
+    setPagoPor(lancamentoInicial.pagoPor ?? "");
     setImagens([]);
     if (lancamentoInicial.grupoCategoria) setGrupoDespesa(lancamentoInicial.grupoCategoria);
   }, [aberto, fluxoInicial, lancamentoInicial]);
@@ -103,7 +124,8 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
   const limpar = () => {
     setFluxo("saida"); setGrupoDespesa("DESPESAS EMPRESA"); setDescricao(""); setCategoriaId(""); setValor("");
     setDataEmissao(new Date().toISOString().slice(0, 10)); setDataVencimento("");
-    setFornecedor(""); setFornecedorId(""); setNumeroDoc(""); setObservacoes(""); setCategoriaClienteId(""); setImagens([]);
+    setFornecedor(""); setFornecedorId(""); setNumeroDoc(""); setObservacoes(""); setCategoriaClienteId("");
+    setDataPagamento(""); setContaBancariaId("nenhuma"); setFormaPagamento("nenhuma"); setComprovanteUrl(""); setPagoPor(""); setImagens([]);
   };
 
   const salvar = async () => {
@@ -136,7 +158,17 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
         categoria_cliente_id: categoriaClienteId || null,
       };
       const lancamento = editando
-        ? await editarLancamento(lancamentoInicial!.id, { ...payload, valor_centavos: Math.round(valorNumerico * 100), data: dataEmissao || null, data_vencimento: dataVencimento || null, categoria_id: categoria.id })
+        ? await editarLancamento(lancamentoInicial!.id, {
+          ...payload, valor_centavos: Math.round(valorNumerico * 100), data: dataEmissao || null,
+          data_vencimento: dataVencimento || null, categoria_id: categoria.id,
+          ...(temBaixaEditavel ? {
+            data_pagamento: dataPagamento || null,
+            conta_bancaria_id: contaBancariaId === "nenhuma" ? null : contaBancariaId,
+            forma_pagamento: formaPagamento === "nenhuma" ? null : formaPagamento,
+            comprovante_url: comprovanteUrl.trim() || null,
+            pago_por: pagoPor.trim() || null,
+          } : {}),
+        })
         : await (fluxo === "entrada" ? emitirReceita : criarDespesa)(payload);
       const errosUpload: string[] = [];
       for (const imagem of imagens) {
@@ -224,6 +256,23 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
             <Label>Vencimento</Label>
             <Input type="date" value={dataVencimento} onChange={(evento) => setDataVencimento(evento.target.value)} />
           </div>
+
+          {temBaixaEditavel && <section className="grid gap-4 rounded-xl border border-primary/20 bg-primary/[.03] p-4 sm:col-span-2 sm:grid-cols-2" aria-label="Dados da baixa">
+            <div className="sm:col-span-2"><h3 className="text-sm font-semibold">Dados da baixa</h3><p className="text-xs text-muted-foreground">Edite os dados do pagamento já registrado.</p></div>
+            <div className="space-y-2"><Label>Data do pagamento</Label><Input type="date" value={dataPagamento} onChange={(evento) => setDataPagamento(evento.target.value)} /></div>
+            <div className="space-y-2"><Label>Conta bancária</Label>
+              <Select value={contaBancariaId} onValueChange={setContaBancariaId}><SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
+                <SelectContent><SelectItem value="nenhuma">Não informada</SelectItem>{contaBancariaId !== "nenhuma" && !contasBancarias.some((conta) => conta.id === contaBancariaId) && <SelectItem value={contaBancariaId}>{lancamentoInicial?.contaBancariaRotulo || contaBancariaId}</SelectItem>}{contasBancarias.map((conta) => <SelectItem key={conta.id} value={conta.id}>{conta.banco}{conta.numero_conta ? ` • ${conta.numero_conta}` : ""}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2"><Label>Forma de pagamento</Label>
+              <Select value={formaPagamento} onValueChange={setFormaPagamento}><SelectTrigger><SelectValue placeholder="Selecione a forma" /></SelectTrigger>
+                <SelectContent><SelectItem value="nenhuma">Não informada</SelectItem>{formaPagamento !== "nenhuma" && !FORMAS_BAIXA.includes(formaPagamento) && <SelectItem value={formaPagamento}>{formaPagamento}</SelectItem>}{FORMAS_BAIXA.map((forma) => <SelectItem key={forma} value={forma}>{forma}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2"><Label>Pago por</Label><Input value={pagoPor} onChange={(evento) => setPagoPor(evento.target.value)} placeholder="Responsável pelo pagamento" /></div>
+            <div className="space-y-2 sm:col-span-2"><Label>Link do comprovante</Label><Input type="url" value={comprovanteUrl} onChange={(evento) => setComprovanteUrl(evento.target.value)} placeholder="https://..." /></div>
+          </section>}
 
           <div className="space-y-2">
             <Label>Fornecedor</Label>

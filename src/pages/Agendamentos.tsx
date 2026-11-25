@@ -861,7 +861,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
           </div>
         </aside>}
         <main className="sb-main">
-          <div className="sb-main-heading"><div><h1>{tituloAba[aba]}</h1><p>{descricaoAba[aba]}</p></div><div className="sb-main-actions"><button type="button" className="sb-new" onClick={() => abrirNovoAgendamento()}><Plus size={16}/>Novo agendamento</button>
+          <div className="sb-main-heading"><div><h1>{tituloAba[aba]}</h1><p>{descricaoAba[aba]}</p></div><div className="sb-main-actions">
             {dentroDoAgendamento && <button type="button" className="sb-back" onClick={voltarTelaAnterior}><ChevronLeft size={16}/>Voltar</button>}
           </div></div>
           {["calendario", "cronograma", "aprovados"].includes(aba) && <div className="sb-subtabs"><button type="button" onClick={() => selecionarAba("calendario")} className={aba === "calendario" ? "active" : ""}>Calendário</button><button type="button" onClick={() => selecionarAba("cronograma")} className={aba === "cronograma" ? "active" : ""}>Voos de hoje</button><button type="button" onClick={() => selecionarAba("aprovados")} className={aba === "aprovados" ? "active" : ""}>Confirmados ({confirmados.length})</button></div>}
@@ -894,7 +894,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
           {aba === "escala" && <section className="sb-content-card"><EscalaCalendario tripulacao={painel?.tripulacao || []} escala={painel?.escala || []} disponibilidades={painel?.disponibilidades || []} aoCriarEscala={abrirCriacaoEscala} aoAbrirVoo={(id) => { const item = agendaCompleta.find((a) => a.id === id); if (item) abrirSolicitacao(item); }} aoAbrirExtrato={abrirExtrato}/></section>}
         </main>
       </div>
-      {/* Novo agendamento: acessível de qualquer aba pelo botão do cabeçalho */}
+      {/* O formulário de novo agendamento permanece disponível pela ação do calendário. */}
       <Dialog open={mostrarNovo} onOpenChange={(aberto) => { if (!aberto && !processando) setMostrarNovo(false); }}>
         <DialogContent className="max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-5xl overflow-y-auto p-0">
           <DialogTitle className="sr-only">Novo agendamento</DialogTitle>

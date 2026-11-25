@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
-import { ContextMenu as Menu } from "@/primitives/context-menu";
-import { Button } from "@/ui/Button";
+import { ContextMenu as Menu } from "../../primitives/context-menu";
+import { Button } from "../../../../button";
 import { MENU_MS } from "./timing";
 
 /**

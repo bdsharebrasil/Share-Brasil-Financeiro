@@ -30,3 +30,7 @@
 @media(max-width:600px){.pv-coord-item{grid-template-columns:minmax(0,1fr) auto;gap:6px}.pv-coord-status{grid-column:1;grid-row:2}.pv-mais-acoes{grid-column:2;grid-row:1 / span 2}.pv-hotel-form,.pv-hangar-form{max-height:65dvh}}
 /* O ContextMenu usa portal para o body; os estilos não dependem de descendência .pv. */
 [data-testid="context-menu"]{z-index:10000!important;border:1px solid var(--app-line,#364152)!important;border-radius:9px!important;background:var(--app-surface,#111827)!important;color:var(--app-text,#f8fafc)!important;box-shadow:0 12px 32px rgb(0 0 0 / .35)}[data-testid="context-menu"] [role="menuitem"]{display:flex;min-height:40px;align-items:center;padding:8px 11px;border-radius:6px;color:var(--app-text,#f8fafc);font-size:12px;cursor:pointer}[data-testid="context-menu"] [role="menuitem"]:hover,[data-testid="context-menu"] [role="menuitem"][data-highlighted]{background:var(--app-soft,#1f2937);outline:none}[data-testid="context-menu"] [role="separator"]{height:1px;margin:5px 6px;background:var(--app-line,#364152)}
+
+.pv-combustivel-form,.pv-cadastro-fornecedor{display:grid;gap:12px;padding:14px;border:1px solid var(--pv-line);border-radius:10px;background:var(--pv-bg)}
+.pv-fornecedor-linha{display:grid;grid-template-columns:minmax(0,1fr) 42px;align-items:end;gap:8px}.pv-botao-icone{width:42px!important;min-width:42px!important;padding:8px!important;color:var(--pv-accent)!important}.pv-cadastro-fornecedor{margin:14px 0;background:var(--pv-alt)}
+@media(max-width:600px){.pv-fornecedor-linha{grid-template-columns:minmax(0,1fr) 44px}}

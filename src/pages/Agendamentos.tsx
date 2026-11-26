@@ -652,6 +652,9 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     setProcessando(true);
     try {
       await atualizarAgendamento(selecionada.id, dados);
+      const atualizadoEm = new Date().toISOString();
+      setSelecionada((atual) => atual?.id === selecionada.id ? { ...atual, ...dados, atualizado_em: atualizadoEm } : atual);
+      setPainel((atual) => atual ? { ...atual, agendamentos: atual.agendamentos.map((item) => item.id === selecionada.id ? { ...item, ...dados, atualizado_em: atualizadoEm } : item) } : atual);
       toast({ title: "Agendamento atualizado", description: "As alterações foram disponibilizadas para toda a equipe." });
       await carregar(true);
       return true;

@@ -43,11 +43,13 @@ export interface CardExpandProps {
   /** Accessible name of the card list. */
   label: string;
   className?: string;
+  /** Additional classes for the expanded dialog content. */
+  dialogClassName?: string;
   /** Extra controls in the dialog footer, given the open item. */
   footer?(item: ExpandableCardItem): ReactNode;
 }
 
-export function CardExpand({ items, label, className = "", footer }: CardExpandProps) {
+export function CardExpand({ items, label, className = "", dialogClassName = "", footer }: CardExpandProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const open = items.find((item) => item.id === openId) ?? null;
 
@@ -73,7 +75,7 @@ export function CardExpand({ items, label, className = "", footer }: CardExpandP
 
       <Dialog open={open !== null} onOpenChange={(next) => !next && setOpenId(null)}>
         {open && (
-          <DialogContent className="max-w-md rounded-lg">
+          <DialogContent className={`max-w-md rounded-lg ${dialogClassName}`}>
             <DialogHeader>
               <DialogTitle>{open.title}</DialogTitle>
               <DialogDescription>{open.description}</DialogDescription>

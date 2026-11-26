@@ -37,4 +37,5 @@ test('a tela inicial não renderiza filtros repetidos e mantém aprovação some
   assert.match(cronograma, /CMTE · \{pilotoNome/);
   assert.match(cronograma, /COPI · \{copilotoNome/);
   assert.match(cronograma, /item\.perna_atual_horario_corte \|\| item\.horario_corte/);
+  assert.match(cronograma, /item\.perna_atual_horario_pouso \? formatarHora\(item\.perna_atual_horario_pouso\)/);
 });

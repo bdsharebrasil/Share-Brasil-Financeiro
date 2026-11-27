@@ -1833,12 +1833,6 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />
           ) : abaAtiva === "fechamento-balanco" ? (
             <div className={modoFechamento ? "space-y-2" : "space-y-4"}>
-              <div className="financeiro-panel cotista-fechamento-filtros">
-                <p className="text-sm font-bold">Fechamento por cotista</p>
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Balanço calculado pelos lançamentos da aeronave, meses e cotista selecionados.
-                </p>
-              </div>
               <FechamentoBalancoReferencia
                 dashboard={dashboard}
                 carregando={carregando}

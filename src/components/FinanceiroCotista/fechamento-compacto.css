@@ -38,20 +38,6 @@
     padding-inline: 9px;
     font-size: 11px;
   }
-  html .financeiro-profissional.financeiro-fechamento-compacto .cotista-fechamento-filtros {
-    padding: 8px 10px;
-    gap: 10px;
-    border-radius: 6px;
-  }
-  .financeiro-fechamento-compacto .cotista-fechamento-filtros p:first-child {
-    font-size: 12px;
-    line-height: 1.2;
-  }
-  .financeiro-fechamento-compacto .cotista-fechamento-filtros p + p {
-    margin-top: 2px;
-    font-size: 10px;
-    line-height: 1.25;
-  }
   .financeiro-fechamento-compacto .cotista-meses {
     gap: 6px;
   }

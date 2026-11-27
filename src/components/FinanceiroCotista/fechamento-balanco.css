@@ -109,6 +109,14 @@
   font-weight: 650;
 }
 
+.fb-tabs #fb-tab-balanco {
+  border-radius: 10px;
+  overflow: hidden;
+  border-style: inset;
+  border-width: 1px;
+  border-color: rgba(10, 94, 144, 1);
+}
+
 .fb-tab-filtros {
   display: flex;
   flex-wrap: wrap;

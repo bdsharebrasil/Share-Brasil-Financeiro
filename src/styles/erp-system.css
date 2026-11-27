@@ -218,6 +218,14 @@ html:not(.dark) [data-erp-tabs-trigger][data-state="active"] {
   box-shadow: 0 1px 3px rgb(15 23 42 / 0.08);
 }
 
+html:not(.dark) .atalho-card:not(:hover) {
+  border-color: var(--erp-stroke-strong);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 4px 12px rgb(15 23 42 / 0.07);
+}
+html:not(.dark) .atalho-card:hover {
+  box-shadow: 0 8px 20px rgb(9 105 168 / 0.12);
+}
+
 /* Tabelas limpas estilo SkyForce (sem cabeçalho azul-escuro pesado no modo claro) */
 html:not(.dark) :is(.app-table-frame, .erp-tabela-container,
   .cash-table-scroll, .rh-table-wrap, .nf-table-wrap, .st-scroll,

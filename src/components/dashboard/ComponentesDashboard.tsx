@@ -90,7 +90,7 @@ export function AcaoRapida({ icon, label, detail, color = "blue", onClick, icone
     <button
       type="button"
       onClick={onClick}
-      className="menu-dashboard group flex min-h-[92px] min-w-0 w-full flex-col justify-between rounded-xl border border-border dark:border-border bg-card/75 p-3 text-card-foreground shadow-sm dark:bg-card/65 dark:text-card-foreground dark:hover:!border-sidebar-border dark:hover:!bg-sidebar-accent dark:hover:!text-sidebar-accent-foreground text-left sm:min-h-[100px] sm:p-3.5"
+      className="menu-dashboard atalho-card group flex min-h-[92px] min-w-0 w-full flex-col justify-between rounded-xl border border-border dark:border-border bg-card/75 p-3 text-card-foreground shadow-sm dark:bg-card/65 dark:text-card-foreground dark:hover:!border-sidebar-border dark:hover:!bg-sidebar-accent dark:hover:!text-sidebar-accent-foreground text-left sm:min-h-[100px] sm:p-3.5"
     >
       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-secondary/70 shadow-sm sm:h-8 sm:w-8", colors[color], iconeClassName)}>
         <span className={cn("[&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4", iconeInternoClassName)}>{icon}</span>

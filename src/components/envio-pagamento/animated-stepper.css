@@ -11,7 +11,7 @@
   border-bottom: 1px solid var(--fin-border);
   background: var(--fin-surface);
 }
-.envio-stepper-lista { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
+.envio-stepper-lista { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; color: rgba(218, 224, 224, 1); }
 .envio-stepper-item { display: flex; flex-direction: column; min-width: 0; }
 .envio-stepper-identidade { display: flex; align-items: center; gap: 10px; }
 .envio-stepper-no {
@@ -32,7 +32,7 @@
 .envio-stepper-conector { position: relative; display: block; overflow: hidden; margin: 5px 0 5px 14px; width: 2px; height: 16px; border-radius: 2px; background: var(--fin-border); }
 .envio-stepper-conector > span { position: absolute; inset: 0; border-radius: inherit; background: var(--fin-accent); transform: scaleY(0); transform-origin: top; transition: transform var(--step-exit) var(--step-in); }
 .envio-stepper-item[data-estado="atual"] .envio-stepper-no { border-color: var(--fin-accent); color: var(--fin-text); }
-.envio-stepper-item[data-estado="atual"] .envio-stepper-titulo { font-weight: 600; color: var(--fin-text); }
+.envio-stepper-item[data-estado="atual"] .envio-stepper-titulo { font-weight: 600; color: rgba(155, 155, 155, 1); }
 .envio-stepper-item[data-estado="concluida"] .envio-stepper-no { border-color: var(--fin-accent); background: var(--fin-accent); color: var(--fin-surface); transition-duration: var(--step-enter); transition-timing-function: var(--step-out); }
 .envio-stepper-item[data-estado="concluida"] .envio-stepper-numero { opacity: 0; transition-duration: var(--step-exit); }
 .envio-stepper-item[data-estado="concluida"] .envio-stepper-check path { stroke-dashoffset: 0; transition-duration: var(--step-enter); transition-timing-function: var(--step-out); }

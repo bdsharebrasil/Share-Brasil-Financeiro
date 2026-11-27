@@ -37,7 +37,7 @@ import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import logoShare from "@/assets/share-signature-logo.png";
-import { anexosFinanceiros } from "@/lib/documentos-financeiros";
+import { anexosFinanceiros, rotaProxyDocumentoPublico } from "@/lib/documentos-financeiros";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { API_BASE } from "@/lib/api";
 import { buscarAeronavesShare } from "@/lib/colaborador-api";
@@ -98,11 +98,11 @@ type ChaveColuna =
 type Coluna = { chave: ChaveColuna; rotulo: string; largura?: number };
 type FiltroSituacao = "TODAS" | "EM_ABERTO" | "PAGO" | "EM_ATRASO" | "RECEBIDO" | "AGUARDANDO_REEMBOLSO" | "REEMBOLSADO" | "CANCELADO";
 type FiltroColuna = "contaBancaria" | "documento" | "data";
-type ModoData = "EMISSAO" | "VENCIMENTO" | "AMBAS";
+type ModoData = "EMISSAO" | "VENCIMENTO" | "PAGAMENTO" | "AMBAS";
 type CampoRelatorioMensal = "data" | "descricao" | "tipoCaixa" | "entrada" | "saida";
 
 const TIPOS_DOCUMENTO: TipoDocumento[] = ["RECIBO", "RELATORIO VIAGEM", "DEMONSTRATIVO", "NOTA FISCAL", "COMANDA", "BOLETO"];
-const ROTULOS_MODO_DATA: Record<ModoData, string> = { EMISSAO: "DATA EMISSÃO", VENCIMENTO: "VENCIMENTO", AMBAS: "AMBAS" };
+const ROTULOS_MODO_DATA: Record<ModoData, string> = { EMISSAO: "DATA EMISSÃO", VENCIMENTO: "VENCIMENTO", PAGAMENTO: "PAGAMENTO", AMBAS: "EMISSÃO + VENCIMENTO" };
 const CAMPOS_RELATORIO_MENSAL: Array<{ chave: CampoRelatorioMensal; rotulo: string }> = [
   { chave: "data", rotulo: "Data" }, { chave: "descricao", rotulo: "Descrição" },
   { chave: "tipoCaixa", rotulo: "Tipo de caixa" }, { chave: "entrada", rotulo: "Entrada" },
@@ -228,10 +228,18 @@ function lerTexto(raw: Record<string, unknown>, ...chaves: string[]) {
   const valor = chaves.map((chave) => raw[chave]).find((item) => item !== undefined && item !== null && item !== "");
   return typeof valor === "string" || typeof valor === "number" ? String(valor).trim() || null : null;
 }
+function dataBaixaLinha(linha: LinhaConta) {
+  const raw = linha.raw as unknown as Record<string, unknown>;
+  const pagamento = lerTexto(raw, "dataPagamento", "data_pagamento");
+  const recebimento = lerTexto(raw, "dataRecebimento", "data_recebimento");
+  return (fluxoRelatorio(linha) === "ENTRADA" ? recebimento || pagamento : pagamento || recebimento) ?? "";
+}
 function urlSegura(valor: string) {
   try {
     const valorLimpo = valor.trim();
-    const resolvido = valorLimpo.startsWith("/") ? `${API_BASE}${valorLimpo}` : valorLimpo;
+    const chaveConhecida = Boolean(rotaProxyDocumentoPublico(valorLimpo));
+    const resolvido = valorLimpo.startsWith("/") ? `${API_BASE}${valorLimpo}`
+      : chaveConhecida && !/^https?:\/\//i.test(valorLimpo) ? `${API_BASE}/${valorLimpo.replace(/^\/+/, "")}` : valorLimpo;
     const url = new URL(resolvido, window.location.href);
     return url.protocol === "https:" || url.protocol === "http:" ? url.href : undefined;
   } catch {
@@ -357,6 +365,7 @@ function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamen
       <dl className="erp-detalhes-campos">
         <div><dt>Categoria</dt><dd>{linha.categoria || "—"}</dd></div>
         <div><dt>Vencimento</dt><dd>{dataOuTraco(linha.dataVencimento)}</dd></div>
+        <div><dt>{fluxoRelatorio(linha) === "ENTRADA" ? "Data de recebimento" : "Data de pagamento"}</dt><dd>{dataOuTraco(dataBaixaLinha(linha))}</dd></div>
         <div><dt>Favorecido</dt><dd>{linha.favorecidoPessoa || linha.favorecido || "—"}</dd></div>
         <div><dt>Nº do documento</dt><dd>{numeroDocumento || "—"}</dd></div>
         <div><dt>Nº do recibo</dt><dd>{numeroRecibo || "—"}</dd></div>
@@ -512,7 +521,7 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
   const [colunaFiltroAberta, setColunaFiltroAberta] = useState<ChaveColuna | null>(null);
   const [contaFiltro, setContaFiltro] = useState<string | null>(null);
   const [docFiltro, setDocFiltro] = useState<TipoDocumento | null>(null);
-  const [modoData, setModoData] = useState<ModoData>("EMISSAO");
+  const [modoData, setModoData] = useState<ModoData>(() => filtroInicial?.inicio || filtroInicial?.fim ? "VENCIMENTO" : "EMISSAO");
   const [novo, setNovo] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaCaixaShare[]>([]);
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
@@ -573,7 +582,7 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
   useEffect(() => { setSituacaoFiltro(situacaoFiltroInicial(filtroInicial?.situacao)); }, [filtroInicial?.situacao]);
   useEffect(() => {
     setPagina(1);
-  }, [busca, situacaoFiltro, caixaFiltro, fluxoFiltro, mesesSelecionados,
+  }, [busca, situacaoFiltro, caixaFiltro, fluxoFiltro, mesesSelecionados, modoData,
     porPagina, fluxo, filtroInicial?.inicio, filtroInicial?.fim]);
   useEffect(() => () => { pararResizeRef.current?.(); stopDragRef.current?.(); }, []);
 
@@ -734,14 +743,20 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
   const filtrados = useMemo(() => {
     const textoBusca = busca.trim().toLocaleLowerCase("pt-BR");
     return lancamentos.filter((linha) => {
-      const vencimento = (linha.dataVencimento || "").slice(0, 10);
-      if (filtroInicial?.inicio && vencimento < filtroInicial.inicio.slice(0, 10)) return false;
-      if (filtroInicial?.fim && (!vencimento || vencimento > filtroInicial.fim.slice(0, 10))) return false;
-      if (!temPeriodoInicial) {
-        const noPeriodo = (data: string | null) => mesesSelecionados.includes((data || "").slice(0, 7));
-        const dentro = modoData === "EMISSAO" ? noPeriodo(linha.dataLancamento)
-          : modoData === "VENCIMENTO" ? noPeriodo(linha.dataVencimento)
-            : noPeriodo(linha.dataLancamento) || noPeriodo(linha.dataVencimento);
+      const datasDoModo = modoData === "EMISSAO" ? [linha.dataLancamento]
+        : modoData === "VENCIMENTO" ? [linha.dataVencimento]
+          : modoData === "PAGAMENTO" ? [dataBaixaLinha(linha)]
+            : [linha.dataLancamento, linha.dataVencimento];
+      if (temPeriodoInicial) {
+        const inicio = filtroInicial?.inicio?.slice(0, 10);
+        const fim = filtroInicial?.fim?.slice(0, 10);
+        const dentro = datasDoModo.some((data) => {
+          const valor = (data || "").slice(0, 10);
+          return Boolean(valor) && (!inicio || valor >= inicio) && (!fim || valor <= fim);
+        });
+        if (!dentro) return false;
+      } else {
+        const dentro = datasDoModo.some((data) => mesesSelecionados.includes((data || "").slice(0, 7)));
         if (!dentro) return false;
       }
       if (situacaoFiltro !== "TODAS" && statusParaFiltro(linha) !== situacaoFiltro) return false;

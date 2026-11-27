@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { anexosFinanceiros, tipificarBlobDocumento } from '../src/lib/documentos-financeiros.ts';
+import { anexosFinanceiros, rotaProxyDocumentoPublico, tipificarBlobDocumento } from '../src/lib/documentos-financeiros.ts';
 
 test('reúne relatório, boleto, comprovante e anexos JSON, eliminando duplicatas', () => {
   const anexos = anexosFinanceiros({
@@ -16,6 +16,16 @@ test('reúne relatório, boleto, comprovante e anexos JSON, eliminando duplicata
 
 test('JSON inválido e protocolos impróprios não impedem a expansão', () => {
   assert.deepEqual(anexosFinanceiros({ anexos_json: '{', url_doc: 'javascript:alert(1)' }), []);
+});
+
+test('aceita chaves R2 conhecidas e restringe comprovantes a rotas financeiras suportadas', () => {
+  const chaveDespesa = 'financeiro/reembolsos/conta-1/comprovante/550e8400-e29b-41d4-a716-446655440000.pdf';
+  const chaveRecebimento = 'financeiro/contas-areceber/conta-2/comprovante/550e8400-e29b-41d4-a716-446655440001.png';
+  assert.deepEqual(rotaProxyDocumentoPublico(chaveDespesa), { key: chaveDespesa });
+  assert.deepEqual(rotaProxyDocumentoPublico(`https://arquivos.test/${chaveRecebimento}`), { key: chaveRecebimento });
+  assert.equal(rotaProxyDocumentoPublico('financeiro/contas-apagar/conta-1/comprovante/documento.pdf'), null);
+  assert.equal(rotaProxyDocumentoPublico('/api/financeiro/contas-apagar/conta-1/comprovante/arquivo'), null);
+  assert.equal(anexosFinanceiros({ anexos_json: JSON.stringify([{ nome: 'Comprovante', url: chaveDespesa }]) }).length, 1);
 });
 
 test('identifica PDF servido como binário e rejeita HTML mesmo com extensão ou tipo PDF', async () => {

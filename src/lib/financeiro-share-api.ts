@@ -1,4 +1,4 @@
-import { tipificarBlobDocumento } from "./documentos-financeiros";
+import { rotaProxyDocumentoPublico, tipificarBlobDocumento } from "./documentos-financeiros";
 export { tipificarBlobDocumento } from "./documentos-financeiros";
 import type {
   ParticipanteBalanco,
@@ -203,6 +203,7 @@ export async function carregarDocumentoFinanceiro(valor: string, signal?: AbortS
   if (!["https:", "http:"].includes(url.protocol)) throw new Error("url_documento_invalida");
 
   const privado = url.origin === base.origin && url.pathname.startsWith("/api/");
+  const chavePublica = rotaProxyDocumentoPublico(resolvida)?.key;
   const buscarComAutenticacao = async (destino: URL) => {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error || !session?.access_token) throw new Error("sessao_expirada");
@@ -213,23 +214,23 @@ export async function carregarDocumentoFinanceiro(valor: string, signal?: AbortS
   };
 
   let response: Response;
-  try {
+  if (chavePublica) {
+    let caminho: string | null = null;
+    if (/^share\//i.test(chavePublica)) caminho = "/api/financeiro/notas-saida/anexos/legacy/arquivo";
+    else {
+      const comprovante = /^financeiro\/(reembolsos|contas-areceber)\/([^/]+)\/comprovante\//i.exec(chavePublica);
+      if (comprovante) caminho = `/api/financeiro/${comprovante[1].toLowerCase() === "reembolsos" ? "contas-apagar" : "contas-areceber"}/${encodeURIComponent(comprovante[2])}/comprovante/arquivo`;
+    }
+    if (!caminho) throw new Error("url_documento_invalida");
+    const proxyUrl = new URL(caminho, base.origin);
+    proxyUrl.searchParams.set("key", chavePublica);
+    response = await buscarComAutenticacao(proxyUrl);
+  } else {
     response = privado
       ? await buscarComAutenticacao(url)
       : await fetch(url.href, { signal, credentials: "omit", redirect: "follow" });
-    if (!response.ok) throw new Error(`Não foi possível abrir o documento (${response.status}).`);
-  } catch (erroOriginal) {
-    const inicioChave = url.pathname.indexOf("/share/");
-    if (url.origin === base.origin || inicioChave < 0) throw erroOriginal;
-    let chave: string;
-    try { chave = decodeURIComponent(url.pathname.slice(inicioChave + 1)); }
-    catch { throw erroOriginal; }
-    if (!/^share\/(?:lancamento|recibo_saida|nota_fiscal_saida)\//.test(chave)) throw erroOriginal;
-    const proxyUrl = new URL("/api/financeiro/notas-saida/anexos/legacy/arquivo", base.origin);
-    proxyUrl.searchParams.set("key", chave);
-    response = await buscarComAutenticacao(proxyUrl);
-    if (!response.ok) throw new Error(`Não foi possível abrir o documento (${response.status}).`);
   }
+  if (!response.ok) throw new Error(`Não foi possível abrir o documento (${response.status}).`);
 
   const blob = await response.blob();
 
@@ -411,6 +412,8 @@ function normalizarLancamentoCaixa(row: any): Lancamento {
     cotista: row.cotista ?? row.cotista_nome ?? null,
 
     data: String(dataBruta).slice(0, 10),
+    dataPagamento: row.dataPagamento ?? row.data_pagamento ?? null,
+    dataRecebimento: row.dataRecebimento ?? row.data_recebimento ?? null,
     descricao: String(row.descricao ?? ""),
     documento:
       row.documento ??

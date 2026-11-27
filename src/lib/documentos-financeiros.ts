@@ -1,5 +1,22 @@
 export type AnexoFinanceiro = { nome: string; url: string; numero?: string | null };
 
+export function rotaProxyDocumentoPublico(valor: string): { key: string } | null {
+  try {
+    const url = new URL(valor, 'https://documentos.share-brasil.invalid');
+    if (url.pathname.startsWith('/api/')) return null;
+    const pathname = decodeURIComponent(url.pathname);
+    const marcadores = ['/share/', '/financeiro/'];
+    const inicio = marcadores.map((marcador) => pathname.indexOf(marcador)).filter((indice) => indice >= 0).sort((a, b) => a - b)[0];
+    if (inicio === undefined) return null;
+    const key = pathname.slice(inicio + 1);
+    const chaveShare = /^share\/(?:lancamento|recibo_saida|nota_fiscal_saida)\/[^/]+\/[^/]+$/i.test(key);
+    const chaveComprovante = /^financeiro\/(?:reembolsos|contas-areceber)\/[^/]+\/comprovante\/[a-f0-9-]+\.(?:pdf|jpg|png|webp)$/i.test(key);
+    return chaveShare || chaveComprovante ? { key } : null;
+  } catch {
+    return null;
+  }
+}
+
 export const TIPOS_IMAGEM_ANEXO_VISUALIZAVEIS = [
   'image/jpeg', 'image/png', 'image/apng', 'image/gif', 'image/webp',
   'image/avif', 'image/bmp', 'image/svg+xml', 'image/x-icon',
@@ -31,7 +48,7 @@ export function anexosFinanceiros(campos: object): AnexoFinanceiro[] {
   return candidatos.flatMap(anexo => {
     if (!anexo || typeof anexo.url !== 'string' || !anexo.url.trim()) return [];
     const url = anexo.url.trim();
-    if (vistas.has(url) || !/^(https?:\/\/|\/api\/)/i.test(url)) return [];
+    if (vistas.has(url) || (!/^(https?:\/\/|\/api\/)/i.test(url) && !rotaProxyDocumentoPublico(url))) return [];
     vistas.add(url);
     return [{ nome: String(anexo.nome || 'Anexo'), url, numero: anexo.numero == null ? null : String(anexo.numero) }];
   });

@@ -86,6 +86,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   criarLancamentoEconomico,
+  criarMovimentoHolding,
   parseValorReais,
   buscarOpcoesLancamento,
   buscarDashboardCotista,
@@ -113,6 +114,8 @@ import {
 } from "@/lib/financeiro-cotista-lancamentos";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
 import { allocateCentavos } from "@/lib/money";
+import { opcoesPeriodicidade } from "@/data/opcoes";
+import type { Periodicidade } from "@/types/financeiro";
 import {
   buscarAeronavesShare,
   buscarCotistasAeronave,
@@ -122,6 +125,7 @@ import {
 } from "@/lib/colaborador-api";
 import { PortalClienteTab } from "./PortalClienteTab";
 import { FechamentoBalancoReferencia } from "./FechamentoBalancoReferencia";
+import { AbaMovimentosHolding } from "@/components/financeiro-share/AbaMovimentosHolding";
 import {
   mesAtualLocal,
   periodoDoMes,
@@ -453,6 +457,8 @@ export function NovoLancamentoCotistaDialog({
   aberto,
   aoFechar,
   opcoes,
+  categoriasHolding,
+  fornecedoresHolding,
   cotistasAeronave,
   aeronaveId,
   aoCriar,
@@ -460,10 +466,13 @@ export function NovoLancamentoCotistaDialog({
   aberto: boolean;
   aoFechar: () => void;
   opcoes: OpcoesLancamento | null;
+  categoriasHolding: OpcaoEdicao[];
+  fornecedoresHolding: OpcaoEdicao[];
   cotistasAeronave: CotistaAeronave[];
   aeronaveId: string;
   aoCriar: () => Promise<void>;
 }) {
+  const [holdingId, setHoldingId] = useState("");
   const cotistasCliente = useMemo(
     () => cotistasAeronave.filter((c) => !c.eh_holding),
     [cotistasAeronave],
@@ -471,6 +480,14 @@ export function NovoLancamentoCotistaDialog({
   const cotistasHolding = useMemo(
     () => cotistasAeronave.filter((c) => Boolean(c.eh_holding)),
     [cotistasAeronave],
+  );
+  const holdingsAeronave = useMemo(
+    () => (opcoes?.holdings ?? []).filter((holding) => cotistasHolding.some((cotista) => cotista.holding_id === holding.id)),
+    [opcoes, cotistasHolding],
+  );
+  const sociosDaHolding = useMemo(
+    () => cotistasHolding.filter((cotista) => cotista.holding_id === holdingId),
+    [cotistasHolding, holdingId],
   );
   const possuiCliente = cotistasCliente.length > 0;
   const possuiHolding = cotistasHolding.length > 0;
@@ -482,8 +499,10 @@ export function NovoLancamentoCotistaDialog({
   const [valor, setValor] = useState("");
   const [data, setData] = useState(hoje);
   const [categoriaId, setCategoriaId] = useState("");
+  const [fornecedorId, setFornecedorId] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [rateios, setRateios] = useState<RateioDraft[]>([]);
+  const [periodicidade, setPeriodicidade] = useState<Periodicidade>("ÚNICO");
 
   const [fluxoCliente, setFluxoCliente] = useState<"SAIDA" | "ENTRADA">(
     "SAIDA",
@@ -494,11 +513,16 @@ export function NovoLancamentoCotistaDialog({
   const [tipoMovimentoHold, setTipoMovimentoHold] = useState<
     "APORTE" | "DESPESA"
   >("DESPESA");
-  const [holdingId, setHoldingId] = useState("");
   const [pagoDiretamenteHold, setPagoDiretamenteHold] = useState(false);
 
   const inicializado = useRef<string | null>(null);
   const salvandoRef = useRef(false);
+
+  useEffect(() => {
+    if (aberto && modo === "HOLDING" && categoriasHolding.length && !categoriasHolding.some((categoria) => categoria.id === categoriaId)) {
+      setCategoriaId(categoriasHolding[0].id);
+    }
+  }, [aberto, modo, categoriasHolding, categoriaId]);
 
   useEffect(() => {
     if (!aberto) {
@@ -519,16 +543,18 @@ export function NovoLancamentoCotistaDialog({
     setDescricao("");
     setValor("");
     setObservacoes("");
+    setPeriodicidade("ÚNICO");
+    setFornecedorId("");
     setFluxoCliente("SAIDA");
     setTipoMovimentoHold("DESPESA");
     setPagoDiretamenteCliente(false);
     setPagoDiretamenteHold(false);
-    setCategoriaId(opcoes.categorias[0]?.id || "");
+    setCategoriaId(modoInicial === "HOLDING" ? (categoriasHolding[0]?.id || "") : (opcoes.categorias[0]?.id || ""));
     setPagoPorCotista(cotistasCliente[0]?.id || "");
-    setHoldingId(opcoes.holdings?.[0]?.id || "");
+    setHoldingId(holdingsAeronave[0]?.id || "");
     setRateios(
       dividirPorSociedade(
-        (modoInicial === "CLIENTE" ? cotistasCliente : cotistasHolding).map(
+        (modoInicial === "CLIENTE" ? cotistasCliente : cotistasHolding.filter((cotista) => cotista.holding_id === holdingsAeronave[0]?.id)).map(
           (c) => c.id,
         ),
         cotistasAeronave,
@@ -541,13 +567,16 @@ export function NovoLancamentoCotistaDialog({
     cotistasAeronave,
     cotistasCliente,
     cotistasHolding,
+    holdingsAeronave,
     possuiCliente,
   ]);
 
   const alterarModo = (proximo: "CLIENTE" | "HOLDING") => {
     if (proximo === modo) return;
-    setModo(proximo);
-    setErroLocal(null);
+      setModo(proximo);
+      setErroLocal(null);
+      if (proximo === "HOLDING") setCategoriaId(categoriasHolding[0]?.id || "");
+      setFornecedorId("");
     setRateios(
       dividirPorSociedade(
         (proximo === "CLIENTE" ? cotistasCliente : cotistasHolding).map(
@@ -575,6 +604,7 @@ export function NovoLancamentoCotistaDialog({
   const salvar = async () => {
     if (salvandoRef.current) return;
     const categoria = opcoes?.categorias?.find((c) => c.id === categoriaId);
+    const categoriaHolding = categoriasHolding.find((c) => c.id === categoriaId);
     const valorCentavos = parseValorReais(valor);
 
     setErroLocal(null);
@@ -582,7 +612,8 @@ export function NovoLancamentoCotistaDialog({
     if (!descricao.trim()) return setErroLocal("Informe a descrição.");
     if (!Number.isInteger(valorCentavos) || valorCentavos <= 0)
       return setErroLocal("Valor inválido.");
-    if (!categoria) return setErroLocal("Selecione uma categoria.");
+    if (modo === "CLIENTE" && !categoria) return setErroLocal("Selecione uma categoria.");
+    if (modo === "HOLDING" && !categoriaHolding) return setErroLocal("Selecione uma categoria da Holding.");
     if (modo === "CLIENTE" && !pagoPorCotista)
       return setErroLocal("Informe o pagador.");
     if (modo === "HOLDING" && !holdingId)
@@ -616,15 +647,15 @@ export function NovoLancamentoCotistaDialog({
     salvandoRef.current = true;
     setSalvando(true);
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         modo_lancamento: modo,
         data,
         descricao: descricao.trim(),
-        categoria_id: categoria.id,
-        categoria_nome: categoria.nome,
-        grupo_categoria: categoria.grupo || undefined,
+        categoria_id: modo === "HOLDING" ? categoriaHolding?.id : categoria?.id,
+        categoria_nome: modo === "HOLDING" ? categoriaHolding?.label : categoria?.nome,
+        grupo_categoria: modo === "HOLDING" ? undefined : categoria?.grupo || undefined,
         tipo_rateio: "EXTRA",
-        periodicidade: "ÚNICO",
+        periodicidade,
         valor_centavos: valorCentavos,
         observacoes: observacoes.trim() || undefined,
         aeronave_id: aeronaveId || undefined,
@@ -642,9 +673,14 @@ export function NovoLancamentoCotistaDialog({
 
         ...(modo === "HOLDING" && {
           holding_id: holdingId,
-          tipo_movimento_hold: tipoMovimentoHold,
+          fluxo: tipoMovimentoHold === "APORTE" ? "APORTE" : "SAIDA",
+          tipo_caixa: "HOLD",
+          fornecedor_id: fornecedorId || undefined,
+          fornecedor_nome: fornecedoresHolding.find((f) => f.id === fornecedorId)?.label || undefined,
+          data_emissao: data,
+          idempotency_key: crypto.randomUUID(),
           pago_diretamente: pagoDiretamenteHold,
-          cotista_aeronave_id: rateios[0]?.cotista || undefined,
+          socio_id: cotistasAeronave.find((item) => item.id === rateios[0]?.cotista)?.socio_id || undefined,
           rateios:
             tipoMovimentoHold === "DESPESA"
               ? rateios.map((r, i) => {
@@ -662,7 +698,8 @@ export function NovoLancamentoCotistaDialog({
         }),
       };
 
-      await criarLancamentoEconomico(payload);
+      if (modo === "HOLDING") await criarMovimentoHolding(payload);
+      else await criarLancamentoEconomico(payload);
       toast.success("Lançamento registrado com sucesso.");
       aoFechar();
       await aoCriar();
@@ -690,16 +727,16 @@ export function NovoLancamentoCotistaDialog({
         if (!estado) fechar();
       }}
     >
-      <DialogContent className="despesas-theme despesa-dialog flex max-h-[94dvh] w-[calc(100%-1rem)] max-w-4xl sm:max-w-4xl flex-col gap-0 overflow-hidden rounded-2xl border-border bg-background p-0 sm:w-[calc(100%-2rem)]">
+      <DialogContent className="despesas-theme despesa-dialog flex max-h-[94dvh] w-[calc(100%-1rem)] max-w-6xl sm:max-w-6xl flex-col gap-0 overflow-hidden rounded-2xl border-border bg-background p-0 sm:w-[calc(100%-2rem)]">
         <style>{DESPESAS_ESTILOS}</style>
-        <DialogHeader className="shrink-0 border-b border-border px-5 py-5 pr-12 sm:px-7">
-          <DialogTitle className="flex items-center gap-3 text-xl font-semibold tracking-tight">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <ReceiptText size={20} />
+        <DialogHeader className="shrink-0 border-b border-border px-5 py-3 pr-12 sm:px-7">
+          <DialogTitle className="flex items-center gap-2.5 text-lg font-semibold tracking-tight">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <ReceiptText size={16} />
             </span>
             Novo lançamento
           </DialogTitle>
-          <DialogDescription className="text-sm leading-relaxed">
+          <DialogDescription className="text-xs leading-relaxed">
             Registre a despesa e defina os responsáveis pelo pagamento e pelo
             rateio.
           </DialogDescription>
@@ -788,7 +825,7 @@ export function NovoLancamentoCotistaDialog({
                     O texto será exibido por completo na lista de lançamentos.
                   </p>
                 </div>
-                <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+                <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   <div className="min-w-0 space-y-2">
                     <Label htmlFor="lancamento-valor">
                       Valor (R$) <span className="text-primary">*</span>
@@ -817,6 +854,19 @@ export function NovoLancamentoCotistaDialog({
                     />
                   </div>
                   <div className="min-w-0 space-y-2">
+                    <Label htmlFor="lancamento-periodicidade">Periodicidade</Label>
+                    <Select value={periodicidade} onValueChange={(value) => setPeriodicidade(value as Periodicidade)}>
+                      <SelectTrigger id="lancamento-periodicidade" className="h-12 min-w-0 rounded-xl">
+                        <SelectValue placeholder="Selecione a periodicidade" />
+                      </SelectTrigger>
+                      <SelectContent className="despesas-theme despesa-dialog max-h-72">
+                        {opcoesPeriodicidade.map((opcao) => (
+                          <SelectItem key={opcao.id} value={opcao.id}>{opcao.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="min-w-0 space-y-2">
                     <Label htmlFor="lancamento-categoria">
                       Categoria <span className="text-primary">*</span>
                     </Label>
@@ -828,14 +878,24 @@ export function NovoLancamentoCotistaDialog({
                         <SelectValue placeholder="Selecione a categoria" />
                       </SelectTrigger>
                       <SelectContent className="despesas-theme despesa-dialog max-h-72">
-                        {opcoes?.categorias?.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.nome}
-                          </SelectItem>
-                        ))}
+                        {modo === "HOLDING"
+                          ? categoriasHolding.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)
+                          : opcoes?.categorias?.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
+                  {modo === "HOLDING" && (
+                    <div className="min-w-0 space-y-2">
+                      <Label htmlFor="lancamento-fornecedor">Fornecedor</Label>
+                      <Select value={fornecedorId || "nenhum"} onValueChange={(value) => setFornecedorId(value === "nenhum" ? "" : value)}>
+                        <SelectTrigger id="lancamento-fornecedor" className="h-12 min-w-0 rounded-xl"><SelectValue placeholder="Selecione um fornecedor (opcional)" /></SelectTrigger>
+                        <SelectContent className="despesas-theme despesa-dialog max-h-72">
+                          <SelectItem value="nenhum">Sem fornecedor</SelectItem>
+                          {fornecedoresHolding.map((fornecedor) => <SelectItem key={fornecedor.id} value={fornecedor.id}>{fornecedor.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="min-w-0 space-y-2">
                     <Label htmlFor="lancamento-fluxo">
                       Tipo de movimentação
@@ -918,7 +978,7 @@ export function NovoLancamentoCotistaDialog({
                 ) : (
                   <div className="space-y-2">
                     <Label htmlFor="lancamento-holding">Holding</Label>
-                    <Select value={holdingId} onValueChange={setHoldingId}>
+                    <Select value={holdingId} onValueChange={(value) => { setHoldingId(value); setRateios(dividirPorSociedade(cotistasHolding.filter((cotista) => cotista.holding_id === value).map((cotista) => cotista.id), cotistasAeronave)); }}>
                       <SelectTrigger
                         id="lancamento-holding"
                         className="h-12 rounded-xl"
@@ -926,7 +986,7 @@ export function NovoLancamentoCotistaDialog({
                         <SelectValue placeholder="Selecione a Holding" />
                       </SelectTrigger>
                       <SelectContent className="despesas-theme despesa-dialog">
-                        {opcoes?.holdings?.map((h) => (
+                        {holdingsAeronave.map((h) => (
                           <SelectItem key={h.id} value={h.id}>
                             {h.nome}
                           </SelectItem>
@@ -935,7 +995,7 @@ export function NovoLancamentoCotistaDialog({
                     </Select>
                   </div>
                 )}
-                {(modo === "CLIENTE" || tipoMovimentoHold === "DESPESA") && (
+                {modo === "CLIENTE" && (
                   <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-muted/20 p-4">
                     <div className="min-w-0">
                       <Label
@@ -1026,7 +1086,7 @@ export function NovoLancamentoCotistaDialog({
                             <SelectContent className="despesas-theme despesa-dialog">
                               {(modo === "CLIENTE"
                                 ? cotistasCliente
-                                : cotistasHolding
+                                : sociosDaHolding
                               ).map((c) => (
                                 <SelectItem
                                   key={c.id}
@@ -1250,6 +1310,10 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
   const { data: fontesFornecedores = [], refetch: recarregarFornecedores } = useFornecedores({ includeFavorites: true, includeHotels: true });
   const fornecedoresEdicao = useMemo(
     () => fontesFornecedores.map((fornecedor) => ({ id: fornecedor.id, label: fornecedor.nome })),
+    [fontesFornecedores],
+  );
+  const fornecedoresHolding = useMemo(
+    () => fontesFornecedores.filter((fornecedor) => fornecedor.origem === "favorito").map((fornecedor) => ({ id: fornecedor.id.replace(/^favorito:/, ""), label: fornecedor.nome })),
     [fontesFornecedores],
   );
   const [aberto, setAberto] = useState(false);
@@ -1904,7 +1968,9 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
                 />
               )}
               {abaAtiva === "extrato" && possuiHolding && (
-                <div className="financeiro-panel overflow-hidden">
+                <div className="space-y-4">
+                  <AbaMovimentosHolding />
+                  <div className="financeiro-panel overflow-hidden">
                   <div className="financeiro-panel-header">
                     <div>
                       <p className="text-sm font-bold">
@@ -1937,8 +2003,7 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
                                 {movimento.descricao}
                               </p>
                               <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                {movimento.categoria || "Sem categoria"} ·{" "}
-                                {movimento.holdingNome || "Holding"}
+                                {movimento.fornecedor || "Sem fornecedor"} · {movimento.categoria || "Sem categoria"} · {movimento.holdingNome || "Holding"}
                               </p>
                             </div>
                             <div className="text-muted-foreground">
@@ -1965,6 +2030,7 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
                       Nenhum movimento bancário encontrado para esta aeronave.
                     </div>
                   )}
+                  </div>
                 </div>
               )}
 
@@ -2078,6 +2144,8 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
           aberto={aberto}
           aoFechar={() => setAberto(false)}
           opcoes={opcoes}
+          categoriasHolding={categoriasClienteEdicao}
+          fornecedoresHolding={fornecedoresHolding}
           cotistasAeronave={cotistasParaDialog}
           aeronaveId={aeronaveSelecionada}
           aoCriar={carregar}

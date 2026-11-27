@@ -19,7 +19,25 @@ import {
   numeroPaginasPdf,
 } from "@/lib/reciboPdf";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useFornecedores } from "@/hooks/useFornecedores";
 import HistoricoRecibos, {
   type FiltrosHistoricoRecibos,
@@ -1236,7 +1254,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                     <span className="block text-[12px] font-bold">
                       {opcao.titulo}
                     </span>
-                    <span className="mt-1 block text-[10px] leading-5 text-muted-foreground">
+                    <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">
                       {opcao.detalhe}
                     </span>
                   </span>
@@ -1261,7 +1279,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[12px] font-bold">Ler Demonstrativo</span>
-                <span className="mt-1 block text-[10px] leading-5 text-muted-foreground">Importe INFRAERO ou DECEA, confira os voos e gere os recibos por cotista.</span>
+                <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">Importe INFRAERO ou DECEA, confira os voos e gere os recibos por cotista.</span>
               </span>
               <FileText className="text-primary" size={18} />
             </button>
@@ -1345,14 +1363,14 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                     </Campo>
                     {/* Documento usado no PDF e persistido para regeneração. */}
                     <Campo label="CPF do recebedor (só para o PDF)">
-                      <input
+                      <Input
                         value={form.recebedor_cpf_ui}
                         onChange={(e) =>
                           alterar("recebedor_cpf_ui", e.target.value)
                         }
                         placeholder="000.000.000-00"
                         inputMode="numeric"
-                        className="campo"
+                        className="h-10"
                       />
                     </Campo>
                   </>
@@ -1361,13 +1379,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 {form.tipo === "recibo_reembolso" && (
                   <>
                     <div className="rounded-sm border border-sky-400/30 bg-sky-400/[.06] p-3 md:col-span-2">
-                      <p className="text-[10px] font-bold uppercase tracking-[.14em] text-sky-600">
+                      <p className="text-[11px] font-bold uppercase tracking-[.12em] text-sky-600 dark:text-sky-400">
                         Recebedor (fixo)
                       </p>
-                      <p className="mt-1 text-[11px] font-semibold">
+                      <p className="mt-1 text-xs font-semibold">
                         {SHARE_NOME} · CNPJ: {SHARE_DOCUMENTO}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-[11px] text-muted-foreground">
                         No reembolso, quem recebe é sempre a Share — a
                         despesa foi antecipada por ela.
                       </p>
@@ -1488,10 +1506,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                     </Campo>
                     {form.pagador_id && (
                       <div className="rounded-sm border border-primary/30 bg-primary/[.06] p-3 md:col-span-2">
-                        <p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">
+                        <p className="text-[11px] font-bold uppercase tracking-[.12em] text-primary">
                           DADOS DO PAGADOR
                         </p>
-                        <p className="mt-1 text-[11px] font-semibold">
+                        <p className="mt-1 text-xs font-semibold">
                           {form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.razao_social : pagadorSelecionado?.nome || "Pagador"} ·{" "}
                           {form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.cnpj : pagadorSelecionado?.cnpj ||
                             pagadorSelecionado?.cpf ||
@@ -1504,38 +1522,49 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
 
                 {form.tipo === "recibo_colaborador" && (
                   <Campo label="RECEBEDOR (colaborador)" obrigatorio>
-                    <select
-                      value={form.colaborador_id}
-                      onChange={(e) =>
-                        alterar("colaborador_id", e.target.value)
+                    <Select
+                      value={form.colaborador_id || "__NONE__"}
+                      onValueChange={(v) =>
+                        alterar("colaborador_id", v === "__NONE__" ? "" : v)
                       }
-                      className="campo"
                     >
-                      <option value="">Selecione o colaborador</option>
-                      {opcoes.colaboradores.map((colaborador) => (
-                        <option key={colaborador.id} value={colaborador.id}>
-                          {colaborador.nome_exibicao ||
-                            colaborador.nome_completo}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Selecione o colaborador" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__NONE__">
+                          Selecione o colaborador
+                        </SelectItem>
+                        {opcoes.colaboradores
+                          .filter((colaborador) => Boolean(colaborador.id))
+                          .map((colaborador) => (
+                            <SelectItem
+                              key={colaborador.id}
+                              value={colaborador.id}
+                            >
+                              {colaborador.nome_exibicao ||
+                                colaborador.nome_completo}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
                   </Campo>
                 )}
 
                 <Campo label="Data" obrigatorio>
-                  <input
+                  <Input
                     type="date"
                     value={form.data_emissao}
                     onChange={(e) => alterar("data_emissao", e.target.value)}
-                    className="campo"
+                    className="h-10"
                   />
                 </Campo>
                 <Campo label="Número do recibo">
-                  <input
+                  <Input
                     value="Gerado automaticamente"
                     readOnly
                     aria-readonly="true"
-                    className="campo font-mono text-muted-foreground"
+                    className="h-10 font-mono text-muted-foreground"
                   />
                 </Campo>
 
@@ -1574,10 +1603,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                       />
                     </Campo>
                     <div className="rounded-sm border border-primary/30 bg-primary/[.06] p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">
+                      <p className="text-[11px] font-bold uppercase tracking-[.12em] text-primary">
                         DADOS DO PAGADOR
                       </p>
-                      <p className="mt-1 text-[11px] font-semibold">
+                      <p className="mt-1 text-xs font-semibold">
                         {form.pagador_tipo === "cotista_aeronave"
                           ? `${pagadorSelecionado?.nome || "Cotista"} · ${pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || "Documento não informado"}`
                           : form.pagador_tipo === "cliente"
@@ -1597,7 +1626,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                   obrigatorio
                   className="md:col-span-2"
                 >
-                  <input
+                  <Input
                     value={form.descricao_servico}
                     onChange={(e) =>
                       alterar("descricao_servico", e.target.value)
@@ -1607,29 +1636,29 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                         ? "Descrição do pagamento"
                         : "Ex.: Reembolso de despesas operacionais"
                     }
-                    className="campo"
+                    className="h-10"
                   />
                 </Campo>
                 <Campo label="Valor" obrigatorio>
-                  <input
+                  <Input
                     inputMode="decimal"
                     value={form.valor}
                     onChange={(e) => alterar("valor", e.target.value)}
                     placeholder="0,00"
-                    className="campo font-mono"
+                    className="h-10 font-mono tabular-nums"
                   />
                 </Campo>
                 <Campo
                   label="Vencimento"
                   obrigatorio={form.tipo === "recibo_pagamento"}
                 >
-                  <input
+                  <Input
                     type="date"
                     value={form.data_vencimento}
                     onChange={(e) =>
                       alterar("data_vencimento", e.target.value)
                     }
-                    className="campo"
+                    className="h-10"
                   />
                 </Campo>
 
@@ -1658,36 +1687,58 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
 
                 {form.tipo === "recibo_reembolso" && subcategoriasCliente.length > 0 && (
                   <Campo label="Subcategoria cliente">
-                    <select
-                      value={form.categoria_despesa_subcategoria}
-                      onChange={(e) => alterar("categoria_despesa_subcategoria", e.target.value)}
-                      className="campo"
+                    <Select
+                      value={form.categoria_despesa_subcategoria || "__NONE__"}
+                      onValueChange={(v) =>
+                        alterar(
+                          "categoria_despesa_subcategoria",
+                          v === "__NONE__" ? "" : v,
+                        )
+                      }
                     >
-                      <option value="">Selecione a subcategoria</option>
-                      {subcategoriasCliente.map((subcategoria) => (
-                        <option key={subcategoria} value={subcategoria}>{subcategoria}</option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Selecione a subcategoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__NONE__">
+                          Selecione a subcategoria
+                        </SelectItem>
+                        {subcategoriasCliente.map((subcategoria) => (
+                          <SelectItem key={subcategoria} value={subcategoria}>
+                            {subcategoria}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </Campo>
                 )}
 
                 {form.tipo === "recibo_pagamento" && (
                   <>
                     <Campo label="Forma de pagamento" obrigatorio>
-                      <select
-                        value={form.forma_pagamento}
-                        onChange={(e) =>
-                          alterar("forma_pagamento", e.target.value)
+                      <Select
+                        value={form.forma_pagamento || "__NONE__"}
+                        onValueChange={(v) =>
+                          alterar(
+                            "forma_pagamento",
+                            v === "__NONE__" ? "" : v,
+                          )
                         }
-                        className="campo"
                       >
-                        <option value="">Selecione</option>
-                        <option>PIX</option>
-                        <option>Transferência bancária</option>
-                        <option>Boleto</option>
-                        <option>Cartão</option>
-                        <option>Dinheiro</option>
-                      </select>
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__NONE__">Selecione</SelectItem>
+                          <SelectItem value="PIX">PIX</SelectItem>
+                          <SelectItem value="Transferência bancária">
+                            Transferência bancária
+                          </SelectItem>
+                          <SelectItem value="Boleto">Boleto</SelectItem>
+                          <SelectItem value="Cartão">Cartão</SelectItem>
+                          <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </Campo>
                     <Campo label="Categoria movimentação cliente" obrigatorio>
                       <SearchableCombobox
@@ -1704,16 +1755,31 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                     </Campo>
                     {subcategoriasCliente.length > 0 && (
                       <Campo label="Subcategoria cliente" obrigatorio>
-                        <select
-                          value={form.categoria_despesa_subcategoria}
-                          onChange={(e) => alterar("categoria_despesa_subcategoria", e.target.value)}
-                          className="campo"
+                        <Select
+                          value={
+                            form.categoria_despesa_subcategoria || "__NONE__"
+                          }
+                          onValueChange={(v) =>
+                            alterar(
+                              "categoria_despesa_subcategoria",
+                              v === "__NONE__" ? "" : v,
+                            )
+                          }
                         >
-                          <option value="">Selecione a subcategoria</option>
-                          {subcategoriasCliente.map((subcategoria) => (
-                            <option key={subcategoria} value={subcategoria}>{subcategoria}</option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Selecione a subcategoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__NONE__">
+                              Selecione a subcategoria
+                            </SelectItem>
+                            {subcategoriasCliente.map((subcategoria) => (
+                              <SelectItem key={subcategoria} value={subcategoria}>
+                                {subcategoria}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </Campo>
                     )}
                   </>
@@ -1722,23 +1788,34 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 {form.tipo === "recibo_colaborador" && (
                   <>
                     <Campo label="Tipo de despesa" obrigatorio>
-                      <select
-                        value={form.natureza_despesa}
-                        onChange={(e) => {
-                          const natureza = e.target
-                            .value as Formulario["natureza_despesa"];
+                      <Select
+                        value={form.natureza_despesa || "__NONE__"}
+                        onValueChange={(v) => {
+                          const natureza = (
+                            v === "__NONE__" ? "" : v
+                          ) as Formulario["natureza_despesa"];
                           alterar("natureza_despesa", natureza);
                           alterar("categoria_id", "");
                           alterar("categoria_nome", "");
                           alterar("categoria_nome_manual", "");
                           alterar("aeronave_id", "");
                         }}
-                        className="campo"
                       >
-                        <option value="">Selecione o tipo</option>
-                        <option value="aeronave">Despesa aeronave</option>
-                        <option value="empresa">Despesa empresa</option>
-                      </select>
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__NONE__">
+                            Selecione o tipo
+                          </SelectItem>
+                          <SelectItem value="aeronave">
+                            Despesa aeronave
+                          </SelectItem>
+                          <SelectItem value="empresa">
+                            Despesa empresa
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </Campo>
                     {form.natureza_despesa === "aeronave" && (
                       <>
@@ -1797,13 +1874,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                           obrigatorio
                           className="md:col-span-2"
                         >
-                          <input
+                          <Input
                             value={form.categoria_nome_manual}
                             onChange={(e) =>
                               alterar("categoria_nome_manual", e.target.value)
                             }
                             placeholder="Informe a despesa"
-                            className="campo"
+                            className="h-10"
                           />
                         </Campo>
                       )}
@@ -1812,15 +1889,15 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
 
                 <div className="md:col-span-2">
                   <Campo label="Anexo (opcional)">
-                    <input
+                    <Input
                       type="file"
                       accept="image/*,.pdf"
                       onChange={(e) => setArquivo(e.target.files?.[0] || null)}
-                      className="campo file:mr-3 file:rounded-sm file:border-0 file:bg-primary/10 file:px-2 file:py-1 file:text-[10px] file:font-bold file:text-primary"
+                      className="h-auto py-2 file:mr-3 file:rounded-sm file:border-0 file:bg-primary/10 file:px-2.5 file:py-1 file:text-[11px] file:font-semibold file:text-primary"
                     />
                   </Campo>
                   {arquivo && (
-                    <div className="mt-2 flex flex-wrap items-center gap-3 rounded-sm border border-border bg-secondary/[.12] p-3 text-[11px]">
+                    <div className="mt-2 flex flex-wrap items-center gap-3 rounded-sm border border-border bg-secondary/[.12] p-3 text-xs">
                       <Paperclip size={14} className="text-primary" />
                       <span className="max-w-[260px] truncate font-medium">
                         {arquivo.name}
@@ -1832,7 +1909,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                           setArquivo(null);
                           alterar("numero_documento_anexo", "");
                         }}
-                        className="ml-auto h-7 px-2 text-[10px]"
+                        className="ml-auto h-7 px-2 text-[11px]"
                       >
                         Remover
                       </Button>
@@ -1841,23 +1918,23 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                   {arquivo && (
                     <div className="mt-3 max-w-sm">
                       <Campo label="Número do documento do anexo">
-                        <input
+                        <Input
                           value={form.numero_documento_anexo}
                           onChange={(e) =>
                             alterar("numero_documento_anexo", e.target.value)
                           }
                           placeholder="Ex.: NF 12345, boleto 987..."
-                          className="campo"
+                          className="h-10"
                         />
                       </Campo>
                     </div>
                   )}
                 </div>
                 <Campo label="Observações" className="md:col-span-2">
-                  <textarea
+                  <Textarea
                     value={form.observacoes}
                     onChange={(e) => alterar("observacoes", e.target.value)}
-                    className="campo min-h-20 resize-y"
+                    className="min-h-20 resize-y"
                     placeholder="Informações complementares do recibo"
                   />
                 </Campo>
@@ -1908,286 +1985,375 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         />
       )}
 
-      {cadastroFornecedorAberto && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-xl border border-border bg-background p-5 shadow-2xl">
-            <h2 className="text-base font-bold">Registrar fornecedor</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Escolha onde salvar ou use apenas neste recibo fechando esta janela.</p>
-            <div className="mt-4 space-y-3">
-              <label className="block text-xs font-semibold">Tipo de fornecedor
-                <select value={tipoNovoFornecedor} onChange={(event) => setTipoNovoFornecedor(event.target.value as "share" | "combustivel")} className="mt-1 h-10 w-full rounded-lg border border-border bg-card px-3 text-xs">
-                  <option value="share">Fornecedor Share (agenda_contatos_fornecedores)</option>
-                  <option value="combustivel">Fornecedor de combustível</option>
-                </select>
-              </label>
-              <label className="block text-xs font-semibold">Nome<input value={form.fornecedor_nome || form.recebedor_nome} onChange={(event) => { alterar("fornecedor_nome", event.target.value); alterar("recebedor_nome", event.target.value); }} className="campo mt-1" /></label>
-              <label className="block text-xs font-semibold">CNPJ ou documento (opcional)<input value={novoFornecedorDocumento} onChange={(event) => { setNovoFornecedorDocumento(event.target.value); alterar("recebedor_cpf_ui", event.target.value); }} className="campo mt-1" /></label>
-            </div>
-            <div className="mt-5 flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setCadastroFornecedorAberto(false)} disabled={salvandoFornecedor}>Somente neste recibo</Button><Button type="button" onClick={() => void cadastrarFornecedor()} disabled={salvandoFornecedor || !(form.fornecedor_nome || form.recebedor_nome).trim()}>{salvandoFornecedor ? "Salvando..." : "Salvar fornecedor"}</Button></div>
+      <Dialog
+        open={cadastroFornecedorAberto}
+        onOpenChange={(open) => {
+          if (!open && !salvandoFornecedor) setCadastroFornecedorAberto(false);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">
+              Registrar fornecedor
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Escolha onde salvar ou use apenas neste recibo fechando esta
+              janela.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Field className="gap-1.5">
+              <FieldLabel className="text-xs font-semibold">
+                Tipo de fornecedor
+              </FieldLabel>
+              <Select
+                value={tipoNovoFornecedor}
+                onValueChange={(v) =>
+                  setTipoNovoFornecedor(v as "share" | "combustivel")
+                }
+              >
+                <SelectTrigger className="h-10 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="share">
+                    Fornecedor Share (agenda_contatos_fornecedores)
+                  </SelectItem>
+                  <SelectItem value="combustivel">
+                    Fornecedor de combustível
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field className="gap-1.5">
+              <FieldLabel className="text-xs font-semibold">Nome</FieldLabel>
+              <Input
+                value={form.fornecedor_nome || form.recebedor_nome}
+                onChange={(event) => {
+                  alterar("fornecedor_nome", event.target.value);
+                  alterar("recebedor_nome", event.target.value);
+                }}
+                className="h-10"
+              />
+            </Field>
+            <Field className="gap-1.5">
+              <FieldLabel className="text-xs font-semibold">
+                CNPJ ou documento (opcional)
+              </FieldLabel>
+              <Input
+                value={novoFornecedorDocumento}
+                onChange={(event) => {
+                  setNovoFornecedorDocumento(event.target.value);
+                  alterar("recebedor_cpf_ui", event.target.value);
+                }}
+                className="h-10"
+              />
+            </Field>
           </div>
-        </div>
-      )}
-      {abaAtiva === "emissao" && previewAberta && form.tipo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-sm bg-white p-6 text-slate-800 shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
-              <img
-                src={logoShare}
-                alt="Share Brasil"
-                className="h-20 w-40 object-contain object-center p-1"
-              />
-              <div className="text-center">
-                <h2 className="text-2xl font-black tracking-wide underline">
-                  RECIBO
-                </h2>
-                <p className="mt-1 text-[10px] text-slate-500">
-                  Pré-visualização antes da finalização
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-bold">Número do recibo</p>
-                <p className="font-mono text-[11px] font-bold text-slate-500">
-                  Será gerado ao finalizar
-                </p>
-                <p className="mt-2 border-2 border-slate-800 px-4 py-2 text-lg font-black">
-                  {moeda(valorNumerico(form.valor))}
-                </p>
-              </div>
-            </div>
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setCadastroFornecedorAberto(false)}
+              disabled={salvandoFornecedor}
+            >
+              Somente neste recibo
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void cadastrarFornecedor()}
+              disabled={
+                salvandoFornecedor ||
+                !(form.fornecedor_nome || form.recebedor_nome).trim()
+              }
+            >
+              {salvandoFornecedor ? "Salvando..." : "Salvar fornecedor"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-            <div className="grid gap-6 border-b border-slate-300 py-6 text-xs md:grid-cols-2">
-              {/* Lado esquerdo: quem RECEBE */}
-              <div>
-                <p className="mb-1 text-[9px] font-bold uppercase text-slate-500">
-                  Recebedor
-                </p>
-                {form.tipo === "recibo_pagamento" ? (
-                  <>
-                    <strong>
-                      {form.recebedor_nome || "Recebedor não informado"}
-                    </strong>
-                    <p>CPF: {form.recebedor_cpf_ui || "Não informado"}</p>
-                  </>
-                ) : form.tipo === "recibo_colaborador" ? (
-                  <>
-                    <strong>
-                      {colaboradorSelecionado?.nome_completo || "Colaborador"}
-                    </strong>
-                    <p>CPF: {colaboradorSelecionado?.cpf || "não informado"}</p>
-                  </>
-                ) : (
-                  <>
-                    <strong>{SHARE_NOME}</strong>
-                    <p>CNPJ: {SHARE_DOCUMENTO}</p>
-                    <p>{SHARE_ENDERECO}</p>
-                    <p>
-                      {SHARE_CIDADE} - {SHARE_UF}
-                    </p>
-                  </>
-                )}
-              </div>
-
-              {/* Lado direito: quem PAGA */}
-              <div>
-                <p className="mb-1 text-[9px] font-bold uppercase text-slate-500">
-                  Pagador
-                </p>
-                {form.tipo === "recibo_colaborador" ? (
-                  <>
-                    <strong>{SHARE_NOME}</strong>
-                    <p>CNPJ: {SHARE_DOCUMENTO}</p>
-                    <p>{SHARE_ENDERECO}</p>
-                    <p>
-                      {SHARE_CIDADE} - {SHARE_UF}
-                    </p>
-                  </>
-                ) : form.pagador_tipo === "cotista_aeronave" ? (
-                  <>
-                    <strong>{pagadorSelecionado?.nome || "Cotista"}</strong>
-                    <p>
-                      {pagadorSelecionado?.cnpj ||
-                        pagadorSelecionado?.cpf ||
-                        "Documento não informado"}
-                    </p>
-                    <p>
-                      {pagadorSelecionado?.endereco || "Endereço não informado"}
-                    </p>
-                    <p>
-                      {[pagadorSelecionado?.cidade, pagadorSelecionado?.uf]
-                        .filter(Boolean)
-                        .join(" - ")}
-                    </p>
-                  </>
-                ) : form.pagador_tipo === "cliente" ? (
-                  <>
-                    <strong>
-                      {clientePagadorSelecionado?.razao_social || "Cliente"}
-                    </strong>
-                    <p>
-                      {clientePagadorSelecionado?.cnpj ||
-                        "Documento não informado"}
-                    </p>
-                    <p>
-                      {clientePagadorSelecionado?.endereco ||
-                        "Endereço não informado"}
-                    </p>
-                    <p>
-                      {[clientePagadorSelecionado?.cidade, clientePagadorSelecionado?.uf]
-                        .filter(Boolean)
-                        .join(" - ")}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <strong>{SHARE_NOME}</strong>
-                    <p>CNPJ: {SHARE_DOCUMENTO}</p>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {(() => {
-              const temDoc = Boolean(form.numero_documento_anexo);
-              const cols = temDoc
-                ? "grid-cols-[1fr_130px_100px]"
-                : "grid-cols-[1fr_100px]";
-              return (
-                <div className="overflow-hidden border border-slate-300 text-xs">
-                  <div className={`grid ${cols} bg-slate-200 p-2 font-bold`}>
-                    <span>Descrição do Serviço</span>
-                    {temDoc && <span>Nº Documento</span>}
-                    <span>Valor</span>
-                  </div>
-                  <div className={`grid ${cols} p-3`}>
-                    <span>{form.descricao_servico}</span>
-                    {temDoc && <span>{form.numero_documento_anexo}</span>}
-                    <strong>{moeda(valorNumerico(form.valor))}</strong>
-                  </div>
+      <Dialog
+        open={abaAtiva === "emissao" && previewAberta && Boolean(form.tipo)}
+        onOpenChange={(open) => {
+          if (!open && !salvando) setPreviewAberta(false);
+        }}
+      >
+        <DialogContent className="max-w-3xl bg-white p-6 text-slate-800 [&>button:last-child]:text-slate-600">
+          <DialogTitle className="sr-only">
+            Pré-visualização do recibo
+          </DialogTitle>
+          {form.tipo && (
+            <div>
+              <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+                <img
+                  src={logoShare}
+                  alt="Share Brasil"
+                  className="h-20 w-40 object-contain object-center p-1"
+                />
+                <div className="text-center">
+                  <h2 className="text-2xl font-black tracking-wide underline">
+                    RECIBO
+                  </h2>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Pré-visualização antes da finalização
+                  </p>
                 </div>
-              );
-            })()}
-
-            {form.observacoes && (
-              <div className="mt-5 border border-slate-200 p-3 text-xs">
-                <p className="mb-2 text-[9px] font-bold uppercase text-slate-500">
-                  Observações
-                </p>
-                <p className="whitespace-pre-wrap">{form.observacoes}</p>
+                <div className="text-right">
+                  <p className="text-[11px] font-bold">Número do recibo</p>
+                  <p className="font-mono text-[11px] font-bold text-slate-500">
+                    Será gerado ao finalizar
+                  </p>
+                  <p className="mt-2 border-2 border-slate-800 px-4 py-2 text-lg font-black tabular-nums">
+                    {moeda(valorNumerico(form.valor))}
+                  </p>
+                </div>
               </div>
-            )}
 
-            <div className="mt-5 border-t border-slate-200 pt-4 text-center">
-              <p className="mb-4 text-[9px] font-semibold italic leading-relaxed text-slate-600">
-                Este recibo é emitido em caráter condicional, sendo sua
-                validade e eficácia jurídica condicionadas à regular
-                compensação do valor total
-              </p>
-              <p className="mb-2 text-[10px] text-slate-600">
-                {dataPorExtenso(form.data_emissao)}
-              </p>
-              <img
-                src={assinaturaRecibo}
-                alt="Assinatura"
-                className="mx-auto h-12 w-auto"
-              />
-              <p className="text-xs font-semibold">Rolffe de Lima Erbe</p>
-              <p className="text-[10px] text-slate-500">Gestor Responsável</p>
+              <div className="grid gap-6 border-b border-slate-300 py-6 text-xs md:grid-cols-2">
+                {/* Lado esquerdo: quem RECEBE */}
+                <div>
+                  <p className="mb-1 text-[11px] font-bold uppercase text-slate-500">
+                    Recebedor
+                  </p>
+                  {form.tipo === "recibo_pagamento" ? (
+                    <>
+                      <strong>
+                        {form.recebedor_nome || "Recebedor não informado"}
+                      </strong>
+                      <p>CPF: {form.recebedor_cpf_ui || "Não informado"}</p>
+                    </>
+                  ) : form.tipo === "recibo_colaborador" ? (
+                    <>
+                      <strong>
+                        {colaboradorSelecionado?.nome_completo || "Colaborador"}
+                      </strong>
+                      <p>CPF: {colaboradorSelecionado?.cpf || "não informado"}</p>
+                    </>
+                  ) : (
+                    <>
+                      <strong>{SHARE_NOME}</strong>
+                      <p>CNPJ: {SHARE_DOCUMENTO}</p>
+                      <p>{SHARE_ENDERECO}</p>
+                      <p>
+                        {SHARE_CIDADE} - {SHARE_UF}
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                {/* Lado direito: quem PAGA */}
+                <div>
+                  <p className="mb-1 text-[11px] font-bold uppercase text-slate-500">
+                    Pagador
+                  </p>
+                  {form.tipo === "recibo_colaborador" ? (
+                    <>
+                      <strong>{SHARE_NOME}</strong>
+                      <p>CNPJ: {SHARE_DOCUMENTO}</p>
+                      <p>{SHARE_ENDERECO}</p>
+                      <p>
+                        {SHARE_CIDADE} - {SHARE_UF}
+                      </p>
+                    </>
+                  ) : form.pagador_tipo === "cotista_aeronave" ? (
+                    <>
+                      <strong>{pagadorSelecionado?.nome || "Cotista"}</strong>
+                      <p>
+                        {pagadorSelecionado?.cnpj ||
+                          pagadorSelecionado?.cpf ||
+                          "Documento não informado"}
+                      </p>
+                      <p>
+                        {pagadorSelecionado?.endereco || "Endereço não informado"}
+                      </p>
+                      <p>
+                        {[pagadorSelecionado?.cidade, pagadorSelecionado?.uf]
+                          .filter(Boolean)
+                          .join(" - ")}
+                      </p>
+                    </>
+                  ) : form.pagador_tipo === "cliente" ? (
+                    <>
+                      <strong>
+                        {clientePagadorSelecionado?.razao_social || "Cliente"}
+                      </strong>
+                      <p>
+                        {clientePagadorSelecionado?.cnpj ||
+                          "Documento não informado"}
+                      </p>
+                      <p>
+                        {clientePagadorSelecionado?.endereco ||
+                          "Endereço não informado"}
+                      </p>
+                      <p>
+                        {[
+                          clientePagadorSelecionado?.cidade,
+                          clientePagadorSelecionado?.uf,
+                        ]
+                          .filter(Boolean)
+                          .join(" - ")}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <strong>{SHARE_NOME}</strong>
+                      <p>CNPJ: {SHARE_DOCUMENTO}</p>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {(() => {
+                const temDoc = Boolean(form.numero_documento_anexo);
+                const cols = temDoc
+                  ? "grid-cols-[1fr_130px_100px]"
+                  : "grid-cols-[1fr_100px]";
+                return (
+                  <div className="overflow-hidden border border-slate-300 text-xs">
+                    <div className={`grid ${cols} bg-slate-200 p-2 font-bold`}>
+                      <span>Descrição do Serviço</span>
+                      {temDoc && <span>Nº Documento</span>}
+                      <span>Valor</span>
+                    </div>
+                    <div className={`grid ${cols} p-3`}>
+                      <span>{form.descricao_servico}</span>
+                      {temDoc && <span>{form.numero_documento_anexo}</span>}
+                      <strong className="tabular-nums">
+                        {moeda(valorNumerico(form.valor))}
+                      </strong>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {form.observacoes && (
+                <div className="mt-5 border border-slate-200 p-3 text-xs">
+                  <p className="mb-2 text-[11px] font-bold uppercase text-slate-500">
+                    Observações
+                  </p>
+                  <p className="whitespace-pre-wrap">{form.observacoes}</p>
+                </div>
+              )}
+
+              <div className="mt-5 border-t border-slate-200 pt-4 text-center">
+                <p className="mb-4 text-[11px] font-semibold italic leading-relaxed text-slate-600">
+                  Este recibo é emitido em caráter condicional, sendo sua
+                  validade e eficácia jurídica condicionadas à regular
+                  compensação do valor total
+                </p>
+                <p className="mb-2 text-[11px] text-slate-600">
+                  {dataPorExtenso(form.data_emissao)}
+                </p>
+                <img
+                  src={assinaturaRecibo}
+                  alt="Assinatura"
+                  className="mx-auto h-12 w-auto"
+                />
+                <p className="text-xs font-semibold">Rolffe de Lima Erbe</p>
+                <p className="text-[11px] text-slate-500">Gestor Responsável</p>
+              </div>
+
+              <div className="mt-5 flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPreviewAberta(false)}
+                  className="h-9 text-xs"
+                >
+                  Voltar e editar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={emitir}
+                  disabled={salvando}
+                  className="h-9 text-xs"
+                >
+                  {salvando ? "Salvando..." : "Confirmar e emitir"}
+                </Button>
+              </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
-            <div className="mt-5 flex justify-end gap-2">
+      <Dialog
+        open={Boolean(pdfPreviewUrl)}
+        onOpenChange={(open) => {
+          if (!open) fecharPdfPreview();
+        }}
+      >
+        <DialogContent className="flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-5xl flex-col gap-0 overflow-hidden rounded-xl border border-border bg-card p-0 shadow-2xl sm:h-[min(760px,calc(100dvh-2rem))] sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl [&>button:last-child]:hidden">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-secondary px-3 py-2.5 text-foreground sm:flex-nowrap sm:gap-3 sm:px-5 sm:py-3">
+            <div className="min-w-0">
+              <DialogTitle className="truncate text-xs font-bold tracking-wide">
+                Pré-visualização do recibo
+              </DialogTitle>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                {pdfPreviewNome}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+              <a
+                href={pdfPreviewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-bold text-foreground transition hover:bg-accent sm:inline-flex"
+              >
+                <ExternalLink size={13} /> Abrir em nova aba
+              </a>
+              <a
+                href={pdfPreviewUrl}
+                download={pdfPreviewNome}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+              >
+                <Download size={13} /> Salvar PDF
+              </a>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setPreviewAberta(false)}
-                className="h-9 text-xs"
+                onClick={fecharPdfPreview}
+                className="h-9 gap-1.5 px-3 text-[11px] font-bold"
               >
-                Voltar e editar
+                <X size={14} /> Fechar
               </Button>
+            </div>
+          </div>
+          <div className="min-h-0 flex-1 bg-secondary p-1 sm:p-3">
+            <iframe
+              src={pdfPreviewUrl}
+              title="Pré-visualização do PDF"
+              className="h-full min-h-0 w-full rounded-xl bg-white shadow-xl"
+            />
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-3 py-2 sm:px-5">
+            <p className="hidden text-[11px] text-muted-foreground sm:block">
+              {reciboPdfPreview
+                ? "PDF salvo. Continue para o envio e rateio."
+                : "Pré-visualização do recibo"}
+            </p>
+            <div className="ml-auto flex flex-wrap justify-end gap-2">
               <Button
                 type="button"
-                onClick={emitir}
-                disabled={salvando}
-                className="h-9 text-xs"
+                variant="outline"
+                onClick={fecharPdfPreview}
+                className="h-9 gap-1.5 px-3 text-[11px] font-bold"
               >
-                {salvando ? "Salvando..." : "Confirmar e emitir"}
+                <X size={14} /> Fechar
               </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {pdfPreviewUrl && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/80 p-1 backdrop-blur-md sm:p-4">
-          <div className="flex h-[calc(100dvh-0.5rem)] max-h-[calc(100dvh-0.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border dark:border-white/10 bg-card shadow-2xl ring-1 ring-black/30 sm:h-[min(760px,calc(100dvh-2rem))] sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl">
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border dark:border-white/10 bg-secondary px-3 py-2.5 text-foreground backdrop-blur sm:flex-nowrap sm:gap-3 sm:px-5 sm:py-3">
-              <div className="min-w-0">
-                <p className="truncate text-xs font-bold tracking-wide">
-                  Pré-visualização do recibo
-                </p>
-                <p className="mt-0.5 truncate text-[10px] text-muted-foreground dark:text-slate-400">
-                  {pdfPreviewNome}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
-                <a
-                  href={pdfPreviewUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hidden items-center gap-1.5 rounded-lg border border-border dark:border-white/15 px-3 py-2 text-[11px] font-bold text-foreground dark:text-slate-200 transition hover:bg-white/10 sm:inline-flex"
-                >
-                  <ExternalLink size={13} /> Abrir em nova aba
-                </a>
-                <a
-                  href={pdfPreviewUrl}
-                  download={pdfPreviewNome}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90"
-                >
-                  <Download size={13} /> Salvar PDF
-                </a>
+              {reciboPdfPreview && (
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={fecharPdfPreview}
-                  className="h-9 gap-1.5 border-border dark:border-white/15 bg-secondary px-3 text-[11px] font-bold text-foreground hover:bg-accent hover:text-accent-foreground"
+                  onClick={continuarFluxoPdf}
+                  className="h-9 gap-1.5 px-3 text-[11px] font-bold"
                 >
-                  <X size={14} /> Fechar
+                  Continuar para envio e rateio <ArrowRight size={14} />
                 </Button>
-              </div>
-            </div>
-            <div className="min-h-0 flex-1 bg-secondary p-1 sm:p-3">
-              <iframe
-                src={pdfPreviewUrl}
-                title="Pré-visualização do PDF"
-                className="h-full min-h-0 w-full rounded-xl bg-white shadow-xl"
-              />
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border dark:border-white/10 bg-card px-3 py-2 sm:px-5">
-              <p className="hidden text-[11px] text-muted-foreground dark:text-slate-400 sm:block">
-                {reciboPdfPreview ? "PDF salvo. Continue para o envio e rateio." : "Pré-visualização do recibo"}
-              </p>
-              <div className="ml-auto flex flex-wrap justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={fecharPdfPreview}
-                  className="h-9 gap-1.5 border-border dark:border-white/15 bg-secondary px-3 text-[11px] font-bold text-foreground hover:bg-accent hover:text-accent-foreground"
-                >
-                  <X size={14} /> Fechar
-                </Button>
-                {reciboPdfPreview && (
-                  <Button
-                    type="button"
-                    onClick={continuarFluxoPdf}
-                    className="h-9 gap-1.5 px-3 text-[11px] font-bold"
-                  >
-                    Continuar para envio e rateio <ArrowRight size={14} />
-                  </Button>
-                )}
-              </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2204,11 +2370,11 @@ function Campo({
   children: React.ReactNode;
 }) {
   return (
-    <label className={`block text-[11px] ${className || ""}`}>
-      <span className="mb-1 flex items-center gap-1 font-bold text-muted-foreground">
+    <Field className={`gap-1.5 ${className || ""}`}>
+      <FieldLabel className="gap-1 text-xs font-semibold text-muted-foreground">
         {label} {obrigatorio && <sup className="text-primary">*</sup>}
-      </span>
+      </FieldLabel>
       {children}
-    </label>
+    </Field>
   );
 }

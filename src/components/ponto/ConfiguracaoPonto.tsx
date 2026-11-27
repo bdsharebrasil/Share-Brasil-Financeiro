@@ -1,6 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   atualizarConfiguracaoPonto,
   carregarConfiguracaoPonto,
@@ -8,8 +19,6 @@ import {
   validarReferenciaPonto,
   type ConfiguracaoPonto as DadosConfiguracao,
 } from "@/lib/ponto-api";
-const campo =
-  "h-10 w-full rounded-lg border border-input bg-background px-3 text-xs text-foreground";
 const box = "rounded-xl border border-border bg-card p-4";
 const modelosEscala = [
   ["12X36", "12 × 36"],
@@ -265,58 +274,63 @@ export default function ConfiguracaoPonto({
                 Cadastrar versão da regra
               </h3>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Grupo de regras
-                  <input
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Grupo de regras
+                  </FieldLabel>
+                  <Input
                     name="grupo_codigo"
                     defaultValue={baseCct?.grupo_codigo || ""}
                     required
                     minLength={3}
                     placeholder="Ex.: SINEATA-FENASCON"
-                    className={campo}
                   />
-                </label>
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Nome / versão
-                  <input
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Nome / versão
+                  </FieldLabel>
+                  <Input
                     name="nome"
                     defaultValue={baseCct?.nome || ""}
                     required
                     minLength={3}
                     placeholder="CCT e ano de referência"
-                    className={campo}
                   />
-                </label>
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Início de vigência
-                  <input
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Início de vigência
+                  </FieldLabel>
+                  <Input
                     type="date"
                     name="vigencia_inicio"
                     defaultValue={baseCct?.vigencia_inicio || ""}
                     required
-                    className={campo}
                   />
-                </label>
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Fim de vigência
-                  <input
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Fim de vigência
+                  </FieldLabel>
+                  <Input
                     type="date"
                     name="vigencia_fim"
                     defaultValue={baseCct?.vigencia_fim || ""}
-                    className={campo}
                   />
-                </label>
-                <label className="space-y-1 text-[11px] text-muted-foreground sm:col-span-2 xl:col-span-4">
-                  Documento e enquadramento aplicável
-                  <input
+                </Field>
+                <Field className="gap-1.5 sm:col-span-2 xl:col-span-4">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Documento e enquadramento aplicável
+                  </FieldLabel>
+                  <Input
                     name="fonte_documento"
                     defaultValue={baseCct?.fonte_documento || ""}
                     required
                     minLength={5}
                     placeholder="Identificação da CCT/ACT, cláusulas e enquadramento do grupo"
-                    className={campo}
                   />
-                </label>
+                </Field>
                 <Tabs
                   defaultValue="jornada"
                   className="sm:col-span-2 xl:col-span-4"
@@ -372,13 +386,12 @@ export default function ConfiguracaoPonto({
                           return categoria === grupo;
                         })
                         .map(([key, value]) => (
-                          <label
-                            key={key}
-                            className="space-y-1 text-[11px] text-muted-foreground"
-                          >
-                            {labels[key] || key}
+                          <Field key={key} className="gap-1.5">
+                            <FieldLabel className="text-xs text-muted-foreground">
+                              {labels[key] || key}
+                            </FieldLabel>
                             {typeof value === "boolean" ? (
-                              <span className="flex h-10 items-center gap-2">
+                              <label className="flex h-9 items-center gap-2 text-xs text-foreground">
                                 <input
                                   type="checkbox"
                                   checked={value}
@@ -391,9 +404,9 @@ export default function ConfiguracaoPonto({
                                   className="h-4 w-4 accent-primary"
                                 />
                                 Ativar
-                              </span>
+                              </label>
                             ) : (
-                              <input
+                              <Input
                                 type={
                                   typeof value === "number"
                                     ? "number"
@@ -415,10 +428,9 @@ export default function ConfiguracaoPonto({
                                         : e.target.value,
                                   }))
                                 }
-                                className={campo}
                               />
                             )}
-                          </label>
+                          </Field>
                         ))}
                     </TabsContent>
                   ))}
@@ -486,7 +498,7 @@ export default function ConfiguracaoPonto({
             <section className={box}>
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold">Escalas cadastradas</h3>
-                <span className="text-[10px] text-muted-foreground">Edite horários e intervalos sem perder os vínculos.</span>
+                <span className="text-[11px] text-muted-foreground">Edite horários e intervalos sem perder os vínculos.</span>
               </div>
               <div className="mt-3 divide-y divide-border">
                 {dados.escalas.map((escala: any) => (
@@ -515,43 +527,44 @@ export default function ConfiguracaoPonto({
                 salvar.
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Nome
-                  <input
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Nome
+                  </FieldLabel>
+                  <Input
                     name="nome"
                     value={nomeEscala}
                     onChange={(e) => setNomeEscala(e.target.value)}
                     required
                     minLength={3}
-                    className={campo}
                     placeholder="Nome da escala"
                   />
-                </label>
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Modelo
-                  <select
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Modelo
+                  </FieldLabel>
+                  <Select
                     value={tipo}
-                    onChange={(e) => {
-                      setTipo(e.target.value);
+                    onValueChange={(valor) => {
+                      setTipo(valor);
                       setCiclo(
-                        dados.modelos[e.target.value].map((d) => ({ ...d })),
+                        dados.modelos[valor].map((d) => ({ ...d })),
                       );
                     }}
-                    className={campo}
                   >
-                    {[
-                      ["12X36", "12 × 36"],
-                      ["6X1", "6 × 1"],
-                      ["5X2", "5 × 2"],
-                      ["ROTATIVA", "Turnos rotativos"],
-                      ["SOBREAVISO", "Sobreaviso"],
-                    ].map(([id, nome]) => (
-                      <option key={id} value={id}>
-                        {nome}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    <SelectTrigger aria-label="Modelo">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {modelosEscala.map(([id, nome]) => (
+                        <SelectItem key={id} value={id}>
+                          {nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
               </div>
               <div className="mt-4 space-y-2">
                 {ciclo.map((dia, indice) => (
@@ -559,19 +572,20 @@ export default function ConfiguracaoPonto({
                     key={indice}
                     className="grid items-center gap-2 rounded-lg border border-border p-2 sm:grid-cols-[70px_1fr_1fr_1fr_1fr]"
                   >
-                    <span className="text-xs">Dia {indice + 1}</span>
-                    <label className="text-[10px] text-muted-foreground">
-                      Situação
-                      <select
-                        aria-label={`Situação do dia ${indice + 1}`}
+                    <span className="text-xs font-medium">Dia {indice + 1}</span>
+                    <Field className="gap-1">
+                      <FieldLabel className="text-[11px] text-muted-foreground">
+                        Situação
+                      </FieldLabel>
+                      <Select
                         value={dia.tipo}
-                        onChange={(e) =>
+                        onValueChange={(valor) =>
                           setCiclo((c) =>
                             c.map((d, i) =>
                               i === indice
                                 ? {
                                     ...d,
-                                    tipo: e.target.value,
+                                    tipo: valor,
                                     entrada: d.entrada || "08:00",
                                     saida: d.saida || "18:00",
                                     intervalo_min: d.intervalo_min || 0,
@@ -580,24 +594,27 @@ export default function ConfiguracaoPonto({
                             ),
                           )
                         }
-                        className={campo}
                       >
-                        <option value="TRABALHO">Trabalho</option>
-                        <option value="FOLGA">Folga</option>
-                        <option value="SOBREAVISO">Sobreaviso</option>
-                      </select>
-                    </label>
+                        <SelectTrigger aria-label={`Situação do dia ${indice + 1}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TRABALHO">Trabalho</SelectItem>
+                          <SelectItem value="FOLGA">Folga</SelectItem>
+                          <SelectItem value="SOBREAVISO">Sobreaviso</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
                     {["entrada", "saida", "intervalo_min"].map((key) => (
-                      <label
-                        key={key}
-                        className="text-[10px] text-muted-foreground"
-                      >
-                        {key === "intervalo_min"
-                          ? "Intervalo (min)"
-                          : key === "entrada"
-                            ? "Entrada"
-                            : "Saída"}
-                        <input
+                      <Field key={key} className="gap-1">
+                        <FieldLabel className="text-[11px] text-muted-foreground">
+                          {key === "intervalo_min"
+                            ? "Intervalo (min)"
+                            : key === "entrada"
+                              ? "Entrada"
+                              : "Saída"}
+                        </FieldLabel>
+                        <Input
                           aria-label={`${key} do dia ${indice + 1}`}
                           type={key === "intervalo_min" ? "number" : "time"}
                           min={0}
@@ -618,9 +635,8 @@ export default function ConfiguracaoPonto({
                               ),
                             )
                           }
-                          className={campo}
                         />
-                      </label>
+                      </Field>
                     ))}
                   </div>
                 ))}
@@ -638,7 +654,7 @@ export default function ConfiguracaoPonto({
                 )}
                 <Button disabled={ocupado}>{escalaEditando ? "Salvar alterações" : "Salvar escala"}</Button>
               </div>
-              <p className="mt-3 text-[10px] text-muted-foreground">
+              <p className="mt-3 text-[11px] text-muted-foreground">
                 O ciclo se repete a partir da data-base do vínculo. Turnos que
                 terminam em horário menor que a entrada atravessam a meia-noite.
               </p>
@@ -657,87 +673,107 @@ export default function ConfiguracaoPonto({
                 {vinculoEditando && <Button type="button" variant="ghost" size="sm" onClick={() => { setVinculoEditando(null); setColaboradorSelecionado(""); setEscalaSelecionada(""); setCoordenadores([]); }}>Cancelar edição</Button>}
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Colaborador
-                  <select
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Colaborador
+                  </FieldLabel>
+                  <Select
                     required
                     name="user_id"
                     value={colaboradorSelecionado}
-                    onChange={(e) => {
-                      setColaboradorSelecionado(e.target.value);
+                    onValueChange={(valor) => {
+                      setColaboradorSelecionado(valor);
                       setCoordenadores((ids) =>
-                        ids.filter((id) => id !== e.target.value),
+                        ids.filter((id) => id !== valor),
                       );
                     }}
-                    className={campo}
                   >
-                    <option value="">Selecione</option>
-                    {dados.equipe.map((u) => (
-                      <option value={u.id} key={u.id}>
-                        {u.nome_completo}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Escala
-                  <select
-                    aria-label="Escala"
+                    <SelectTrigger aria-label="Colaborador">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dados.equipe.filter((u) => Boolean(u.id)).map((u) => (
+                        <SelectItem value={u.id} key={u.id}>
+                          {u.nome_completo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Escala
+                  </FieldLabel>
+                  <Select
                     required
                     name="escala_id"
                     value={escalaSelecionada}
-                    onChange={(e) => {
-                      const valor = e.target.value;
+                    onValueChange={(valor) => {
                       if (valor.startsWith("modelo:"))
                         iniciarModelo(valor.slice(7));
                       else setEscalaSelecionada(valor);
                     }}
-                    className={campo}
                   >
-                    <option value="">
-                      {dados.escalas.length
-                        ? "Selecione uma escala"
-                        : "Escolha um modelo para cadastrar"}
-                    </option>
-                    {dados.escalas.length > 0 && (
-                      <optgroup label="Escalas cadastradas">
-                        {dados.escalas.map((e) => (
-                          <option value={e.id} key={e.id}>
-                            {e.nome}
-                          </option>
+                    <SelectTrigger aria-label="Escala">
+                      <SelectValue
+                        placeholder={
+                          dados.escalas.length
+                            ? "Selecione uma escala"
+                            : "Escolha um modelo para cadastrar"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dados.escalas.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>Escalas cadastradas</SelectLabel>
+                          {dados.escalas.filter((e) => Boolean(e.id)).map((e) => (
+                            <SelectItem value={e.id} key={e.id}>
+                              {e.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      <SelectGroup>
+                        <SelectLabel>Cadastrar a partir de um modelo</SelectLabel>
+                        {modelosEscala.map(([id, nome]) => (
+                          <SelectItem key={id} value={`modelo:${id}`}>
+                            {nome} · criar escala
+                          </SelectItem>
                         ))}
-                      </optgroup>
-                    )}
-                    <optgroup label="Cadastrar a partir de um modelo">
-                      {modelosEscala.map(([id, nome]) => (
-                        <option key={id} value={`modelo:${id}`}>
-                          {nome} · criar escala
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                   {!dados.escalas.length && (
-                    <span className="block pt-1 leading-relaxed">
+                    <span className="block pt-1 text-[11px] leading-relaxed text-muted-foreground">
                       Nenhuma escala cadastrada. Escolha um modelo, confira os
                       horários e salve para continuar.
                     </span>
                   )}
-                </label>
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Regra validada do grupo
-                  <select required name="regra_id" defaultValue={vinculoEditando?.regra_id || ""} className={campo}>
-                    <option value="">Selecione</option>
-                    {dados.regras
-                      .filter((r) =>
-                        ["VALIDADA", "REFERENCIA_INTERNA"].includes(r.status),
-                      )
-                      .map((r) => (
-                        <option value={r.id} key={r.id}>
-                          {r.nome}
-                        </option>
-                      ))}
-                  </select>
-                </label>
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Regra validada do grupo
+                  </FieldLabel>
+                  <Select required name="regra_id" defaultValue={vinculoEditando?.regra_id || undefined}>
+                    <SelectTrigger aria-label="Regra validada do grupo">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dados.regras
+                        .filter(
+                          (r) =>
+                            Boolean(r.id) &&
+                            ["VALIDADA", "REFERENCIA_INTERNA"].includes(r.status),
+                        )
+                        .map((r) => (
+                          <SelectItem value={r.id} key={r.id}>
+                            {r.nome}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
                 <fieldset
                   className="space-y-2 rounded-lg border border-border p-3 sm:col-span-2 xl:col-span-3"
                   aria-describedby="ajuda-coordenadores-ponto"
@@ -779,7 +815,7 @@ export default function ConfiguracaoPonto({
                             <span className="block font-medium">
                               {g.nome_completo}
                             </span>
-                            <span className="mt-1 block text-[10px] text-muted-foreground">
+                            <span className="mt-1 block text-[11px] text-muted-foreground">
                               {g.perfis?.join(" · ") || "Coordenador"}
                             </span>
                           </span>
@@ -802,63 +838,77 @@ export default function ConfiguracaoPonto({
                     </p>
                   )}
                 </fieldset>
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Data-base (dia 1 do ciclo)
-                  <input
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Data-base (dia 1 do ciclo)
+                  </FieldLabel>
+                  <Input
                     type="date"
                     required
                     name="data_base"
                     defaultValue={vinculoEditando?.data_base || ""}
-                    className={campo}
                   />
-                </label>
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Início do vínculo
-                  <input
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Início do vínculo
+                  </FieldLabel>
+                  <Input
                     type="date"
                     required
                     name="vigencia_inicio"
                     defaultValue={vinculoEditando?.vigencia_inicio || ""}
-                    className={campo}
                   />
-                </label>
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Escala comunicada em
-                  <input
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Escala comunicada em
+                  </FieldLabel>
+                  <Input
                     type="date"
                     required
                     name="comunicada_em"
                     defaultValue={vinculoEditando?.comunicada_em || ""}
-                    className={campo}
                   />
-                </label>
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Justificativa de força maior (se necessária)
-                  <input name="justificativa_escala" defaultValue={vinculoEditando?.justificativa_escala || ""} className={campo} />
-                </label>
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Justificativa de força maior (se necessária)
+                  </FieldLabel>
+                  <Input
+                    name="justificativa_escala"
+                    defaultValue={vinculoEditando?.justificativa_escala || ""}
+                  />
+                </Field>
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <input type="checkbox" name="anuencia_colaborador" />
+                  <input type="checkbox" name="anuencia_colaborador" className="h-4 w-4 accent-primary" />
                   Anuência do colaborador em alteração excepcional
                 </label>
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Fuso da jornada
-                  <select
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Fuso da jornada
+                  </FieldLabel>
+                  <Select
                     required
                     name="fuso_horario"
                     defaultValue={vinculoEditando?.fuso_horario || "America/Cuiaba"}
-                    className={campo}
                   >
-                    <option value="America/Cuiaba">Cuiabá (MT)</option>
-                    <option value="America/Sao_Paulo">
-                      Brasília / São Paulo
-                    </option>
-                    <option value="America/Manaus">Manaus</option>
-                    <option value="America/Rio_Branco">Rio Branco</option>
-                    <option value="America/Recife">Recife</option>
-                    <option value="America/Belem">Belém</option>
-                    <option value="America/Campo_Grande">Campo Grande</option>
-                  </select>
-                </label>
+                    <SelectTrigger aria-label="Fuso da jornada">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="America/Cuiaba">Cuiabá (MT)</SelectItem>
+                      <SelectItem value="America/Sao_Paulo">
+                        Brasília / São Paulo
+                      </SelectItem>
+                      <SelectItem value="America/Manaus">Manaus</SelectItem>
+                      <SelectItem value="America/Rio_Branco">Rio Branco</SelectItem>
+                      <SelectItem value="America/Recife">Recife</SelectItem>
+                      <SelectItem value="America/Belem">Belém</SelectItem>
+                      <SelectItem value="America/Campo_Grande">Campo Grande</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
               </div>
               <div className="mt-4 flex justify-end">
                 <Button disabled={ocupado}>Salvar vínculo</Button>
@@ -905,31 +955,38 @@ export default function ConfiguracaoPonto({
                 estaduais, municipais e móveis conforme o local de trabalho.
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <label className="text-[11px] text-muted-foreground">
-                  Data
-                  <input type="date" name="data" required className={campo} />
-                </label>
-                <label className="text-[11px] text-muted-foreground">
-                  Nome
-                  <input name="nome" required minLength={3} className={campo} />
-                </label>
-                <label className="text-[11px] text-muted-foreground">
-                  UF (vazio: nacional)
-                  <input
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Data
+                  </FieldLabel>
+                  <Input type="date" name="data" required />
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Nome
+                  </FieldLabel>
+                  <Input name="nome" required minLength={3} />
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    UF (vazio: nacional)
+                  </FieldLabel>
+                  <Input
                     name="uf"
                     maxLength={2}
                     placeholder="MT"
-                    className={campo}
                   />
-                </label>
-                <label className="text-[11px] text-muted-foreground">
-                  Município (opcional)
-                  <input name="municipio" className={campo} />
-                </label>
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-xs text-muted-foreground">
+                    Município (opcional)
+                  </FieldLabel>
+                  <Input name="municipio" />
+                </Field>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <label className="flex gap-2 text-xs text-muted-foreground">
-                  <input type="checkbox" name="recorrente_anual" />
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input type="checkbox" name="recorrente_anual" className="h-4 w-4 accent-primary" />
                   Repetir nesta data nos próximos anos
                 </label>
                 <Button disabled={ocupado}>Salvar feriado</Button>
@@ -938,7 +995,7 @@ export default function ConfiguracaoPonto({
                 {dados.feriados.map((f) => (
                   <span
                     key={f.id}
-                    className="rounded border border-border px-2 py-1 text-[10px] text-muted-foreground"
+                    className="rounded border border-border px-2 py-1 text-[11px] text-muted-foreground"
                   >
                     {f.nome} · {f.data.slice(5).split("-").reverse().join("/")}{" "}
                     · {f.municipio || f.uf || "Nacional"}

@@ -79,7 +79,7 @@ export function DetalhamentoHorasVoadas({ dados, carregando, erro, ano, mes }: P
                     className="flex items-center justify-between gap-3 rounded-xl border border-border p-3 transition-colors hover:bg-secondary/40"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#3867ed]/10 text-[#3867ed]">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
                         <Plane size={17} />
                       </div>
                       <div className="min-w-0">
@@ -137,7 +137,7 @@ export function DetalhamentoHorasVoadas({ dados, carregando, erro, ano, mes }: P
                 {resumo.porAno.map((item) => (
                   <div key={item.ano} className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-4">
                     <div className="flex items-center gap-3">
-                      <BarChart3 size={18} className="text-[#3867ed]" />
+                      <BarChart3 size={18} className="text-primary" />
                       <div>
                         <strong className="block text-sm font-bold text-foreground">{item.ano}</strong>
                         <span className="text-[11px] text-muted-foreground">{item.trechos} trechos registrados</span>

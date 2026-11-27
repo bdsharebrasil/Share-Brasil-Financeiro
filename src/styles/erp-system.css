@@ -1,216 +1,269 @@
 /*
- * Share Brasil — linguagem visual ERP
- *
- * O modo claro usa três superfícies: canvas, painel e controle.
- * Cabeçalhos de dados e áreas selecionadas carregam o contraste forte.
- * Medidas, hierarquia, foco e densidade são compartilhados com o modo escuro.
- * Não altera cores da sidebar, topbar ou semântica dos status.
+ * Share Brasil — Design System Global (ERP / Aviação)
+ * Inspirado na clareza da referência SkyForce mantendo o azul institucional (#0969a8).
+ * Padroniza superfícies, formulários, botões, tabelas, abas e diálogos em todas as páginas.
  */
+
 :root {
-  --erp-workspace: #eaf0f5;
+  --erp-workspace: #e1e6ebec;
   --erp-surface: #ffffff;
-  --erp-surface-soft: #f5f8fa;
-  --erp-toolbar: #e4ebf1;
-  --erp-section-head: #29485f;
-  --erp-section-text: #f7fbff;
-  --erp-stroke: #cbd6df;
-  --erp-row-even: #f3f7fa;
-  --erp-row-hover: #e8f1f8;
-  --erp-control: #ffffff;
-  --erp-panel-shadow: 0 1px 2px rgb(24 44 62 / .06), 0 3px 9px rgb(24 44 62 / .035);
-  --erp-radius: 7px;
+  --erp-surface-soft: #e8eff5;
+  --erp-toolbar: #f1f5f9;
+  --erp-section-head: #1d5e7c;
+  --erp-section-text: #d1dbeb;
+  --erp-stroke: #dfe7f0;
+  --erp-stroke-strong: #c8d5e3;
+  --erp-row-even: #fafcff;
+  --erp-row-hover: #f5f1f0;
+  --erp-control: #f8fcff;
+  --erp-panel-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 6px 20px rgb(15 23 42 / 0.03);
+  --erp-radius: 14px;
+  --erp-control-radius: 10px;
 }
+
 .dark {
   --erp-workspace: hsl(var(--background));
   --erp-surface: hsl(var(--card));
   --erp-surface-soft: hsl(var(--secondary));
   --erp-toolbar: hsl(var(--secondary));
-  --erp-section-head: #142532;
+  --erp-section-head: #11212e;
   --erp-section-text: hsl(var(--foreground));
   --erp-stroke: hsl(var(--border));
-  --erp-row-even: hsl(var(--secondary) / .28);
-  --erp-row-hover: hsl(var(--primary) / .08);
+  --erp-stroke-strong: hsl(var(--input));
+  --erp-row-even: hsl(var(--secondary) / 0.28);
+  --erp-row-hover: hsl(var(--primary) / 0.08);
   --erp-control: hsl(var(--card));
   --erp-panel-shadow: none;
 }
 
-/* Somente a área de trabalho é cinza: formulários e painéis têm superfície própria. */
+/* Superfície de trabalho suave no modo claro para destacar os painéis brancos */
 html:not(.dark) :is(.app-shell, .conteudo-principal) {
   background-color: var(--erp-workspace) !important;
 }
 
-/* Caixas administrativas sem gradientes, halos ou animações de landing page. */
+/* Cards e painéis: bordas limpas, raio moderno e elevação única */
 :is(.app-card, .financeiro-panel, .financeiro-kpi, .sb-panel, .sb-kpi,
     .fb-card, .fb-kpi, .cash-ledger-panel, .ac-card) {
   border-radius: var(--erp-radius);
   border-color: var(--erp-stroke);
   box-shadow: var(--erp-panel-shadow);
 }
+
 html:not(.dark) :is(.app-card, .financeiro-panel, .financeiro-kpi,
     .sb-panel, .sb-kpi, .fb-card, .fb-kpi, .cash-ledger-panel, .ac-card) {
   background-color: var(--erp-surface);
   background-image: none;
 }
+
 :is(.financeiro-kpi, .financeiro-kpi--primary):hover {
   transform: none;
-  box-shadow: var(--erp-panel-shadow);
+  border-color: hsl(var(--primary) / 0.35);
 }
+
 html:not(.dark) :is(.financeiro-panel-header, .sb-panel-header, .fb-card-header) {
-  background-color: var(--erp-surface-soft);
+  background-color: var(--erp-surface);
   border-bottom-color: var(--erp-stroke);
 }
 
-/* Componentes Card: densidade padronizada; classes locais continuam ajustáveis. */
+/* Cards shadcn */
 [data-erp-card-title] {
-  font-size: .875rem;
-  line-height: 1.3;
-  letter-spacing: -.01em;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
 }
 [data-erp-card-description] {
-  font-size: .75rem;
+  font-size: 0.8125rem;
   line-height: 1.5;
 }
 [data-erp-card-header] {
-  border-bottom-color: hsl(var(--border) / .72);
+  border-bottom-color: hsl(var(--border) / 0.65);
 }
 
-/* Botões: hierarquia por função, sem halos e sem alterar cores semânticas. */
+/* Botões: raio moderno, peso consistente e transição seca */
 [data-erp-button] {
-  border-radius: 6px;
-  font-size: .8125rem;
+  min-height: 38px;
+  border-radius: var(--erp-control-radius);
+  font-size: 0.8125rem;
   font-weight: 600;
   box-shadow: none;
-  transition: background-color .14s ease, border-color .14s ease, color .14s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 [data-erp-button]:focus-visible {
-  outline: 2px solid hsl(var(--primary) / .35);
+  outline: 2px solid hsl(var(--primary) / 0.4);
   outline-offset: 2px;
 }
 
-/* Campos de shadcn e inputs manuais .campo. Sem alterar checkbox, radio ou file. */
-[data-erp-field], .campo {
-  border-radius: 6px;
-  font-size: .8125rem;
+/* Formulários globais (inputs, selects e textareas shadcn + .campo legado) */
+[data-erp-field],
+.campo {
+  min-height: 40px;
+  border-radius: var(--erp-control-radius);
+  font-size: 0.84375rem;
   line-height: 1.35rem;
-  transition: border-color .14s ease, box-shadow .14s ease, background-color .14s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
+
 html:not(.dark) :is([data-erp-field], .campo) {
   background-color: var(--erp-control);
-  border-color: var(--erp-stroke);
-  box-shadow: inset 0 1px 1px rgb(30 48 64 / .025);
+  border-color: var(--erp-stroke-strong);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.02);
   color: hsl(var(--foreground));
 }
+
 html:not(.dark) :is([data-erp-field], .campo):hover:not(:disabled) {
-  border-color: #9eafbd;
+  border-color: hsl(var(--primary) / 0.55);
 }
+
 :is([data-erp-field], .campo):focus-visible,
 .campo:focus {
   border-color: hsl(var(--primary));
-  outline: 2px solid hsl(var(--primary) / .14);
-  outline-offset: 0;
-  box-shadow: none;
-}
-:is([data-erp-field], .campo):disabled {
-  cursor: not-allowed;
-  opacity: .62;
-}
-textarea[data-erp-field], textarea.campo { min-height: 74px; }
-html:not(.dark) :is([data-erp-field], .campo)::placeholder {
-  color: hsl(var(--muted-foreground) / .77);
+  outline: none;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.14);
 }
 
-/* Áreas de edição extensas e modais devem parecer janelas do sistema. */
+:is([data-erp-field], .campo):disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+html:not(.dark) :is([data-erp-field], .campo):disabled {
+  background-color: var(--erp-toolbar);
+}
+
+textarea[data-erp-field],
+textarea.campo {
+  min-height: 84px;
+  padding-block: 0.625rem;
+}
+
+html:not(.dark) :is([data-erp-field], .campo)::placeholder {
+  color: hsl(var(--muted-foreground) / 0.82);
+}
+
+/* Inputs nativos fora do shadcn no modo claro */
+html:not(.dark) .app-main-scroll :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]),
+  textarea,
+  select
+):not([class*="bg-transparent"]):not([data-erp-field]):not(.campo) {
+  min-height: 40px;
+  border-radius: var(--erp-control-radius);
+  background-color: var(--erp-control);
+  border-color: var(--erp-stroke-strong);
+  color: hsl(var(--foreground));
+  font-size: 0.84375rem;
+}
+
+html:not(.dark) .app-main-scroll :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]),
+  textarea,
+  select
+):not([class*="bg-transparent"]):focus-visible {
+  outline: none;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.14);
+}
+
+/* Labels de formulário mais legíveis no modo claro */
+html:not(.dark) :where(main, [role="dialog"]) label {
+  color: hsl(var(--foreground) / 0.88);
+}
+
+/* Diálogos e sheets */
 [data-erp-dialog] {
-  border-radius: 8px;
+  border-radius: 16px;
   border-color: var(--erp-stroke);
 }
 html:not(.dark) [data-erp-dialog] {
   background-color: var(--erp-surface);
-  box-shadow: 0 16px 55px rgb(18 41 61 / .18);
+  box-shadow: 0 20px 60px rgb(15 23 42 / 0.16);
 }
 [data-erp-dialog-title] {
-  font-size: .9375rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
   line-height: 1.35;
+  letter-spacing: -0.015em;
 }
 [data-erp-dialog-header] {
-  padding-bottom: 10px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--erp-stroke);
 }
 [data-erp-dialog-footer] {
-  padding-top: 10px;
+  padding-top: 14px;
   border-top: 1px solid var(--erp-stroke);
 }
 
-/* Abas discretas, alinhadas ao padrão de aplicativos corporativos. */
+/* Abas segmentadas (estilo SkyForce Quadro | Lista) */
 [data-erp-tabs-list] {
-  border: 1px solid var(--erp-stroke);
-  border-radius: 7px;
-  gap: 2px;
+  height: auto;
+  min-height: 40px;
+  padding: 4px;
+  border-radius: 12px;
+  gap: 4px;
 }
 html:not(.dark) [data-erp-tabs-list] {
   background-color: var(--erp-toolbar);
+  border: 1px solid var(--erp-stroke);
 }
 [data-erp-tabs-trigger] {
-  min-height: 29px;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  font-size: .75rem;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
   font-weight: 600;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 html:not(.dark) [data-erp-tabs-trigger][data-state="active"] {
-  border-color: var(--erp-stroke);
   background-color: var(--erp-surface);
-  color: hsl(var(--foreground));
-  box-shadow: 0 1px 2px rgb(32 52 69 / .06);
-}
-[data-erp-tabs-trigger]:focus-visible {
-  outline: 2px solid hsl(var(--primary) / .28);
-  outline-offset: 0;
+  color: hsl(var(--primary));
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.08);
 }
 
-/* Modo claro: cabeçalho azul-petróleo, dados claros e separação tabular discreta. */
-:where(.app-table-frame, .erp-tabela-container, .responsive-table,
+/* Tabelas limpas estilo SkyForce (sem cabeçalho azul-escuro pesado no modo claro) */
+html:not(.dark) :is(.app-table-frame, .erp-tabela-container,
   .cash-table-scroll, .rh-table-wrap, .nf-table-wrap, .st-scroll,
-  .fb-scroll, .bcp-scroll) {
-  border-color: var(--erp-stroke);
-}
-:is(.app-table-frame, .erp-tabela-container) {
+  .fb-scroll, .bcp-scroll, .responsive-table) {
   border-radius: var(--erp-radius);
+  border-color: var(--erp-stroke);
+  background-color: var(--erp-surface);
 }
-:where(.app-table-frame, .erp-tabela-container, .responsive-table,
-  .cash-table-scroll, .rh-table-wrap, .nf-table-wrap, .st-scroll,
-  .fb-scroll, .bcp-scroll) :where(table) {
-  font-size: .75rem;
-  font-variant-numeric: tabular-nums;
-}
+
 html:not(.dark) :is(.app-table-frame, .erp-tabela-container,
   .cash-table-scroll, .rh-table-wrap, .nf-table-wrap, .st-scroll,
-  .fb-scroll, .bcp-scroll, .responsive-table) table thead {
+  .fb-scroll, .bcp-scroll, .responsive-table) table thead,
+html:not(.dark) .app-main-scroll table:not([role="grid"]):not([class*="rdp"]) thead {
   background-color: var(--erp-section-head);
   color: var(--erp-section-text);
 }
+
 html:not(.dark) :is(.app-table-frame, .erp-tabela-container,
   .cash-table-scroll, .rh-table-wrap, .nf-table-wrap, .st-scroll,
-  .fb-scroll, .bcp-scroll, .responsive-table) table thead th {
+  .fb-scroll, .bcp-scroll, .responsive-table) table thead th,
+html:not(.dark) .app-main-scroll table:not([role="grid"]):not([class*="rdp"]) thead th {
   background-color: var(--erp-section-head);
-  border-color: rgb(255 255 255 / .14);
+  border-color: var(--erp-stroke);
   color: var(--erp-section-text);
-  font-size: .6875rem;
-  font-weight: 700;
-  letter-spacing: .025em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   white-space: nowrap;
 }
+
 html:not(.dark) :is(.app-table-frame, .erp-tabela-container,
   .cash-table-scroll, .rh-table-wrap, .nf-table-wrap, .st-scroll,
   .fb-scroll, .bcp-scroll, .responsive-table) table thead th :is(button, span, .erp-ordenar) {
   color: inherit;
 }
+
 html:not(.dark) :is(.app-table-frame, .erp-tabela-container,
   .cash-table-scroll, .rh-table-wrap, .nf-table-wrap, .st-scroll,
-  .fb-scroll, .bcp-scroll, .responsive-table) table tbody td {
+  .fb-scroll, .bcp-scroll, .responsive-table) table tbody td,
+html:not(.dark) .app-main-scroll table:not([role="grid"]):not([class*="rdp"]) tbody td {
   border-color: var(--erp-stroke);
   color: hsl(var(--foreground));
+  font-size: 0.8125rem;
 }
+
+/* Planilhas financeiras integradas */
 html:not(.dark) .erp-financeiro {
   --fin-surface: var(--erp-surface);
   --fin-soft: var(--erp-surface-soft);
@@ -235,6 +288,7 @@ html:not(.dark) .erp-financeiro .erp-tabela thead,
 html:not(.dark) .erp-financeiro .erp-tabela thead th {
   background-color: var(--erp-section-head);
   color: var(--erp-section-text);
+  border-color: var(--erp-stroke);
 }
 html:not(.dark) .erp-financeiro .erp-tabela th .erp-ordenar {
   color: var(--erp-section-text);
@@ -260,65 +314,39 @@ html:not(.dark) .erp-financeiro .erp-tabela tfoot td {
   font-weight: 700;
 }
 html:not(.dark) .erp-financeiro .erp-tabela tfoot .erp-total-rodape {
-  background-color: hsl(var(--primary) / .11);
+  background-color: hsl(var(--primary) / 0.11);
   color: hsl(var(--primary));
 }
-:where(.app-table-frame, .erp-tabela-container) :is(th, td) {
+
+:where(.app-table-frame, .erp-tabela-container, .app-main-scroll table:not([role="grid"]):not([class*="rdp"])) :is(th, td) {
   font-variant-numeric: tabular-nums;
 }
 html:not(.dark) .app-table-frame table tbody tr:hover {
   background-color: var(--erp-row-hover);
 }
 
-/* Tabelas nativas de módulos legados recebem a mesma hierarquia,
-   sem interferir nos grids de calendários do React Day Picker. */
-html:not(.dark) .app-main-scroll table:not([role="grid"]):not([class*="rdp"]) {
-  font-variant-numeric: tabular-nums;
-}
-html:not(.dark) .app-main-scroll table:not([role="grid"]):not([class*="rdp"]) thead th {
-  background-color: var(--erp-section-head);
-  border-color: rgb(255 255 255 / .14);
-  color: var(--erp-section-text);
-  font-size: .6875rem;
-  font-weight: 700;
-}
-html:not(.dark) .app-main-scroll table:not([role="grid"]):not([class*="rdp"]) tbody td {
-  border-color: var(--erp-stroke);
-}
 .dark :is(.app-table-frame, .erp-tabela-container, .responsive-table) table thead {
   background-color: var(--erp-section-head);
 }
 .dark :is(.app-table-frame, .erp-tabela-container, .responsive-table) table thead th {
   background-color: var(--erp-section-head);
   border-color: hsl(var(--border));
-  font-weight: 650;
+  font-weight: 600;
 }
 
-/* Inputs legados (não shadcn) ficam claros sem alterar controles especiais. */
-html:not(.dark) .app-main-scroll :is(
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"])
-       :not([type="color"]):not([type="file"]):not([type="hidden"]),
-  textarea,
-  select
-):not([class*="bg-transparent"]) {
-  background-color: var(--erp-control);
-  border-color: var(--erp-stroke);
-}
-
-/* A navegação deve reagir por cor, não saltar como um site promocional. */
+/* Navegação responde por cor/borda, nunca por saltos */
 @media (hover: hover) {
   :is(.menu-dashboard, .menu-cabecalho, .aba-dashboard):hover {
     transform: none;
   }
 }
 
-/* A estrutura responsiva e os estilos de impressão continuam independentes. */
 @media (max-width: 640px) {
   [data-erp-card-header] { row-gap: 4px; }
   :is(.app-table-frame, .erp-tabela-container) { max-width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  :is([data-erp-field], .campo, [data-erp-tabs-trigger]) {
+  :is([data-erp-field], .campo, [data-erp-tabs-trigger], [data-erp-button]) {
     transition: none;
   }
 }

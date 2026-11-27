@@ -674,14 +674,14 @@ export default function AprovacaoRelatorioViagem() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span
-                className={`rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${categoriaClasse(
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide ${categoriaClasse(
                   despesa.categoria,
                 )}`}
               >
                 {despesa.categoria || "Outros"}
               </span>
 
-              <span className="rounded-full border border-border dark:border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold text-muted-foreground dark:text-slate-400">
+              <span className="rounded-full border border-border dark:border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-bold text-muted-foreground dark:text-slate-400">
                 {dataBr(despesa.data)}
               </span>
             </div>
@@ -708,7 +708,7 @@ export default function AprovacaoRelatorioViagem() {
 
         {anexosDaDespesa.length ? (
           <div className="mt-3 space-y-2">
-            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+            <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
               Comprovantes
             </p>
 
@@ -814,7 +814,7 @@ export default function AprovacaoRelatorioViagem() {
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-sky-300 sm:text-[11px]">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-sky-300 sm:text-[11px]">
                 Share Brasil
               </p>
 
@@ -824,7 +824,7 @@ export default function AprovacaoRelatorioViagem() {
             </div>
 
             <span
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-bold ${
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-bold ${
                 decisaoRegistrada
                   ? foiAprovado
                     ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
@@ -847,7 +847,7 @@ export default function AprovacaoRelatorioViagem() {
             <div className="border-b border-border dark:border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent px-4 py-5 sm:px-6 sm:py-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-300/15 bg-sky-300/[0.08] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-200">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-300/15 bg-sky-300/[0.08] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-sky-200">
                     <ShieldCheck size={13} />
                     Aprovação do relatório
                   </span>
@@ -864,7 +864,7 @@ export default function AprovacaoRelatorioViagem() {
                 </div>
 
                 <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] px-4 py-3 sm:min-w-[160px] sm:text-right">
-                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-200/70">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-200/70">
                     {tituloTotalSelecionado}
                   </p>
                   <p className="mt-1 text-xl font-black text-emerald-100">
@@ -875,7 +875,7 @@ export default function AprovacaoRelatorioViagem() {
 
               <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-2xl border border-border dark:border-white/10 bg-white/[0.035] p-3.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Voo
                   </p>
                   <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-white">
@@ -885,7 +885,7 @@ export default function AprovacaoRelatorioViagem() {
                 </div>
 
                 <div className="rounded-2xl border border-border dark:border-white/10 bg-white/[0.035] p-3.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Aeronave
                   </p>
                   <p className="mt-1 text-sm font-bold text-white">
@@ -896,7 +896,7 @@ export default function AprovacaoRelatorioViagem() {
                 </div>
 
                 <div className="rounded-2xl border border-border dark:border-white/10 bg-white/[0.035] p-3.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Período
                   </p>
                   <p className="mt-1 text-sm font-bold text-white">
@@ -906,7 +906,7 @@ export default function AprovacaoRelatorioViagem() {
                 </div>
 
                 <div className="rounded-2xl border border-border dark:border-white/10 bg-white/[0.035] p-3.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Tripulante
                   </p>
                   <p className="mt-1 break-words text-sm font-bold text-white">
@@ -916,7 +916,7 @@ export default function AprovacaoRelatorioViagem() {
               </div>
 
               <div className="mt-3 rounded-2xl border border-border dark:border-white/10 bg-white/[0.035] p-3.5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   Rota
                 </p>
                 <p className="mt-1 break-words text-sm font-bold text-white">
@@ -946,13 +946,13 @@ export default function AprovacaoRelatorioViagem() {
                     : "bg-card dark:bg-card"
                 }`}
               >
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   Total da viagem
                 </p>
                 <p className="mt-1 text-base font-black text-white">
                   {moeda(totalGeral)}
                 </p>
-                <p className="mt-1 text-[10px] font-bold text-slate-500">
+                <p className="mt-1 text-[11px] font-bold text-slate-500">
                   {despesas.length} despesa(s)
                 </p>
               </button>
@@ -966,13 +966,13 @@ export default function AprovacaoRelatorioViagem() {
                     : "bg-card dark:bg-card"
                 }`}
               >
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   Você
                 </p>
                 <p className="mt-1 text-base font-black text-emerald-200">
                   {moeda(totalTripulante)}
                 </p>
-                <p className="mt-1 text-[10px] font-bold text-slate-500">
+                <p className="mt-1 text-[11px] font-bold text-slate-500">
                   {despesasTripulante.length} despesa(s)
                 </p>
               </button>
@@ -986,13 +986,13 @@ export default function AprovacaoRelatorioViagem() {
                     : "bg-card dark:bg-card"
                 }`}
               >
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   Cliente
                 </p>
                 <p className="mt-1 text-base font-black text-sky-200">
                   {moeda(totalCliente)}
                 </p>
-                <p className="mt-1 text-[10px] font-bold text-slate-500">
+                <p className="mt-1 text-[11px] font-bold text-slate-500">
                   {despesasCliente.length} despesa(s)
                 </p>
               </button>
@@ -1006,13 +1006,13 @@ export default function AprovacaoRelatorioViagem() {
                     : "bg-card dark:bg-card"
                 }`}
               >
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   Share Brasil
                 </p>
                 <p className="mt-1 text-base font-black text-white">
                   {moeda(totalShare)}
                 </p>
-                <p className="mt-1 text-[10px] font-bold text-slate-500">
+                <p className="mt-1 text-[11px] font-bold text-slate-500">
                   {despesasShare.length} despesa(s)
                 </p>
               </button>
@@ -1117,7 +1117,7 @@ export default function AprovacaoRelatorioViagem() {
       {!decisaoRegistrada || podeReprocessarFinanceiro ? (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border dark:border-white/10 bg-card dark:bg-popover/[.96] shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
-            <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-extrabold uppercase tracking-wider">
+            <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[11px] font-extrabold uppercase tracking-wider">
               <span
                 className={
                   chegouAoFim ? "text-emerald-300" : "text-amber-300"
@@ -1134,7 +1134,7 @@ export default function AprovacaoRelatorioViagem() {
             </div>
 
             {!relatorioRevisado && !podeReprocessarFinanceiro ? (
-              <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-[10px]">
+              <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-[11px]">
                 <span className="font-bold text-muted-foreground dark:text-slate-400">
                   Grupos não revisados (opcional):
                 </span>
@@ -1211,7 +1211,7 @@ export default function AprovacaoRelatorioViagem() {
           <div className="w-full max-w-lg rounded-t-3xl border border-border dark:border-white/10 bg-card dark:bg-card p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
                   Confirmação
                 </p>
                 <h2 className="mt-1 text-lg font-black tracking-tight text-white">
@@ -1282,8 +1282,8 @@ export default function AprovacaoRelatorioViagem() {
                       setImagemRejeicaoPreview(URL.createObjectURL(arquivo));
                     }} />
                   </label>
-                  {imagemRejeicao && <div className="mt-3 flex items-start gap-3"><img src={imagemRejeicaoPreview} alt="Prévia do anexo da rejeição" className="h-20 w-24 rounded-lg border border-border dark:border-white/10 object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-foreground dark:text-slate-200">{imagemRejeicao.name}</p><p className="mt-1 text-[10px] text-muted-foreground dark:text-slate-400">{(imagemRejeicao.size / 1024 / 1024).toFixed(2)} MB</p></div><button type="button" onClick={() => { setImagemRejeicao(null); setImagemRejeicaoPreview(""); }} aria-label="Remover imagem" className="rounded-lg p-2 text-rose-300 hover:bg-rose-300/10"><Trash2 size={15} /></button></div>}
-                  <p className="mt-2 text-[10px] text-slate-500">JPG, PNG ou WebP · máximo 5 MB. A imagem será anexada à notificação de rejeição.</p>
+                  {imagemRejeicao && <div className="mt-3 flex items-start gap-3"><img src={imagemRejeicaoPreview} alt="Prévia do anexo da rejeição" className="h-20 w-24 rounded-lg border border-border dark:border-white/10 object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-foreground dark:text-slate-200">{imagemRejeicao.name}</p><p className="mt-1 text-[11px] text-muted-foreground dark:text-slate-400">{(imagemRejeicao.size / 1024 / 1024).toFixed(2)} MB</p></div><button type="button" onClick={() => { setImagemRejeicao(null); setImagemRejeicaoPreview(""); }} aria-label="Remover imagem" className="rounded-lg p-2 text-rose-300 hover:bg-rose-300/10"><Trash2 size={15} /></button></div>}
+                  <p className="mt-2 text-[11px] text-slate-500">JPG, PNG ou WebP · máximo 5 MB. A imagem será anexada à notificação de rejeição.</p>
                 </div>
               </div>
             )}

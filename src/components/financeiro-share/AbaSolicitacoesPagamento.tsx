@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, useRef, useId, type ReactNode } from "react";
-import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, FileText, MoreVertical, Pencil, RefreshCw, Search, TriangleAlert, X, Download } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Download, Eye, EyeOff, FileText, List, MoreVertical, Pencil, Printer, RefreshCw, Search, TriangleAlert, X } from "lucide-react";
 import { toast } from "sonner";
 import { anexosFinanceiros } from "@/lib/documentos-financeiros";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -29,6 +29,16 @@ import { createPortal } from "react-dom";
 const POR_PAGINA = 12;
 const LARGURAS_COLUNAS = [132, 124, 112, 210, 260, 118, 124, 128];
 const LARGURA_MINIMA_COLUNA = 60;
+const COLUNAS_SOLICITACAO = [
+  { chave: "documento", rotulo: "Doc / emissão", indice: 1 },
+  { chave: "aeronave", rotulo: "Aeronave", indice: 2 },
+  { chave: "cliente", rotulo: "Cliente", indice: 3 },
+  { chave: "descricao", rotulo: "Descrição", indice: 4 },
+  { chave: "vencimento", rotulo: "Vencimento", indice: 5 },
+  { chave: "valor", rotulo: "Valor", indice: 6 },
+  { chave: "status", rotulo: "Status", indice: 7 },
+] as const;
+type ChaveColunaSolicitacao = (typeof COLUNAS_SOLICITACAO)[number]["chave"];
 
 type AbaSolicitacao = "cotista" | "colaborador" | "holding";
 type FiltroLista = { id: string; label: string; quantidade?: number };
@@ -117,7 +127,7 @@ function primeiroTexto(...valores: Array<string | null | undefined>): string | n
 function detalheLancamento(campos: CamposLancamento, abrirDocumento: (documento: DocumentoAberto) => void, acao?: ReactNode): ReactNode {
   const anexos = anexosFinanceiros(campos);
   const fornecedor = campos.lancamento_fornecedor_nome ?? campos.fornecedor_nome ?? campos.fornecedor;
-  const categoria = campos.lancamento_categoria_nome ?? campos.categoria_nome;
+    const categoria = campos.lancamento_categoria_nome ?? campos.categoria_nome ?? null;
   return <div className="nf-detail">
     <section>
       <h3>Documentos anexos</h3>
@@ -260,6 +270,8 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   const [filtroEnvio, setFiltroEnvio] = useState("TODOS");
   const [filtroReembolso, setFiltroReembolso] = useState("TODOS");
   const [pagina, setPagina] = useState(1);
+  const [colunasOcultas, setColunasOcultas] = useState<Set<ChaveColunaSolicitacao>>(() => new Set());
+  const [menuColunasAberto, setMenuColunasAberto] = useState(false);
   const [contasParaPagamento, setContasParaPagamento] = useState<ContaBancaria[]>(contasBancarias);
   const [matriculasAeronaves, setMatriculasAeronaves] = useState<Record<string, string>>({});
   const [opcoes, setOpcoes] = useState<{ categorias: any[]; fornecedores: Array<{ id: string; nome: string; cidade?: string | null; origem: string }> }>({ categorias: [], fornecedores: [] });
@@ -542,7 +554,11 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
     const expandida = expandido === chave;
     const aeronave = rotuloAeronave(item.aeronave_id, item.aeronave);
     return {
-      chave, expandida, documento: "—", aeronave: aeronave ?? "—", cliente: item.holding_nome ?? "Holding não identificada",
+      chave,
+      expandida,
+      documento: "—",
+      aeronave: aeronave ?? "—",
+      cliente: item.socio_nome ?? item.holding_nome ?? "Cliente não identificado",
       selecionavel: podeDarBaixaHolding(item), dataEmissao: dataLegivel(item.data_emissao), vencimento: dataLegivel(item.data_vencimento),
       principal: item.holding_nome ?? "Holding", secundaria: item.descricao ?? "", valor: `−${formatarMoeda(Number(item.valor_centavos ?? 0) / 100)}`,
       status: item.status, acoes: podeDarBaixaHolding(item) ? [{ rotulo: "Dar baixa", aoClicar: () => abrirBaixaHolding(item) }] : [],
@@ -551,6 +567,28 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
   });
 
   const linhas = aba === "cotista" ? linhasEnvio : aba === "holding" ? linhasHolding : linhasReembolso;
+  const colunasVisiveis = COLUNAS_SOLICITACAO.filter((coluna) => !colunasOcultas.has(coluna.chave));
+
+  function alternarColuna(chave: ChaveColunaSolicitacao) {
+    setColunasOcultas((atuais) => {
+      const novas = new Set(atuais);
+      if (novas.has(chave)) novas.delete(chave);
+      else if (colunasVisiveis.length > 1) novas.add(chave);
+      return novas;
+    });
+  }
+
+  function valorColuna(linha: LinhaExibida, chave: ChaveColunaSolicitacao): ReactNode {
+    switch (chave) {
+      case "documento": return <><span className="erp-documento">{linha.documento}</span><span className="erp-texto-secundario">Emissão {linha.dataEmissao}</span></>;
+      case "aeronave": return linha.aeronave;
+      case "cliente": return aba === "colaborador" ? linha.colaborador : linha.cliente;
+      case "descricao": return <><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.secundaria || linha.principal}>{linha.secundaria || linha.principal}</strong></div>{linha.secundaria && <span className="erp-texto-secundario">{linha.principal}</span>}</>;
+      case "vencimento": return <span>{linha.vencimento}</span>;
+      case "valor": return linha.valor;
+      case "status": return <StatusSolicitacao status={linha.status} />;
+    }
+  }
 
   const itensParaBaixa: ItemBaixa[] = aba === "cotista"
     ? enviosFiltrados.filter((item) => selecionados.has(`envio:${item.id}`) && podeDarBaixaCliente(item)).map((item) => ({ tipo: "cotista" as const, item }))
@@ -603,18 +641,32 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
           <div className="nf-segment" aria-label="Tipo de solicitação">
             {([["cotista", "Caixa cliente", envios.length], ["colaborador", "Reembolso colaborador", reembolsos.length], ["holding", "Holding", holdings.length]] as const).map(([valor, rotulo, quantidade]) => <button key={valor} aria-pressed={aba === valor} className={aba === valor ? "active" : ""} onClick={() => trocarAba(valor)}>{rotulo}<span>{quantidade}</span></button>)}
           </div>
-        </div>
-        <div className="nf-toolbar">
-          <label className="nf-search"><Search /><span className="nf-sr">{placeholderBusca}</span><input type="search" value={busca} onChange={(e) => alterarBusca(e.target.value)} placeholder={placeholderBusca} /></label>
-          <select aria-label="Filtrar solicitações" value={filtroAtual} onChange={(e) => alterarFiltro(e.target.value)}>{filtrosAtuais.map((filtro) => <option key={filtro.id} value={filtro.id}>{filtro.label}{filtro.quantidade !== undefined ? ` (${filtro.quantidade})` : ""}</option>)}</select>
+          <div className="nf-toolbar">
+            <label className="nf-search"><Search /><span className="nf-sr">{placeholderBusca}</span><input type="search" value={busca} onChange={(e) => alterarBusca(e.target.value)} placeholder={placeholderBusca} /></label>
+            <select aria-label="Filtrar solicitações" value={filtroAtual} onChange={(e) => alterarFiltro(e.target.value)}>{filtrosAtuais.map((filtro) => <option key={filtro.id} value={filtro.id}>{filtro.label}{filtro.quantidade !== undefined ? ` (${filtro.quantidade})` : ""}</option>)}</select>
+          </div>
         </div>
         <div className="nf-list-heading" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div>
             <h2>{aba === "cotista" ? "Caixa cliente" : aba === "holding" ? "Solicitações da Holding" : "Reembolsos de colaboradores"}</h2>
             <p>{carregando ? "Carregando…" : `${totalItens} ${aba === "cotista" ? (totalItens === 1 ? "lançamento" : "lançamentos") : (totalItens === 1 ? "título" : "títulos")} encontrados`}{temFiltro && <button className="nf-text-btn" onClick={limparFiltros}>Limpar filtros</button>}</p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="nf-table-actions">
             <button type="button" className="nf-btn primary" disabled={itensParaBaixa.length === 0} onClick={iniciarBaixaEmLote}>DAR BAIXA{itensParaBaixa.length > 0 ? ` (${itensParaBaixa.length})` : ""}</button>
+            <div className="erp-colunas-ancora">
+              <button type="button" className={`erp-btn ${menuColunasAberto ? "erp-btn-ativo" : ""}`} aria-expanded={menuColunasAberto} aria-controls="solicitacoes-colunas" onClick={() => setMenuColunasAberto((aberto) => !aberto)}>
+                <List size={14} aria-hidden="true" />Colunas
+              </button>
+              {menuColunasAberto && <div className="erp-colunas-lista" id="solicitacoes-colunas" role="listbox" aria-multiselectable="true" aria-label="Exibir ou ocultar colunas">
+                {COLUNAS_SOLICITACAO.map((coluna) => {
+                  const visivel = !colunasOcultas.has(coluna.chave);
+                  return <button type="button" key={coluna.chave} role="option" aria-selected={visivel} disabled={visivel && colunasVisiveis.length === 1} onClick={() => alternarColuna(coluna.chave)}>
+                    <span className="erp-coluna-rotulo">{coluna.chave === "cliente" && aba === "colaborador" ? "Colaborador" : coluna.rotulo}</span><span className="erp-coluna-olho" aria-hidden="true">{visivel ? <Eye size={14} /> : <EyeOff size={14} />}</span>
+                  </button>;
+                })}
+              </div>}
+            </div>
+            <button type="button" className="erp-btn" disabled={carregando || linhas.length === 0} onClick={() => window.print()}><Printer size={14} aria-hidden="true" />Imprimir</button>
             <ControleZoomTabela zoom={zoom} alterar={alterarZoom} restaurar={() => definirZoom(100)} />
           </div>
         </div>
@@ -625,32 +677,21 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
             <div ref={tabelaRef} onPointerDown={iniciarArraste} className="erp-tabela-container nf-table-wrap" role="region" aria-label={aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"} tabIndex={0}>
               <table className="erp-tabela" style={{ zoom: zoom / 100 }}>
                 <caption className="erp-sr-only">{aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"}</caption>
-                <colgroup>
-                  {larguras.map((largura, indice) => <col key={indice} style={{ width: largura }} />)}
-                </colgroup>
+                <colgroup><col style={{ width: larguras[0] }} />{colunasVisiveis.map((coluna) => <col key={coluna.chave} style={{ width: larguras[coluna.indice] }} />)}</colgroup>
                 <thead><tr>
                   <th scope="col"><input type="checkbox" className="nf-check" aria-label="Selecionar lançamentos desta página" checked={todasPaginaSelecionadas} disabled={chavesSelecionaveisPagina.length === 0} onChange={alternarSelecaoPagina} /></th>
-                  <th scope="col"><span className="erp-ordenar">Doc / emissão</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 1)} /></th>
-                  <th scope="col"><span className="erp-ordenar">Aeronave</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 2)} /></th>
-                  <th scope="col"><span className="erp-ordenar">{aba === "cotista" ? "Cliente" : "Colaborador"}</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 3)} /></th>
-                  <th scope="col"><span className="erp-ordenar">Descrição</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 4)} /></th>
-                  <th scope="col"><span className="erp-ordenar">Vencimento</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 5)} /></th>
-                  <th scope="col"><span className="erp-ordenar">Valor</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 6)} /></th>
-                  <th scope="col" className="erp-th-status"><span className="erp-ordenar">Status</span><span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, 7)} /></th>
+                  {colunasVisiveis.map((coluna) => <th scope="col" key={coluna.chave} className={coluna.chave === "status" ? "erp-th-status" : undefined}>
+                    <span className="erp-ordenar">{coluna.chave === "cliente" && aba === "colaborador" ? "Colaborador" : coluna.rotulo}</span>
+                    <span className="erp-redimensionar" aria-hidden="true" title="Arraste para ajustar a coluna" onPointerDown={(evento) => iniciarResize(evento, coluna.indice)} />
+                  </th>)}
                 </tr></thead>
                 <tbody>
                   {linhas.map((linha) => <Fragment key={linha.chave}>
                     <tr className={`erp-linha${linha.expandida ? " erp-linha-aberta" : ""}`}>
                       <td className="erp-td-acoes"><div className="erp-celula-selecao"><input type="checkbox" className="nf-check" aria-label={`Selecionar ${linha.secundaria || linha.principal}`} disabled={!linha.selecionavel} checked={selecionados.has(linha.chave)} onChange={() => alternarSelecao(linha.chave)} /><button type="button" className="erp-expandir" aria-expanded={linha.expandida} aria-label={`${linha.expandida ? "Recolher" : "Expandir"} ${linha.secundaria || linha.principal}`} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}</button>{celulaAcoes(linha, "tabela")}</div></td>
-                      <td><span className="erp-documento">{linha.documento}</span><span className="erp-texto-secundario">Emissão {linha.dataEmissao}</span></td>
-                      <td>{linha.aeronave}</td>
-                      <td>{aba === "cotista" ? linha.cliente : linha.colaborador}</td>
-                      <td><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.secundaria || linha.principal}>{linha.secundaria || linha.principal}</strong></div>{linha.secundaria && <span className="erp-texto-secundario">{linha.principal}</span>}</td>
-                      <td className="erp-td-data"><span>{linha.vencimento}</span></td>
-                      <td className="erp-valor">{linha.valor}</td>
-                      <td><StatusSolicitacao status={linha.status} /></td>
+                      {colunasVisiveis.map((coluna) => <td key={coluna.chave} className={coluna.chave === "vencimento" ? "erp-td-data" : coluna.chave === "valor" ? "erp-valor" : undefined}>{valorColuna(linha, coluna.chave)}</td>)}
                     </tr>
-                    {linha.expandida && <tr className="erp-linha-detalhes"><td colSpan={8}>{linha.detalhe}</td></tr>}
+                    {linha.expandida && <tr className="erp-linha-detalhes"><td colSpan={colunasVisiveis.length + 1}>{linha.detalhe}</td></tr>}
                   </Fragment>)}
                 </tbody>
               </table>
@@ -658,10 +699,17 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
             <div className="nf-mobile-docs">
               {linhas.map((linha) => <article className={`nf-mobile-doc${linha.expandida ? " expanded" : ""}`} key={linha.chave}>
                 <header><input type="checkbox" className="nf-check" aria-label={`Selecionar ${linha.secundaria || linha.principal}`} disabled={!linha.selecionavel} checked={selecionados.has(linha.chave)} onChange={() => alternarSelecao(linha.chave)} /><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div><StatusSolicitacao status={linha.status} /></header>
-                <dl><div><dt>Aeronave</dt><dd>{linha.aeronave}</dd></div><div><dt>{aba === "cotista" ? "Cliente" : "Colaborador"}</dt><dd>{aba === "cotista" ? linha.cliente : linha.colaborador}</dd></div><div><dt>Descrição</dt><dd>{linha.secundaria || linha.principal}{linha.secundaria && <small>{linha.principal}</small>}</dd></div><div><dt>Vencimento</dt><dd>{linha.vencimento}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
+                <dl><div><dt>Aeronave</dt><dd>{linha.aeronave}</dd></div><div><dt>{aba === "colaborador" ? "Colaborador" : "Cliente"}</dt><dd>{aba === "colaborador" ? linha.colaborador : linha.cliente}</dd></div><div><dt>Descrição</dt><dd>{linha.secundaria || linha.principal}{linha.secundaria && <small>{linha.principal}</small>}</dd></div><div><dt>Vencimento</dt><dd>{linha.vencimento}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
                 <footer>{celulaAcoes(linha, "mobile")}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
                 {linha.detalhe}
               </article>)}
+            </div>
+            <div className="nf-print-report">
+              <h1>Solicitações de pagamento</h1>
+              <p>{aba === "holding" ? "Holding" : aba === "colaborador" ? "Reembolso colaborador" : "Caixa cliente"} · Página {paginaAtual} de {totalPaginas}</p>
+              <table><thead><tr>{colunasVisiveis.map((coluna) => <th key={coluna.chave}>{coluna.chave === "cliente" && aba === "colaborador" ? "Colaborador" : coluna.rotulo}</th>)}</tr></thead>
+                <tbody>{linhas.map((linha) => <tr key={linha.chave}>{colunasVisiveis.map((coluna) => <td key={coluna.chave}>{valorColuna(linha, coluna.chave)}</td>)}</tr>)}</tbody>
+              </table>
             </div>
             <footer className="nf-pagination">
               <span>Exibindo {inicio + 1}–{Math.min(inicio + POR_PAGINA, totalItens)} de {totalItens}</span>
@@ -774,7 +822,7 @@ html .nf-workspace.nf-payment-requests{height:auto;min-height:0;overflow:visible
 html .nf-workspace.nf-payment-requests .nf-panel{flex:none;min-height:0;margin:0}
 html .nf-workspace.nf-payment-requests .nf-table-wrap{flex:none;max-height:none;overflow:auto}
 html .nf-workspace.nf-payment-requests .erp-tabela td.erp-td-acoes{overflow:visible}
-html .nf-workspace.nf-payment-requests .erp-tabela th{position:sticky;top:0;z-index:1;background:var(--app-soft)}
+html .nf-workspace.nf-payment-requests .erp-tabela th{position:sticky;top:0;z-index:1;background:var(--erp-head)}
 html .nf-workspace.nf-payment-requests .nf-icon{width:30px;min-height:30px;height:30px;padding:5px}
 
 .nf-payment-requests,.nf-payment-dialog{--nf-ink: var(--app-text);--nf-muted: var(--app-muted);--nf-border: var(--app-line);--nf-blue: var(--app-info);color:var(--nf-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;line-height:1.5;color-scheme:var(--app-color-scheme)}
@@ -801,33 +849,25 @@ html .nf-workspace.nf-payment-requests .nf-icon{width:30px;min-height:30px;heigh
 .nf-payment-requests .nf-segment button{display:flex;align-items:center;justify-content:center;gap:10px;padding:9px 15px;border:0;border-radius:7px;background:transparent;color:var(--app-muted);font-size:12px;font-weight:600;min-height:40px}
 .nf-payment-requests .nf-segment button.active{background:white;color:var(--app-info);box-shadow:0 1px 4px #1a34561a}
 .nf-payment-requests .nf-segment span{background:var(--app-soft);border-radius:5px;padding:1px 6px;font-size:10px}.nf-payment-requests .nf-segment .active span{background:var(--app-soft)}
-.nf-payment-requests.nf-workspace .nf-panel-top{display:flex;flex-direction:column;gap:31px}
+.nf-payment-requests.nf-workspace .nf-panel-top{display:flex;align-items:center;justify-content:space-between;flex-direction:row;gap:16px}
 .nf-payment-requests.nf-workspace .nf-segment{gap:36px;border:0}
 .nf-payment-requests.nf-workspace .nf-segment button.active{border-color:rgba(37,124,179,1)}
-.nf-payment-requests .nf-toolbar{display:flex;align-items:center;gap:12px;padding:22px 22px 14px}
+.nf-payment-requests .nf-toolbar{display:flex;align-items:center;flex:1;min-width:280px;max-width:620px;gap:12px;padding:0}
 .nf-payment-requests .nf-search{display:flex;align-items:center;gap:10px;flex:1;min-width:0;border:1px solid var(--nf-border);background:var(--app-surface);border-radius:9px;padding:0 12px}
 .nf-payment-requests .nf-search svg{width:17px;height:17px;color:var(--app-muted);flex-shrink:0}
 .nf-payment-requests .nf-search input{width:100%;min-width:0;border:0;background:transparent;min-height:42px;color:var(--app-text);font-size:12px}
 .nf-payment-requests .nf-toolbar select{border:1px solid var(--nf-border);border-radius:9px;min-height:42px;padding:8px 32px 8px 12px;background:var(--app-surface);color:var(--app-muted);font-size:12px;max-width:100%}
 .nf-payment-requests .nf-list-heading{padding:4px 22px 18px}.nf-payment-requests .nf-list-heading h2{font-size:15px;font-weight:650}.nf-payment-requests .nf-list-heading p{margin:3px 0 0;color:var(--app-muted);font-size:11px}
 .nf-payment-requests .nf-text-btn,.nf-payment-dialog .nf-text-btn{padding:5px 8px;border:0;background:transparent;color:var(--app-info);font-size:12px;font-weight:600;min-height:36px}
-.nf-payment-requests .nf-table-wrap{width:100%;overflow:auto}.nf-payment-requests .erp-tabela{width:100%;table-layout:fixed}.nf-payment-requests .erp-tabela th{position:relative}.nf-payment-requests .erp-redimensionar{position:absolute;right:-3px;top:0;bottom:0;z-index:1;width:7px;cursor:col-resize;touch-action:none}.nf-payment-requests .erp-redimensionar:hover{background:var(--app-info)}.nf-payment-requests .erp-tabela-container{cursor:auto}.nf-payment-requests .erp-linha{cursor:default}.nf-payment-requests .erp-linha-detalhes .nf-detail{margin:12px 16px}
-.nf-payment-requests .erp-tabela{font-size:14px;line-height:1.45}
-.nf-payment-requests .erp-tabela th{height:46px;padding:0 14px}
-.nf-payment-requests .erp-tabela th .erp-ordenar{height:44px;font-size:11px}
-.nf-payment-requests .erp-tabela td{padding:10px 14px;font-size:14px}
-.nf-payment-requests .erp-tabela td.erp-td-data{padding-top:10px;padding-bottom:10px}
-.nf-payment-requests .erp-tabela .erp-linha{height:56px}
-.nf-payment-requests .erp-tabela .erp-documento{font-size:13px}
-.nf-payment-requests .erp-tabela .erp-texto-secundario{font-size:12px;margin-top:3px;margin-bottom:0}
-.nf-payment-requests .erp-tabela .erp-valor{font-size:15px}
-.nf-payment-requests .erp-tabela .erp-expandir{width:24px;height:32px}
+.nf-payment-requests .nf-table-wrap{width:100%;overflow:auto}.nf-payment-requests .erp-tabela{width:100%;table-layout:fixed}.nf-payment-requests .erp-tabela th{position:relative}.nf-payment-requests .erp-redimensionar{position:absolute;right:-3px;top:0;bottom:0;z-index:1;width:7px;cursor:col-resize;touch-action:none}.nf-payment-requests .erp-redimensionar:hover{background:var(--app-info)}.nf-payment-requests .erp-linha{cursor:default}.nf-payment-requests .erp-linha-detalhes .nf-detail{margin:12px 16px}
+.nf-payment-requests .erp-tabela .erp-texto-secundario{display:block;font-size:11px;line-height:1.15;margin-top:1px;margin-bottom:0}
 .nf-payment-requests .nf-doc-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:30px;height:34px;border:1px solid var(--app-line);border-radius:7px;background:var(--app-soft);color:var(--app-muted)}.nf-payment-requests .nf-doc-icon svg{width:15px;height:15px}
 .nf-payment-requests .nf-amount{font-weight:650;font-variant-numeric:tabular-nums;color:var(--app-text)}
 .nf-payment-requests .nf-detail{display:grid;grid-template-columns:minmax(160px,1fr) minmax(0,3fr);gap:24px;padding:22px;background:var(--app-soft);border:1px solid var(--app-line);border-radius:10px;white-space:normal}.nf-payment-requests .nf-detail h3{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--app-muted);margin-bottom:12px}.nf-payment-requests .nf-detail p{font-size:12px;color:var(--app-muted)}
 .nf-payment-requests .nf-attachment{display:flex;align-items:center;gap:9px;padding:11px 12px;width:100%;text-align:left;margin-bottom:8px;background:var(--app-surface);border:1px solid var(--app-line);border-radius:8px;font-size:12px;color:var(--app-muted)}.nf-payment-requests .nf-attachment svg:last-child{margin-left:auto}.nf-payment-requests .nf-attachment:hover{border-color:var(--app-info-line);background:var(--app-soft)}
 .nf-payment-requests .nf-detail dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px 24px;margin:0}.nf-payment-requests .nf-detail dt{font-size:10px;color:var(--app-muted);margin-bottom:3px}.nf-payment-requests .nf-detail dd{font-size:12px;color:var(--app-text);margin:0;white-space:pre-wrap;overflow-wrap:anywhere}.nf-payment-requests .nf-detail-actions{grid-column:1/-1;display:flex;justify-content:flex-end;border-top:1px solid #e4ebf4;padding-top:15px}
-.nf-payment-requests .nf-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 22px;font-size:11px;color:var(--app-muted)}.nf-payment-requests .nf-pagination>div{display:flex;align-items:center;gap:14px}.nf-payment-requests .nf-mobile-docs{display:none}
+.nf-payment-requests .nf-table-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.nf-payment-requests .erp-colunas-ancora{position:relative;display:inline-flex}.nf-payment-requests .nf-print-report{display:none}
+.nf-payment-requests .nf-pagination{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:16px 22px;font-size:11px;color:var(--app-muted)}.nf-payment-requests .nf-pagination>span{margin-right:auto}.nf-payment-requests .nf-pagination>div{display:flex;align-items:center;gap:14px;margin-left:auto}.nf-payment-requests .nf-mobile-docs{display:none}
 .nf-payment-requests .nf-empty,.nf-payment-dialog .nf-empty{padding:60px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;color:var(--app-muted)}.nf-payment-requests .nf-empty h3,.nf-payment-dialog .nf-empty h3{font-size:16px}.nf-payment-requests .nf-empty p,.nf-payment-dialog .nf-empty p{margin:0;font-size:12px;max-width:380px}
 .nf-payment-requests .nf-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.nf-payment-requests .erp-celula-selecao{display:flex;align-items:center;gap:8px}.nf-payment-requests .nf-check{width:16px;height:16px;margin:0;flex-shrink:0;cursor:pointer;accent-color:var(--app-info)}.nf-payment-requests .nf-check:disabled{opacity:.35;cursor:not-allowed}.nf-spin{animation:nf-payment-spin 1s linear infinite}@keyframes nf-payment-spin{to{transform:rotate(360deg)}}
 .nf-payment-dialog{border:1px solid var(--app-line);border-radius:16px;padding:0;background:var(--app-surface);width:min(620px,calc(100vw - 28px));max-width:calc(100vw - 28px);max-height:calc(100dvh - 32px);box-shadow:0 24px 90px #091a4433;overflow:auto}.nf-payment-dialog.wide{width:min(1200px,calc(100vw - 28px))}.nf-payment-dialog::backdrop{background:#14253d99;backdrop-filter:blur(4px)}
@@ -840,7 +880,9 @@ html .nf-workspace.nf-payment-requests .nf-icon{width:30px;min-height:30px;heigh
 .nf-payment-dialog .nf-info{padding:12px;background:var(--app-soft);border-radius:8px;color:var(--app-muted);font-size:11px}.nf-payment-dialog .nf-modal-footer{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px;padding-top:18px;margin-top:20px;border-top:1px solid #e8edf4}
 .nf-payment-dialog .nf-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;color:var(--app-muted);font-size:12px}.nf-payment-dialog .nf-preview-toolbar>span{display:flex;align-items:center;gap:8px}.nf-payment-dialog .nf-preview{height:75dvh;min-height:240px;overflow:auto;display:flex;justify-content:center;align-items:center;border:1px solid var(--app-line);border-radius:9px;background:var(--app-soft)}.nf-payment-dialog .nf-preview img{display:block;max-width:100%;max-height:100%;object-fit:contain}.nf-payment-dialog .nf-preview iframe{width:100%;height:100%;border:0;background:var(--app-surface)}
 @container(max-width:760px){.nf-payment-requests .nf-table-wrap{display:none}.nf-payment-requests .nf-mobile-docs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 20px 20px}.nf-payment-requests .nf-mobile-doc{min-width:0;border:1px solid var(--app-line);border-radius:11px;overflow:hidden;background:white}.nf-payment-requests .nf-mobile-doc.expanded{grid-column:1/-1}.nf-payment-requests .nf-mobile-doc>header{display:flex;align-items:center;gap:9px;padding:16px;border-bottom:1px solid #edf1f6}.nf-payment-requests .nf-mobile-doc>header>div{flex:1;min-width:0;overflow-wrap:anywhere}.nf-payment-requests .nf-mobile-doc>header strong{font-size:12px}.nf-payment-requests .nf-mobile-doc>header small{display:block;font-size:11px;color:var(--app-muted)}.nf-payment-requests .nf-mobile-doc>dl{display:grid;gap:16px;padding:16px;margin:0}.nf-payment-requests .nf-mobile-doc dt{font-size:10px;color:var(--app-muted);margin-bottom:4px}.nf-payment-requests .nf-mobile-doc dd{margin:0;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}.nf-payment-requests .nf-mobile-doc dd small{display:block;font-size:12px;color:var(--app-muted);line-height:1.7;margin-top:6px}.nf-payment-requests .nf-mobile-doc>footer{display:flex;justify-content:flex-end;gap:8px;padding:0 16px 16px;flex-wrap:wrap}.nf-payment-requests .nf-mobile-doc .nf-detail{border-radius:0;border-width:1px 0 0}}
-@container(max-width:620px){.nf-payment-requests .nf-header{align-items:flex-start;gap:10px}.nf-payment-requests .nf-header-actions .nf-btn{font-size:0;padding:10px}.nf-payment-requests .nf-header-actions .nf-btn svg{width:18px;height:18px}nf-payment-requests .nf-panel-top{padding:12px}.nf-payment-requests .nf-segment{display:flex}.nf-payment-requests .nf-segment button{flex:1;font-size:11px;padding:7px;gap:6px}.nf-payment-requests .nf-toolbar{padding:14px 12px;flex-direction:column;align-items:stretch;gap:8px}.nf-payment-requests .nf-list-heading{padding:2px 14px 14px}.nf-payment-requests .nf-mobile-docs{grid-template-columns:1fr;padding:0 12px 12px;gap:12px}.nf-payment-requests .nf-detail{grid-template-columns:1fr;padding:16px;gap:20px}.nf-payment-requests .nf-detail dl{grid-template-columns:1fr}.nf-payment-requests .nf-pagination{padding:14px 12px;flex-wrap:wrap;font-size:10px}.nf-payment-requests .nf-pagination>div{gap:8px}}
+@container(max-width:920px){.nf-payment-requests.nf-workspace .nf-panel-top{align-items:stretch;flex-direction:column;gap:12px}.nf-payment-requests .nf-toolbar{max-width:none}}
+@container(max-width:620px){.nf-payment-requests .nf-header{align-items:flex-start;gap:10px}.nf-payment-requests .nf-header-actions .nf-btn{font-size:0;padding:10px}.nf-payment-requests .nf-header-actions .nf-btn svg{width:18px;height:18px}.nf-payment-requests.nf-workspace .nf-panel-top{padding:12px}.nf-payment-requests .nf-segment{display:flex}.nf-payment-requests .nf-segment button{flex:1;font-size:11px;padding:7px;gap:6px}.nf-payment-requests .nf-toolbar{padding:0;flex-direction:column;align-items:stretch;gap:8px}.nf-payment-requests .nf-list-heading{padding:2px 14px 14px}.nf-payment-requests .nf-mobile-docs{grid-template-columns:1fr;padding:0 12px 12px;gap:12px}.nf-payment-requests .nf-detail{grid-template-columns:1fr;padding:16px;gap:20px}.nf-payment-requests .nf-detail dl{grid-template-columns:1fr}.nf-payment-requests .nf-pagination{padding:14px 12px;flex-wrap:wrap;font-size:10px}.nf-payment-requests .nf-pagination>div{gap:8px}}
+@media print{body:has(.nf-payment-requests) .erp-relatorio-impressao{display:none!important}.nf-payment-requests .nf-print-report,.nf-payment-requests .nf-print-report *{visibility:visible!important}.nf-payment-requests .nf-print-report{display:block!important;position:fixed;inset:0 auto auto 0;width:100%;padding:0 12mm;color:#111;background:#fff;font:11px Arial,sans-serif}.nf-payment-requests .nf-print-report h1{margin:0 0 8px;font-size:18px}.nf-payment-requests .nf-print-report p{margin:0 0 14px}.nf-payment-requests .nf-print-report table{width:100%;border-collapse:collapse}.nf-payment-requests .nf-print-report th,.nf-payment-requests .nf-print-report td{padding:6px;border-bottom:1px solid #ccc;text-align:left}.nf-payment-requests .nf-print-report tr{break-inside:avoid}}
 @media(max-width:600px){.nf-payment-dialog .nf-dialog-header{padding:12px 14px}.nf-payment-dialog .nf-dialog-header h2{font-size:15px}.nf-payment-dialog .nf-dialog-content{padding:14px}.nf-payment-dialog .nf-form-grid.two{grid-template-columns:1fr}.nf-payment-dialog .nf-form-grid input,.nf-payment-dialog .nf-form-grid select,.nf-payment-dialog .nf-form-grid textarea{font-size:16px}.nf-payment-dialog .nf-payment-summary{flex-direction:column}.nf-payment-dialog .nf-modal-footer .nf-btn{flex:1}.nf-payment-dialog .nf-preview-toolbar{flex-wrap:wrap}.nf-payment-dialog .nf-preview{height:60dvh}}
 @media(prefers-reduced-motion:reduce){.nf-spin{animation:none}.nf-payment-requests *,.nf-payment-dialog *{transition:none!important}}
 `;

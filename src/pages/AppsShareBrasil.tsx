@@ -26,12 +26,7 @@ const aplicativos = [
     icone: Users,
     tom: "border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-400/25 dark:bg-emerald-400/15 dark:text-emerald-200",
   },
-  {
-    nome: "App Tripulação",
-    url: "https://tripulacao.share-brasil.com/",
-    icone: Plane,
-    tom: "border-violet-200 bg-violet-100 text-violet-800 dark:border-violet-400/25 dark:bg-violet-400/15 dark:text-violet-200",
-  },
+ 
 ] as const;
 
 function AplicativoCard({ app }: { app: (typeof aplicativos)[number] }) {

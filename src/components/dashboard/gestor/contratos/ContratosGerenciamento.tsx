@@ -21,6 +21,16 @@ import {
   carregarArquivoColaborador,
   colaboradorRequest,
 } from '@/lib/colaborador-api';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import {
   LAYOUT_PDF_PROPOSTA,
   calcularProposta,
@@ -102,10 +112,10 @@ function Campo({
   largo?: boolean;
 }) {
   return (
-    <label className={largo ? 'ct-campo ct-largo' : 'ct-campo'}>
-      <span>{nome}</span>
+    <Field className={largo ? 'ct-campo ct-largo gap-1.5' : 'ct-campo gap-1.5'}>
+      <FieldLabel>{nome}</FieldLabel>
       {children}
-    </label>
+    </Field>
   );
 }
 function Dinheiro({
@@ -118,9 +128,10 @@ function Dinheiro({
   const [texto, setTexto] = useState(reais(valor));
   useEffect(() => setTexto(reais(valor)), [valor]);
   return (
-    <input
+    <Input
       aria-label="Valor em reais"
       inputMode="decimal"
+      className="h-10 tabular-nums"
       value={texto}
       onChange={(e) => setTexto(e.target.value)}
       onBlur={() => {
@@ -145,7 +156,8 @@ function DadosParte({
 }) {
   const campo = (chave: keyof Parte, nome: string) => (
     <Campo nome={nome} key={chave}>
-      <input
+      <Input
+        className="h-10"
         value={String(parte[chave] || '')}
         onChange={(e) => onChange({ ...parte, [chave]: e.target.value })}
       />
@@ -156,18 +168,23 @@ function DadosParte({
       <h3>{titulo}</h3>
       <div className="ct-grade">
         <Campo nome="Tipo de pessoa">
-          <select
+          <Select
             value={parte.tipo_pessoa}
-            onChange={(e) =>
+            onValueChange={(v) =>
               onChange({
                 ...parte,
-                tipo_pessoa: e.target.value as Parte['tipo_pessoa'],
+                tipo_pessoa: v as Parte['tipo_pessoa'],
               })
             }
           >
-            <option value="JURIDICA">Pessoa jurídica</option>
-            <option value="FISICA">Pessoa física</option>
-          </select>
+            <SelectTrigger className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="JURIDICA">Pessoa jurídica</SelectItem>
+              <SelectItem value="FISICA">Pessoa física</SelectItem>
+            </SelectContent>
+          </Select>
         </Campo>
         {campo('nome', 'Nome ou razão social')}
         {campo('documento', 'CPF / CNPJ')}
@@ -561,25 +578,27 @@ export function ContratosGerenciamento() {
           <div className="ct-filtros">
             <label className="ct-busca">
               <Search size={16} />
-              <input
+              <Input
                 aria-label="Buscar propostas"
                 placeholder="Buscar por número, cliente ou aeronave"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
+                className="border-0 bg-transparent shadow-none focus-visible:ring-0"
               />
             </label>
-            <select
-              aria-label="Filtrar por andamento"
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-            >
-              <option value="TODOS">Todos os status</option>
-              {STATUS_CONTRATOS.map((s) => (
-                <option key={s} value={s}>
-                  {ROTULOS_STATUS[s]}
-                </option>
-              ))}
-            </select>
+            <Select value={filtro} onValueChange={setFiltro}>
+              <SelectTrigger aria-label="Filtrar por andamento" className="ct-select h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos os status</SelectItem>
+                {STATUS_CONTRATOS.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {ROTULOS_STATUS[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           {!filtrados.length ? (
             <div className="ct-vazio">
@@ -732,34 +751,38 @@ export function ContratosGerenciamento() {
                 </p>
                 <div className="ct-grade">
                   <Campo nome="Título" largo>
-                    <input
+                    <Input
+                      className="h-10"
                       value={edicao.titulo}
                       maxLength={240}
                       onChange={(e) => mudar({ titulo: e.target.value })}
                     />
                   </Campo>
                   <Campo nome="Número interno">
-                    <input
+                    <Input
+                      className="h-10"
                       value={edicao.numero}
                       onChange={(e) => mudar({ numero: e.target.value })}
                     />
                   </Campo>
                   <Campo nome="Emissão">
-                    <input
+                    <Input
+                      className="h-10"
                       type="date"
                       value={p!.emissao}
                       onChange={(e) => proposta({ emissao: e.target.value })}
                     />
                   </Campo>
                   <Campo nome="Aeronave cadastrada">
-                    <select
-                      value={edicao.aeronave_id}
-                      onChange={(e) => {
+                    <Select
+                      value={edicao.aeronave_id || '__MANUAL__'}
+                      onValueChange={(val) => {
+                        const aeronaveId = val === '__MANUAL__' ? '' : val;
                         const a = opcoes.aeronaves.find(
-                          (a) => a.id === e.target.value,
+                          (item) => item.id === aeronaveId,
                         );
                         mudar({
-                          aeronave_id: e.target.value,
+                          aeronave_id: aeronaveId,
                           cotista_id: '',
                           proposta: {
                             ...p!,
@@ -772,18 +795,26 @@ export function ContratosGerenciamento() {
                         });
                       }}
                     >
-                      <option value="">
-                        Sem vínculo / preenchimento manual
-                      </option>
-                      {opcoes.aeronaves.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.matricula_registro} · {a.modelo}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__MANUAL__">
+                          Sem vínculo / preenchimento manual
+                        </SelectItem>
+                        {opcoes.aeronaves
+                          .filter((a) => Boolean(a.id))
+                          .map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.matricula_registro} · {a.modelo}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
                   </Campo>
                   <Campo nome="Aeronave apresentada no documento">
-                    <input
+                    <Input
+                      className="h-10"
                       value={p!.aeronave_descricao}
                       placeholder="Ex.: PT-XXX · Modelo da aeronave"
                       onChange={(e) =>
@@ -792,13 +823,15 @@ export function ContratosGerenciamento() {
                     />
                   </Campo>
                   <Campo nome="Cidade de emissão">
-                    <input
+                    <Input
+                      className="h-10"
                       value={p!.cidade}
                       onChange={(e) => proposta({ cidade: e.target.value })}
                     />
                   </Campo>
                   <Campo nome="Validade da proposta (dias)">
-                    <input
+                    <Input
+                      className="h-10 tabular-nums"
                       type="number"
                       min={1}
                       max={365}
@@ -809,7 +842,7 @@ export function ContratosGerenciamento() {
                     />
                   </Campo>
                   <Campo nome="Apresentação da empresa" largo>
-                    <textarea
+                    <Textarea
                       rows={13}
                       value={p!.apresentacao}
                       onChange={(e) =>
@@ -825,14 +858,15 @@ export function ContratosGerenciamento() {
                 <section className="ct-painel">
                   <h3>Vincular contratante</h3>
                   <Campo nome="Cotista cadastrado (opcional)">
-                    <select
-                      value={edicao.cotista_id}
-                      onChange={(e) => {
+                    <Select
+                      value={edicao.cotista_id || '__MANUAL__'}
+                      onValueChange={(val) => {
+                        const cotistaId = val === '__MANUAL__' ? '' : val;
                         const c = opcoes.cotistas_contratos.find(
-                          (c) => c.id === e.target.value,
+                          (item) => item.id === cotistaId,
                         );
                         mudar({
-                          cotista_id: e.target.value,
+                          cotista_id: cotistaId,
                           ...(c
                             ? {
                                 contratante: {
@@ -845,19 +879,27 @@ export function ContratosGerenciamento() {
                         });
                       }}
                     >
-                      <option value="">Preencher manualmente</option>
-                      {opcoes.cotistas_contratos
-                        .filter(
-                          (c) =>
-                            !edicao.aeronave_id ||
-                            c.aeronave_id === edicao.aeronave_id,
-                        )
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nome}
-                          </option>
-                        ))}
-                    </select>
+                      <SelectTrigger className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__MANUAL__">
+                          Preencher manualmente
+                        </SelectItem>
+                        {opcoes.cotistas_contratos
+                          .filter(
+                            (c) =>
+                              Boolean(c.id) &&
+                              (!edicao.aeronave_id ||
+                                c.aeronave_id === edicao.aeronave_id),
+                          )
+                          .map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.nome}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
                   </Campo>
                 </section>
                 <DadosParte
@@ -901,7 +943,8 @@ export function ContratosGerenciamento() {
                     </label>
                     <div className="ct-grade">
                       <Campo nome="Nome do grupo">
-                        <input
+                        <Input
+                          className="h-10"
                           value={s.titulo}
                           onChange={(e) =>
                             proposta({
@@ -927,7 +970,7 @@ export function ContratosGerenciamento() {
                         </Campo>
                       )}
                       <Campo nome="Serviços incluídos" largo>
-                        <textarea
+                        <Textarea
                           rows={Math.min(11, s.itens.length + 1)}
                           value={s.itens.join('\n')}
                           onChange={(e) =>
@@ -947,7 +990,7 @@ export function ContratosGerenciamento() {
                 <section className="ct-painel">
                   <div className="ct-grade">
                     <Campo nome="Descrição do atendimento" largo>
-                      <textarea
+                      <Textarea
                         rows={4}
                         value={p!.descricao_servicos}
                         onChange={(e) =>
@@ -956,7 +999,7 @@ export function ContratosGerenciamento() {
                       />
                     </Campo>
                     <Campo nome="Áreas de atuação (uma por linha)" largo>
-                      <textarea
+                      <Textarea
                         rows={8}
                         value={p!.areas.join('\n')}
                         onChange={(e) =>
@@ -974,33 +1017,46 @@ export function ContratosGerenciamento() {
                   <h3>Investimento</h3>
                   <div className="ct-grade">
                     <Campo nome="Composição do preço">
-                      <select
+                      <Select
                         value={p!.modo_cobranca}
-                        onChange={(e) =>
+                        onValueChange={(v) =>
                           proposta({
-                            modo_cobranca: e.target
-                              .value as Proposta['modo_cobranca'],
+                            modo_cobranca: v as Proposta['modo_cobranca'],
                           })
                         }
                       >
-                        <option value="PACOTE">Valor único do pacote</option>
-                        <option value="SERVICOS">
-                          Soma dos grupos selecionados
-                        </option>
-                      </select>
+                        <SelectTrigger className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PACOTE">
+                            Valor único do pacote
+                          </SelectItem>
+                          <SelectItem value="SERVICOS">
+                            Soma dos grupos selecionados
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </Campo>
                     <Campo nome="Unidade de cobrança">
-                      <select
+                      <Select
                         value={p!.unidade}
-                        onChange={(e) =>
+                        onValueChange={(v) =>
                           proposta({
-                            unidade: e.target.value as Proposta['unidade'],
+                            unidade: v as Proposta['unidade'],
                           })
                         }
                       >
-                        <option value="POR_COTISTA">Por cotista</option>
-                        <option value="POR_AERONAVE">Por aeronave</option>
-                      </select>
+                        <SelectTrigger className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="POR_COTISTA">Por cotista</SelectItem>
+                          <SelectItem value="POR_AERONAVE">
+                            Por aeronave
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </Campo>
                     {p!.modo_cobranca === 'PACOTE' && (
                       <Campo nome="Valor mensal do pacote (R$)">
@@ -1014,7 +1070,8 @@ export function ContratosGerenciamento() {
                     )}
                     {p!.unidade === 'POR_COTISTA' && (
                       <Campo nome="Quantidade de cotistas na proposta">
-                        <input
+                        <Input
+                          className="h-10 tabular-nums"
                           type="number"
                           min={1}
                           step={1}
@@ -1028,7 +1085,8 @@ export function ContratosGerenciamento() {
                       </Campo>
                     )}
                     <Campo nome="Forma de pagamento">
-                      <input
+                      <Input
+                        className="h-10"
                         value={edicao.forma_pagamento}
                         onChange={(e) =>
                           mudar({ forma_pagamento: e.target.value })
@@ -1050,7 +1108,7 @@ export function ContratosGerenciamento() {
                   <h3>Condições e vigência</h3>
                   <div className="ct-grade">
                     <Campo nome="Condições comerciais" largo>
-                      <textarea
+                      <Textarea
                         rows={5}
                         value={p!.condicoes}
                         onChange={(e) =>
@@ -1059,27 +1117,31 @@ export function ContratosGerenciamento() {
                       />
                     </Campo>
                     <Campo nome="Início previsto">
-                      <input
+                      <Input
+                        className="h-10"
                         type="date"
                         value={edicao.data_inicio}
                         onChange={(e) => mudar({ data_inicio: e.target.value })}
                       />
                     </Campo>
                     <Campo nome="Término previsto">
-                      <input
+                      <Input
+                        className="h-10"
                         type="date"
                         value={edicao.data_fim}
                         onChange={(e) => mudar({ data_fim: e.target.value })}
                       />
                     </Campo>
                     <Campo nome="Foro (opcional)">
-                      <input
+                      <Input
+                        className="h-10"
                         value={edicao.foro}
                         onChange={(e) => mudar({ foro: e.target.value })}
                       />
                     </Campo>
                     <Campo nome="Mensagem de encerramento" largo>
-                      <input
+                      <Input
+                        className="h-10"
                         value={p!.encerramento}
                         onChange={(e) =>
                           proposta({ encerramento: e.target.value })
@@ -1097,23 +1159,29 @@ export function ContratosGerenciamento() {
                   <p>Atualize o status conforme cada etapa for realizada.</p>
                   <div className="ct-grade">
                     <Campo nome="Status">
-                      <select
+                      <Select
                         value={edicao.status}
-                        onChange={(e) =>
+                        onValueChange={(v) =>
                           mudar({
-                            status: e.target.value as EdicaoContrato['status'],
+                            status: v as EdicaoContrato['status'],
                           })
                         }
                       >
-                        {STATUS_CONTRATOS.map((s) => (
-                          <option key={s} value={s}>
-                            {ROTULOS_STATUS[s]}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUS_CONTRATOS.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {ROTULOS_STATUS[s]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </Campo>
                     <Campo nome="Data da assinatura">
-                      <input
+                      <Input
+                        className="h-10"
                         type="date"
                         value={edicao.data_assinatura}
                         onChange={(e) =>
@@ -1122,7 +1190,7 @@ export function ContratosGerenciamento() {
                       />
                     </Campo>
                     <Campo nome="Observações internas" largo>
-                      <textarea
+                      <Textarea
                         rows={4}
                         value={edicao.observacoes}
                         onChange={(e) => mudar({ observacoes: e.target.value })}

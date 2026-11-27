@@ -30,7 +30,7 @@
   margin-bottom: 24px;
 }
 .ct-sobre {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 1.5px;
   color: var(--ct-acento);
@@ -80,20 +80,20 @@
 .ct-botao.ct-primario:hover {
   background: #1c7bad;
 }
-.ct-central :is(input, select, textarea):focus-visible,
+.ct-central :is(input, select, textarea, [role="combobox"]):focus-visible,
 .ct-central button:focus-visible {
   outline: 2px solid var(--ct-acento);
   outline-offset: 3px;
 }
 .ct-central
-  :is(input:not([type='checkbox']):not([type='file']), select, textarea) {
+  :is(input:not([type='checkbox']):not([type='file']), select, textarea, [role="combobox"]) {
   min-width: 0;
   width: 100%;
   color: var(--ct-texto);
   background: var(--ct-fundo);
   border: 1px solid var(--ct-borda);
   border-radius: 6px;
-  padding: 10px 11px;
+  padding: 9px 11px;
   line-height: 1.4;
 }
 .ct-central textarea {
@@ -123,14 +123,16 @@
 .ct-indicadores strong {
   font-size: 24px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .ct-filtros {
   display: flex;
   gap: 12px;
   margin-bottom: 18px;
 }
-.ct-filtros > select {
-  max-width: 200px;
+.ct-filtros > select,
+.ct-filtros > .ct-select {
+  max-width: 210px;
 }
 .ct-busca {
   flex: 1;
@@ -159,7 +161,7 @@
 }
 .ct-tabela th {
   color: var(--ct-secundario);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.6px;
   background: var(--ct-suave);
@@ -339,7 +341,8 @@
   gap: 7px;
   min-width: 0;
 }
-.ct-campo > span {
+.ct-campo > span,
+.ct-campo [data-slot='field-label'] {
   font-size: 12px;
   color: var(--ct-secundario);
   font-weight: 500;
@@ -513,7 +516,8 @@
   .ct-filtros {
     flex-direction: column;
   }
-  .ct-filtros > select {
+  .ct-filtros > select,
+  .ct-filtros > .ct-select {
     max-width: none;
   }
   .ct-gravacao {

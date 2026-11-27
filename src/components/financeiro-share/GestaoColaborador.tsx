@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import { FichaColaboradorAbas } from "@/components/GestaoColaboradorAbas";
 import { EditorFichaColaborador } from "@/components/colaboradores/EditorFichaColaborador";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   atualizarGestaoColaborador,
   buscarFichaColaborador,
@@ -330,40 +333,6 @@ export default function GestaoColaborador() {
       onSave={salvar}
     />
   );
-  if (ficha)
-    return (
-      <div className="rh rh-enter">
-        {aviso && (
-          <AvisoGestao onClose={() => setAviso("")}>{aviso}</AvisoGestao>
-        )}
-        <FichaColaboradorAbas
-          key={ficha.perfil.id}
-          ficha={ficha}
-          onClose={() => {
-            setFicha(null);
-            setEditorFicha(null);
-            requestAnimationFrame(() =>
-              document
-                .querySelector<HTMLElement>(
-                  `[data-colaborador-ficha="${CSS.escape(retornoFoco.current)}"]`,
-                )
-                ?.focus(),
-            );
-          }}
-          onEditPessoal={() => setEditorFicha("pessoal")}
-          onEditProfissional={() => setEditorFicha("profissional")}
-        />
-        {editorFicha && (
-          <EditorFichaColaborador
-            perfil={ficha.perfil}
-            escopo={editorFicha}
-            onClose={() => setEditorFicha(null)}
-            onSave={salvarEdicaoFicha}
-          />
-        )}
-        {formulario}
-      </div>
-    );
   return (
     <div className="rh rh-enter">
       <header className="rh-top">
@@ -416,8 +385,8 @@ export default function GestaoColaborador() {
         </AvisoGestao>
       )}
       {aviso && <AvisoGestao onClose={() => setAviso("")}>{aviso}</AvisoGestao>}
-      <div className="rh-workspace">
-        <section className="rh-panel" aria-label="Diretório de colaboradores">
+      <div className="rh-workspace rh-master-detail">
+        <section className={`rh-panel rh-master-list ${ficha ? "rh-master-list-selected" : ""}`} aria-label="Diretório de colaboradores">
           <div className="rh-panel-head">
             <div>
               <h2>Equipe Share Brasil</h2>
@@ -462,13 +431,15 @@ export default function GestaoColaborador() {
             </button>
           </div>
           <div className="rh-toolbar">
-            <label className="rh-search">
+            <Field orientation="horizontal" className="rh-search">
+              <FieldLabel htmlFor="rh-search" className="sr-only">Buscar colaboradores</FieldLabel>
               <Search size={17} />
-              <input
+              <Input
+                id="rh-search"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Buscar nome, e-mail ou departamento"
-                aria-label="Buscar colaboradores"
+                className="rh-input"
               />
               {busca && (
                 <button
@@ -479,27 +450,27 @@ export default function GestaoColaborador() {
                   ×
                 </button>
               )}
-            </label>
-            <select
-              className="rh-select"
-              aria-label="Filtrar departamento"
-              value={departamento}
-              onChange={(e) => setDepartamento(e.target.value)}
-            >
-              <option value="">Todos os departamentos</option>
-              {departamentos.map((d) => (
-                <option key={d}>{d}</option>
-              ))}
-            </select>
-            <select
-              className="rh-select"
-              aria-label="Ordenar colaboradores"
-              value={ordem}
-              onChange={(e) => setOrdem(e.target.value)}
-            >
-              <option value="nome">Nome: A–Z</option>
-              <option value="admissao">Admissão recente</option>
-            </select>
+            </Field>
+            <Field className="rh-filter-field">
+              <FieldLabel htmlFor="rh-departamento" className="sr-only">Filtrar departamento</FieldLabel>
+              <Select value={departamento || "__TODOS__"} onValueChange={(value) => setDepartamento(value === "__TODOS__" ? "" : value)}>
+                <SelectTrigger id="rh-departamento" className="rh-select"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__TODOS__">Todos os departamentos</SelectItem>
+                  {departamentos.map((d) => <SelectItem key={d} value={d!}>{d}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field className="rh-filter-field">
+              <FieldLabel htmlFor="rh-ordem" className="sr-only">Ordenar colaboradores</FieldLabel>
+              <Select value={ordem} onValueChange={setOrdem}>
+                <SelectTrigger id="rh-ordem" className="rh-select"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nome">Nome: A–Z</SelectItem>
+                  <SelectItem value="admissao">Admissão recente</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
           </div>
           {carregando ? (
             <div
@@ -699,7 +670,37 @@ export default function GestaoColaborador() {
             </div>
           </footer>
         </section>
-        <aside className="rh-side">
+        <aside className={`rh-side rh-master-detail-pane ${ficha ? "rh-master-detail-pane-selected" : ""}`}>
+          {ficha ? (
+            <>
+              <FichaColaboradorAbas
+                key={ficha.perfil.id}
+                ficha={ficha}
+                onClose={() => {
+                  setFicha(null);
+                  setEditorFicha(null);
+                  requestAnimationFrame(() =>
+                    document
+                      .querySelector<HTMLElement>(
+                        `[data-colaborador-ficha="${CSS.escape(retornoFoco.current)}"]`,
+                      )
+                      ?.focus(),
+                  );
+                }}
+                onEditPessoal={() => setEditorFicha("pessoal")}
+                onEditProfissional={() => setEditorFicha("profissional")}
+              />
+              {editorFicha && (
+                <EditorFichaColaborador
+                  perfil={ficha.perfil}
+                  escopo={editorFicha}
+                  onClose={() => setEditorFicha(null)}
+                  onSave={salvarEdicaoFicha}
+                />
+              )}
+            </>
+          ) : (
+            <>
           <section className="rh-panel" aria-label="Equipe por departamento">
             <header className="rh-panel-head">
               <h2>Equipe por departamento</h2>
@@ -780,6 +781,8 @@ export default function GestaoColaborador() {
               )}
             </div>
           </section>
+            </>
+          )}
         </aside>
       </div>
       {formulario}

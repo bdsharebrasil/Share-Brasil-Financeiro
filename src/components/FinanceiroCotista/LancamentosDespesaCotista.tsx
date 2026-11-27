@@ -119,7 +119,7 @@ export function SeletorMesesCotista({
           Mês Atual <ChevronDown size={13} aria-hidden="true" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[280px] border-slate-700 bg-[#131c2b] p-3 text-slate-100">
+      <PopoverContent align="start" className="w-[280px] border-border bg-popover p-3 text-popover-foreground">
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-1">
             <button
@@ -153,8 +153,8 @@ export function SeletorMesesCotista({
                 onClick={() => aoAlternar(competencia)}
                 className={`h-8 rounded border text-xs transition-colors ${
                   selecionado
-                    ? "border-[#1d7ec2] bg-[#16334d] font-semibold text-white"
-                    : "border-slate-700/80 bg-[#0f1724] text-slate-400 hover:bg-slate-800"
+                    ? "border-primary bg-primary/10 font-semibold text-primary"
+                    : "border-border bg-card text-muted-foreground hover:bg-secondary"
                 }`}
               >
                 {mes}
@@ -163,7 +163,7 @@ export function SeletorMesesCotista({
           })}
         </div>
         <div className="mt-3 flex items-center justify-between gap-2">
-          <span className="text-[11px] text-slate-400">Um ou mais meses</span>
+          <span className="text-[11px] text-muted-foreground">Um ou mais meses</span>
           <button
             type="button"
             className="cotista-btn h-7 px-2.5 text-[11px]"
@@ -208,18 +208,18 @@ function statusLancamento(status: string | null | undefined) {
 }
 
 const COR_STATUS: Record<string, string> = {
-  PAGO: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  PAGO_DIRETAMENTE: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  RECEBIDO: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  REEMBOLSADO: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  EM_ABERTO: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  EM_ATRASO: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-  AGUARDANDO_REEMBOLSO: "bg-violet-500/15 text-violet-300 border-violet-500/30",
+  PAGO: "bg-[var(--app-success-soft)] text-[var(--app-success)] border-[var(--app-success-line)]",
+  PAGO_DIRETAMENTE: "bg-[var(--app-success-soft)] text-[var(--app-success)] border-[var(--app-success-line)]",
+  RECEBIDO: "bg-[var(--app-success-soft)] text-[var(--app-success)] border-[var(--app-success-line)]",
+  REEMBOLSADO: "bg-[var(--app-success-soft)] text-[var(--app-success)] border-[var(--app-success-line)]",
+  EM_ABERTO: "bg-[var(--app-warning-soft)] text-[var(--app-warning)] border-[var(--app-warning-line)]",
+  EM_ATRASO: "bg-[var(--app-danger-soft)] text-[var(--app-danger)] border-[var(--app-danger-line)]",
+  AGUARDANDO_REEMBOLSO: "bg-[var(--app-violet-soft)] text-[var(--app-violet)] border-[var(--app-violet-line)]",
 };
 
 function BadgeStatus({ status }: { status: string }) {
   const visual = statusLancamento(status);
-  const classe = COR_STATUS[visual.value] ?? "bg-slate-500/15 text-slate-300 border-slate-500/30";
+  const classe = COR_STATUS[visual.value] ?? "bg-secondary text-muted-foreground border-border";
   return (
     <span className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium ${classe}`}>
       {visual.label}
@@ -299,7 +299,7 @@ function LancamentoExpandido({
   );
 
   return (
-    <div className="sticky left-0 w-[calc(100cqi-2px)] max-w-full border-l-2 border-[#1d7ec2] bg-[#0d1623] px-5 py-4 text-xs text-slate-200">
+    <div className="sticky left-0 w-[calc(100cqi-2px)] max-w-full border-l-2 border-primary bg-card px-5 py-4 text-xs text-card-foreground">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -352,7 +352,7 @@ function LancamentoExpandido({
                   key={documento.url}
                   type="button"
                   onClick={() => aoAbrirDocumento(rotulo, documento.url)}
-                  className="inline-flex items-center gap-2 rounded border border-slate-700 bg-[#131d2b] px-3 py-2 text-left text-xs text-slate-200 transition-colors hover:border-[#1d7ec2] hover:bg-[#19283c]"
+                  className="inline-flex items-center gap-2 rounded border border-border bg-secondary px-3 py-2 text-left text-xs text-foreground transition-colors hover:border-primary hover:bg-accent"
                 >
                   <IconeAnexo nome={titulo} />
                   <span>
@@ -1382,7 +1382,7 @@ export function LancamentosDespesaCotista({
                         {coluna.cotista ? " (Cotista)" : ""}
                       </span>
                       {visivel ? (
-                        <Eye size={14} className="shrink-0 text-[#2596be]" />
+                        <Eye size={14} className="shrink-0 text-primary" />
                       ) : (
                         <EyeOff size={14} className="shrink-0 text-slate-500" />
                       )}
@@ -1507,10 +1507,10 @@ export function LancamentosDespesaCotista({
               value={modoData}
               onValueChange={(v) => setModoData(v as typeof modoData)}
             >
-              <SelectTrigger className="h-8 border-slate-700 bg-[#0c131d] text-xs">
+              <SelectTrigger className="h-8 border-input bg-background text-xs">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-slate-700 bg-[#131c2b] text-slate-100">
+              <SelectContent className="border-border bg-popover text-popover-foreground">
                 <SelectItem value="emissao">Emissão</SelectItem>
                 <SelectItem value="vencimento">Vencimento</SelectItem>
                 <SelectItem value="pagamento">Pagamento</SelectItem>
@@ -1522,10 +1522,10 @@ export function LancamentosDespesaCotista({
           <div className="space-y-1">
             <Label className="text-[11px] text-slate-400">Status</Label>
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="h-8 border-slate-700 bg-[#0c131d] text-xs">
+              <SelectTrigger className="h-8 border-input bg-background text-xs">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-slate-700 bg-[#131c2b] text-slate-100">
+              <SelectContent className="border-border bg-popover text-popover-foreground">
                 <SelectItem value="todos">Todos os status</SelectItem>
                 {STATUS_LANCAMENTO.map((s) => (
                   <SelectItem key={s.value} value={s.value}>
@@ -1539,10 +1539,10 @@ export function LancamentosDespesaCotista({
           <div className="space-y-1">
             <Label className="text-[11px] text-slate-400">Categoria</Label>
             <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-              <SelectTrigger className="h-8 border-slate-700 bg-[#0c131d] text-xs">
+              <SelectTrigger className="h-8 border-input bg-background text-xs">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="max-h-64 border-slate-700 bg-[#131c2b] text-slate-100">
+              <SelectContent className="max-h-64 border-border bg-popover text-popover-foreground">
                 <SelectItem value="todas">Todas as categorias</SelectItem>
                 {categorias.map((cat) => (
                   <SelectItem key={cat} value={cat}>
@@ -1556,10 +1556,10 @@ export function LancamentosDespesaCotista({
           <div className="space-y-1">
             <Label className="text-[11px] text-slate-400">Tipo de Documento</Label>
             <Select value={filtroDoc} onValueChange={setFiltroDoc}>
-              <SelectTrigger className="h-8 border-slate-700 bg-[#0c131d] text-xs">
+              <SelectTrigger className="h-8 border-input bg-background text-xs">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-slate-700 bg-[#131c2b] text-slate-100">
+              <SelectContent className="border-border bg-popover text-popover-foreground">
                 <SelectItem value="todos">Todos os documentos</SelectItem>
                 {TIPOS_DOCUMENTO_COTISTA.map((doc) => (
                   <SelectItem key={doc.valor} value={doc.valor}>
@@ -1580,7 +1580,7 @@ export function LancamentosDespesaCotista({
 
       {/* Barra de seleção múltipla */}
       {itensSelecionados.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-x border-slate-700 bg-[#16334d] px-4 py-2 text-xs text-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-x border-border bg-primary/10 px-4 py-2 text-xs text-foreground">
           <span>
             <strong>{itensSelecionados.length}</strong> selecionado(s) · Soma:{" "}
             <strong className="font-mono">{formatarCentavos(totalSelecionado)}</strong>
@@ -1629,7 +1629,7 @@ export function LancamentosDespesaCotista({
                     disabled={carregando || !itensDaPagina.length}
                     aria-label="Selecionar todos desta página"
                     onChange={alternarSelecaoDaPagina}
-                    className="h-3.5 w-3.5 accent-[#1d7ec2]"
+                    className="h-3.5 w-3.5 accent-primary"
                   />
                 </div>
               </th>
@@ -1665,9 +1665,9 @@ export function LancamentosDespesaCotista({
                         {ordenacao.coluna !== coluna.id ? (
                           <ChevronsUpDown size={12} className="shrink-0 text-slate-400" />
                         ) : ordenacao.direcao === "asc" ? (
-                          <ChevronUp size={12} className="shrink-0 text-[#5cb8ff]" />
+                          <ChevronUp size={12} className="shrink-0 text-primary" />
                         ) : (
-                          <ChevronDown size={12} className="shrink-0 text-[#5cb8ff]" />
+                          <ChevronDown size={12} className="shrink-0 text-primary" />
                         )}
                       </button>
                     ) : (
@@ -1745,7 +1745,7 @@ export function LancamentosDespesaCotista({
                               checked={selecionado}
                               aria-label={`Selecionar ${item.descricao}`}
                               onChange={() => alternarSelecao(item.id)}
-                              className="h-3.5 w-3.5 accent-[#1d7ec2]"
+                              className="h-3.5 w-3.5 accent-primary"
                             />
                             <button
                               type="button"
@@ -1847,7 +1847,7 @@ export function LancamentosDespesaCotista({
           }
         }}
       >
-        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto rounded-2xl border-slate-700 bg-[#111a27] p-6 text-slate-100">
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto rounded-2xl border-border bg-background p-6 text-foreground">
           <DialogHeader>
             <DialogTitle>
               {acao?.tipo === "editar" ? "Editar lançamento" : "Excluir despesa?"}
@@ -2077,7 +2077,7 @@ export function LancamentosDespesaCotista({
                         return (
                           <div
                             key={cotista.id}
-                            className="grid gap-3 rounded-lg border border-slate-800 bg-[#0c131d] p-3 sm:grid-cols-3"
+                            className="grid gap-3 rounded-lg border border-border bg-card p-3 sm:grid-cols-3"
                           >
                             <div className="space-y-1">
                               <Label className="text-xs">{cotista.nome} (%)</Label>
@@ -2141,7 +2141,7 @@ export function LancamentosDespesaCotista({
                   </div>
                 </div>
               ) : (
-                <div className="rounded-lg border border-slate-800 bg-[#0c131d] p-4">
+                <div className="rounded-lg border border-border bg-card p-4">
                   <p className="text-sm">{acao.item.descricao}</p>
                   <p className="mt-2 font-mono text-lg font-semibold">
                     {formatarCentavos(acao.item.valorCentavos)}
@@ -2180,14 +2180,14 @@ export function LancamentosDespesaCotista({
 
       {/* Modal de Visualização de Anexo */}
       <Dialog open={Boolean(documentoAberto)} onOpenChange={(o) => !o && setDocumentoAberto(null)}>
-        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-4xl overflow-hidden border-slate-700 bg-[#111a27] p-0 text-slate-100">
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-4xl overflow-hidden border-border bg-background p-0 text-foreground">
           <DialogHeader className="border-b border-slate-800 px-5 py-4">
             <DialogTitle className="text-sm">{documentoAberto?.nome || "Documento"}</DialogTitle>
             <DialogDescription className="text-xs text-slate-400">
               Anexo vinculado ao lançamento selecionado.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex max-h-[65dvh] min-h-[260px] items-center justify-center overflow-auto bg-[#0c131d] p-4">
+          <div className="flex max-h-[65dvh] min-h-[260px] items-center justify-center overflow-auto bg-card p-4">
             {documentoAberto &&
               (/\.(png|jpe?g|gif|webp|svg|bmp|avif)(?:[?#].*)?$/i.test(documentoAberto.url) ? (
                 <img

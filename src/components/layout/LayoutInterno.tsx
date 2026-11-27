@@ -55,7 +55,7 @@ export default function LayoutInterno() {
   const [exibirBoasVindas, setExibirBoasVindas] = useState(false);
   const [planoAgendamentoId, setPlanoAgendamentoId] = useState<string>();
   const [menuAtivo, setMenuAtivo] = useState(navegacaoInicial.menuAtivo);
-  const [tema, setTema] = useState<Tema>(() => (localStorage.getItem("share-brasil-theme") as Tema) || "dark");
+  const [tema, setTema] = useState<Tema>(() => (localStorage.getItem("share-brasil-theme-v2") as Tema) || "light");
   const [menuAberto, setMenuAberto] = useState(false);
   const [sidebarRecolhida, setSidebarRecolhida] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -78,7 +78,7 @@ export default function LayoutInterno() {
     });
   }, []);
 
-  useEffect(() => { document.documentElement.classList.toggle("dark", tema === "dark"); localStorage.setItem("share-brasil-theme", tema); document.querySelector('meta[name="theme-color"]')?.setAttribute("content", tema === "dark" ? "#05090c" : "#f3f6f8"); }, [tema]);
+  useEffect(() => { document.documentElement.classList.toggle("dark", tema === "dark"); localStorage.setItem("share-brasil-theme-v2", tema); document.querySelector('meta[name="theme-color"]')?.setAttribute("content", tema === "dark" ? "#05090c" : "#f3f6f8"); }, [tema]);
   useEffect(() => { if (rotaRecibo) { setAmbiente("financeiro"); setMenuAtivo("recibos"); } else if (menuAtivo === "recibos") { setMenuAtivo("overview"); } }, [rotaRecibo, menuAtivo]);
   useEffect(() => {
     if (rotaUrlFinanceiraLegada) { setAmbiente("gestor"); setMenuAtivo("overview"); navegar(`/?modulo=${moduloLegado || "entrada"}`, { replace: true }); }

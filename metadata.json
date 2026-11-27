@@ -1,0 +1,6 @@
+{
+  "name": "Share Brasil",
+  "description": "Portal de gestão, operações aeronáuticas e financeiro da Share Brasil.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

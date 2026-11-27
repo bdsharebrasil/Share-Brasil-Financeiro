@@ -3,7 +3,6 @@ import {
   Calendar,
   CheckCircle2,
   FileText,
-  ImagePlus,
   Layers,
   Loader2,
   Plus,
@@ -97,6 +96,11 @@ type Props = {
 };
 
 const FORMAS_BAIXA = ["PIX", "TRANSFERÊNCIA", "BOLETO", "DINHEIRO", "CARTÃO"];
+const LIMITE_ANEXO_LANCAMENTO = 20 * 1024 * 1024;
+
+function tipoAnexoLancamentoPermitido(arquivo: File) {
+  return arquivo.type === "application/pdf" || arquivo.type.startsWith("image/");
+}
 
 /** Remove underscores e padroniza textos exibidos na UI em MAIÚSCULAS */
 function formatarTextoUi(valor?: string | null): string {
@@ -126,9 +130,9 @@ function normalizarDataInput(valor?: string | null): string {
 const LABEL_CLASS =
   "text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground";
 const INPUT_CLASS =
-  "h-10 rounded-xl border-input bg-background text-xs font-semibold uppercase tracking-wide text-foreground placeholder:text-muted-foreground/70 focus-visible:border-[#233329] focus-visible:ring-[#233329]/20 dark:focus-visible:border-[#C8E636] dark:focus-visible:ring-[#C8E636]/20";
+  "h-10 rounded-xl border-input bg-background text-xs font-semibold uppercase tracking-wide text-foreground placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-primary/20";
 const SELECT_TRIGGER_CLASS =
-  "h-10 rounded-xl border-input bg-background text-xs font-semibold uppercase tracking-wide text-foreground focus:ring-[#233329]/20 dark:focus:ring-[#C8E636]/20";
+  "h-10 rounded-xl border-input bg-background text-xs font-semibold uppercase tracking-wide text-foreground focus:ring-primary/20";
 const SELECT_ITEM_CLASS = "text-xs font-semibold uppercase tracking-wide";
 
 export function NovoLancamentoShareDialog({
@@ -171,8 +175,8 @@ export function NovoLancamentoShareDialog({
   const [comprovanteUrl, setComprovanteUrl] = useState("");
   const [pagoPor, setPagoPor] = useState("");
   const [categoriasCliente, setCategoriasCliente] = useState<CategoriaDespesaOpcao[]>([]);
-  const [imagens, setImagens] = useState<File[]>([]);
-  const [inputImagemKey, setInputImagemKey] = useState(0);
+  const [anexosSelecionados, setAnexosSelecionados] = useState<File[]>([]);
+  const [inputAnexoKey, setInputAnexoKey] = useState(0);
 
   // Evita que re-renderizações do pai sobrescrevam campos editados pelo usuário
   const chaveInicializacaoRef = useRef<string | null>(null);
@@ -196,7 +200,7 @@ export function NovoLancamentoShareDialog({
     setFormaPagamento("nenhuma");
     setComprovanteUrl("");
     setPagoPor("");
-    setImagens([]);
+    setAnexosSelecionados([]);
   }, [fluxoInicial, somenteEntrada]);
 
   useEffect(() => {
@@ -265,7 +269,7 @@ export function NovoLancamentoShareDialog({
     setFormaPagamento(lancamentoInicial.formaPagamento || "nenhuma");
     setComprovanteUrl(lancamentoInicial.comprovanteUrl ?? "");
     setPagoPor(formatarTextoUi(lancamentoInicial.pagoPor));
-    setImagens([]);
+    setAnexosSelecionados([]);
   }, [aberto, lancamentoInicial, limpar, fluxoInicial, somenteDespesa, somenteEntrada]);
 
   const gruposCategoria = useMemo(() => {
@@ -375,19 +379,19 @@ export function NovoLancamentoShareDialog({
       }
 
       const errosUpload: string[] = [];
-      for (const imagem of imagens) {
+      for (const anexo of anexosSelecionados) {
         try {
-          const enviado = await enviarAnexoDocumentoSaida(imagem, imagem.name, {
+          const enviado = await enviarAnexoDocumentoSaida(anexo, anexo.name, {
             origem: "lancamento",
             documentoId: lancamento.id,
           });
           await anexarDocumentoLancamento(lancamento.id, {
-            nome: imagem.name,
+            nome: anexo.name,
             url: enviado.url,
-            tipo: imagem.type || "image/*",
+            tipo: anexo.type || "application/octet-stream",
           });
         } catch {
-          errosUpload.push(formatarTextoUi(imagem.name));
+          errosUpload.push(formatarTextoUi(anexo.name));
         }
       }
 
@@ -430,23 +434,22 @@ export function NovoLancamentoShareDialog({
         if (!estado) aoFechar();
       }}
     >
-      <DialogContent className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-2xl overflow-y-auto rounded-[24px] border-border bg-background p-0 text-foreground uppercase shadow-2xl sm:w-full [&>button]:right-5 [&>button]:top-5 [&>button]:rounded-full [&>button]:bg-white/10 [&>button]:p-1.5 [&>button]:text-white/85 [&>button]:hover:bg-white/20 [&>button]:hover:text-white">
-        {/* CABEÇALHO ESTRUTURAL EM VERDE-MUSGO (COMPATÍVEL COM LIGHT E DARK) */}
-        <DialogHeader className="border-b border-border/60 bg-[#233329] px-5 pb-5 pt-5 text-left dark:bg-[#17221B] sm:px-6">
-          <div className="mb-1.5 inline-flex w-fit items-center gap-1.5 rounded-full bg-[#2D4034] px-3 py-1 dark:bg-[#223328]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#C8E636]" />
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#C8E636]">
+      <DialogContent className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-2xl overflow-y-auto rounded-[24px] border-border bg-background p-0 text-foreground uppercase shadow-2xl sm:w-full [&>button]:right-5 [&>button]:top-5 [&>button]:rounded-full [&>button]:bg-primary-foreground/10 [&>button]:p-1.5 [&>button]:text-primary-foreground/85 [&>button]:hover:bg-primary-foreground/20 [&>button]:hover:text-primary-foreground">
+        <DialogHeader className="border-b border-border/60 bg-primary px-5 pb-5 pt-5 text-left text-primary-foreground sm:px-6">
+          <div className="mb-1.5 inline-flex w-fit items-center gap-1.5 rounded-full bg-primary-foreground/15 px-3 py-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground">
               FINANCEIRO SHARE · CAIXA PRÓPRIO
             </p>
           </div>
-          <DialogTitle className="text-xl font-bold uppercase tracking-[-0.02em] text-white">
+          <DialogTitle className="text-xl font-bold uppercase tracking-[-0.02em] text-primary-foreground">
             {editando
               ? "EDITAR LANÇAMENTO"
               : somenteDespesa
                 ? "NOVA CONTA A PAGAR"
                 : "NOVO LANÇAMENTO"}
           </DialogTitle>
-          <DialogDescription className="text-[11px] font-medium uppercase tracking-wide text-[#C4CFC8]">
+          <DialogDescription className="text-[11px] font-medium uppercase tracking-wide text-primary-foreground/75">
             DESPESAS E ENTRADAS INTERNAS DA SHARE BRASIL. LANÇAMENTOS RATEADOS DE COTISTAS NÃO ENTRAM AQUI.
           </DialogDescription>
         </DialogHeader>
@@ -455,7 +458,7 @@ export function NovoLancamentoShareDialog({
           {/* BLOCO 1: IDENTIFICAÇÃO, VALOR E CLASSIFICAÇÃO */}
           <section className="space-y-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border/70 pb-2.5">
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#233329] text-[#C8E636] dark:bg-[#C8E636]/15 dark:text-[#C8E636]">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Receipt size={13} />
               </span>
               <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">
@@ -573,7 +576,7 @@ export function NovoLancamentoShareDialog({
           {/* BLOCO 2: DATAS E RECORRÊNCIA */}
           <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2 border-b border-border/70 pb-2.5">
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#233329] text-[#C8E636] dark:bg-[#C8E636]/15 dark:text-[#C8E636]">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Calendar size={13} />
               </span>
               <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">
@@ -661,11 +664,11 @@ export function NovoLancamentoShareDialog({
           {/* BLOCO 3: DADOS DA BAIXA (QUANDO JÁ PAGO/RECEBIDO OU BAIXA INICIAL) */}
           {(temBaixaEditavel || (!editando && registrarBaixaInicial)) && (
             <section
-              className="grid gap-4 rounded-2xl border border-[#233329]/25 bg-[#233329]/[0.04] p-4 dark:border-[#C8E636]/25 dark:bg-[#C8E636]/[0.05] sm:grid-cols-2"
+              className="grid gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-4 sm:grid-cols-2"
               aria-label="DADOS DA BAIXA"
             >
               <div className="flex items-start gap-2.5 border-b border-border/70 pb-2.5 sm:col-span-2">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#233329] text-[#C8E636] dark:bg-[#C8E636]/15 dark:text-[#C8E636]">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <CheckCircle2 size={13} />
                 </span>
                 <div>
@@ -783,7 +786,7 @@ export function NovoLancamentoShareDialog({
           {/* BLOCO 4: VÍNCULOS, COMPROVANTES E OBSERVAÇÕES */}
           <section className="space-y-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border/70 pb-2.5">
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#233329] text-[#C8E636] dark:bg-[#C8E636]/15 dark:text-[#C8E636]">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Layers size={13} />
               </span>
               <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">
@@ -866,14 +869,14 @@ export function NovoLancamentoShareDialog({
                       rel="noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-[11px] font-semibold uppercase text-foreground hover:bg-muted"
                     >
-                      <FileText size={13} className="text-[#233329] dark:text-[#C8E636]" />
+                      <FileText size={13} className="text-primary" />
                       <span className="max-w-[200px] truncate">{formatarTextoUi(anexo.nome)}</span>
                     </a>
                   ))}
                 </div>
               ) : null}
 
-              {imagens.map((arquivo, index) => (
+              {anexosSelecionados.map((arquivo, index) => (
                 <div
                   key={`${arquivo.name}-${arquivo.lastModified}-${index}`}
                   className="flex items-center justify-between rounded-xl border border-border bg-card px-3 py-1.5 text-xs uppercase"
@@ -887,7 +890,7 @@ export function NovoLancamentoShareDialog({
                     size="icon"
                     className="h-7 w-7 rounded-full hover:bg-destructive/15 hover:text-destructive"
                     aria-label={`REMOVER ${formatarTextoUi(arquivo.name)}`}
-                    onClick={() => setImagens((atuais) => atuais.filter((_, i) => i !== index))}
+                    onClick={() => setAnexosSelecionados((atuais) => atuais.filter((_, i) => i !== index))}
                   >
                     <X size={14} />
                   </Button>
@@ -896,41 +899,41 @@ export function NovoLancamentoShareDialog({
 
               <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
                 <input
-                  key={inputImagemKey}
+                  key={inputAnexoKey}
                   type="file"
-                  accept="image/*"
+                  accept="application/pdf,image/*,.pdf"
                   multiple
                   className="sr-only"
-                  id="imagens-lancamento"
+                  id="anexos-lancamento"
                   onChange={(evento) => {
                     const novos = Array.from(evento.target.files ?? []);
                     const invalidos = novos.filter(
                       (arquivo) =>
-                        !arquivo.type.startsWith("image/") || arquivo.size > 20 * 1024 * 1024,
+                        !tipoAnexoLancamentoPermitido(arquivo) || arquivo.size > LIMITE_ANEXO_LANCAMENTO,
                     );
-                    if (invalidos.length) toast.error("SELECIONE IMAGENS DE ATÉ 20 MB CADA.");
-                    setImagens((atuais) => [
+                    if (invalidos.length) toast.error("SELECIONE PDF OU IMAGENS DE ATÉ 20 MB CADA.");
+                    setAnexosSelecionados((atuais) => [
                       ...atuais,
                       ...novos.filter(
                         (arquivo) =>
-                          arquivo.type.startsWith("image/") && arquivo.size <= 20 * 1024 * 1024,
+                          tipoAnexoLancamentoPermitido(arquivo) && arquivo.size <= LIMITE_ANEXO_LANCAMENTO,
                       ),
                     ]);
-                    setInputImagemKey((key) => key + 1);
+                    setInputAnexoKey((key) => key + 1);
                   }}
                 />
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-9 gap-2 rounded-full border-border bg-card px-4 text-[11px] font-bold uppercase tracking-wider text-foreground hover:bg-[#233329] hover:text-white dark:hover:bg-[#C8E636] dark:hover:text-[#1A241E]"
-                  onClick={() => document.getElementById("imagens-lancamento")?.click()}
+                  className="h-9 gap-2 rounded-full border-border bg-card px-4 text-[11px] font-bold uppercase tracking-wider text-foreground hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => document.getElementById("anexos-lancamento")?.click()}
                 >
-                  <ImagePlus size={14} />
-                  {imagens.length ? "ADICIONAR MAIS IMAGENS" : "ANEXAR IMAGEM"}
+                  <FileText size={14} />
+                  {anexosSelecionados.length ? "ADICIONAR MAIS ARQUIVOS" : "ANEXAR ARQUIVO"}
                 </Button>
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  JPG, PNG OU WEBP · ATÉ 20 MB POR ARQUIVO
+                  PDF OU IMAGENS · ATÉ 20 MB POR ARQUIVO
                 </span>
               </div>
             </div>
@@ -942,7 +945,7 @@ export function NovoLancamentoShareDialog({
               <Textarea
                 id="nl-obs"
                 rows={2}
-                className="rounded-xl border-input bg-background text-xs font-semibold uppercase tracking-wide text-foreground placeholder:text-muted-foreground/70 focus-visible:border-[#233329] focus-visible:ring-[#233329]/20 dark:focus-visible:border-[#C8E636] dark:focus-visible:ring-[#C8E636]/20"
+                className="rounded-xl border-input bg-background text-xs font-semibold uppercase tracking-wide text-foreground placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-primary/20"
                 value={observacoes}
                 onChange={(evento) => setObservacoes(sanitizarDigitacao(evento.target.value))}
                 placeholder="ANOTAÇÕES INTERNAS OPCIONAIS..."
@@ -966,7 +969,7 @@ export function NovoLancamentoShareDialog({
             type="button"
             onClick={salvar}
             disabled={salvando}
-            className="min-h-10 gap-2 rounded-full bg-[#C8E636] px-6 text-xs font-bold uppercase tracking-wider text-[#1A241E] shadow-sm hover:bg-[#B9D828]"
+            className="min-h-10 gap-2 rounded-full bg-primary px-6 text-xs font-bold uppercase tracking-wider text-primary-foreground shadow-sm hover:bg-primary/90"
           >
             {salvando ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
             {editando ? "SALVAR ALTERAÇÕES" : "SALVAR LANÇAMENTO"}

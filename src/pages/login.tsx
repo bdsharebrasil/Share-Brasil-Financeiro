@@ -17,7 +17,7 @@ const flightRoutes = [
 ];
 
 function isValidUsername(value: string) {
-  return value.length > 0 && !value.includes(" ") && !value.includes("@");
+  return value.length > 0 && !/\s/.test(value);
 }
 
 type InstallPromptEvent = Event & {
@@ -109,7 +109,7 @@ export default function Login() {
   }, [navigate]);
 
   const handleUsernameChange = (value: string) => {
-    setUsername(value.replace(/[@\s]/g, "").toLowerCase());
+    setUsername(value.replace(/\s+/g, "").toLowerCase());
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -129,7 +129,7 @@ export default function Login() {
     if (!isValidUsername(trimmedUsername)) {
       toast({
         title: "Usuário inválido",
-        description: "Informe apenas o usuário, sem espaços ou @.",
+        description: "Informe um usuário ou e-mail válido, sem espaços.",
         variant: "destructive",
       });
       return;
@@ -140,7 +140,7 @@ export default function Login() {
       if (!isSupabaseConfigured) {
         throw new Error("Supabase não configurado");
       }
-      const formattedLogin = /@share-brasil\.com$/i.test(trimmedUsername)
+      const formattedLogin = trimmedUsername.includes("@")
         ? trimmedUsername
         : `${trimmedUsername}@share-brasil.com`;
 
@@ -159,8 +159,12 @@ export default function Login() {
         title: "Acesso negado",
         description: message.includes("supabase não configurado")
           ? "Configure VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY no arquivo .env."
-          : message.includes("invalid") || message.includes("credentials")
+          : message.includes("invalid api key")
+          ? "Chave de autenticação do Supabase inválida ou incompleta."
+          : message.includes("invalid login credentials") || message.includes("invalid_credentials")
           ? "Usuário ou senha incorretos. Tente novamente."
+          : message.includes("email not confirmed")
+          ? "E-mail ainda não confirmado. Verifique sua caixa de entrada."
           : "Não foi possível realizar o login. Tente novamente.",
         variant: "destructive",
       });
@@ -275,12 +279,14 @@ export default function Login() {
                 placeholder="seu.nome"
                 autoComplete="username"
                 disabled={isSubmitting}
-                className="lg-field rounded-2xl border-white/10 bg-white/5 pl-12 pr-4 text-white placeholder:text-white/20 focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-[#38d7ff]/50 min-[420px]:pr-44"
+                className={`lg-field rounded-2xl border-white/10 bg-white/5 pl-12 pr-4 text-white placeholder:text-white/20 focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-[#38d7ff]/50 ${username.includes("@") ? "" : "min-[420px]:pr-44"}`}
               />
-              <span className={`pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 items-center gap-2 text-sm font-medium min-[420px]:flex ${isUsernameFocused || isValid ? "text-white/60" : "text-white/30"}`}>
-                @share-brasil.com
-                {isValid && !isUsernameFocused && <CheckCircle2 className="h-4 w-4 text-[#38d7ff]" />}
-              </span>
+              {!username.includes("@") && (
+                <span className={`pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 items-center gap-2 text-sm font-medium min-[420px]:flex ${isUsernameFocused || isValid ? "text-white/60" : "text-white/30"}`}>
+                  @share-brasil.com
+                  {isValid && !isUsernameFocused && <CheckCircle2 className="h-4 w-4 text-[#38d7ff]" />}
+                </span>
+              )}
             </div>
           </div>
 

@@ -76,7 +76,7 @@ export default function EtapasChecklist({
   const tituloId = `${id}-${etapa.id}`;
   const conteudo = (
     <>
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         Etapa {indice + 1} de {etapas.length}
       </p>
       <TituloEtapa
@@ -129,7 +129,7 @@ export default function EtapasChecklist({
                 <strong className="block text-xs font-semibold">
                   {item.titulo}
                 </strong>
-                <span className="block text-[10px] text-muted-foreground">
+                <span className="block text-[11px] text-muted-foreground">
                   {item.concluida
                     ? "Concluída"
                     : item.id === atual

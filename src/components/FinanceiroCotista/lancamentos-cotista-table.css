@@ -1,20 +1,20 @@
 /* Escopo exclusivo da tabela de lançamentos do Financeiro Cotista */
 .cotista-ledger-shell {
-  --grid-bg: #0c131d;
-  --grid-surface: #111a27;
-  --grid-header: #142030;
-  --grid-row-odd: #0f1724;
-  --grid-row-even: #141e2e;
-  --grid-row-hover: #1a283d;
-  --grid-row-selected: #16334d;
-  --grid-border: #213044;
-  --grid-border-strong: #2c405a;
-  --grid-accent: #1d7ec2;
-  --grid-accent-hover: #258fd8;
-  --grid-cotista-bg: rgba(29, 126, 194, 0.06);
-  --grid-cotista-header: #13253a;
-  --grid-text: #e6edf6;
-  --grid-muted: #8fa1b8;
+  --grid-bg: var(--app-canvas);
+  --grid-surface: var(--app-surface);
+  --grid-header: var(--app-soft);
+  --grid-row-odd: var(--app-surface);
+  --grid-row-even: var(--app-soft);
+  --grid-row-hover: var(--app-selected);
+  --grid-row-selected: var(--app-info-soft);
+  --grid-border: var(--app-line);
+  --grid-border-strong: var(--app-line);
+  --grid-accent: var(--app-info);
+  --grid-accent-hover: var(--app-info);
+  --grid-cotista-bg: hsl(var(--primary) / 0.06);
+  --grid-cotista-header: var(--app-info-soft);
+  --grid-text: var(--app-text);
+  --grid-muted: var(--app-muted);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   width: 100%;
@@ -365,7 +365,7 @@
   border: 1px solid var(--grid-border);
   background: var(--grid-bg);
   scrollbar-width: thin;
-  scrollbar-color: #2c405a var(--grid-bg);
+  scrollbar-color: var(--grid-border-strong) var(--grid-bg);
   cursor: grab;
 }
 

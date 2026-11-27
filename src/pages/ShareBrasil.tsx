@@ -53,7 +53,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import FolderCard from "@/components/ui/folder-card";
@@ -426,7 +434,7 @@ export function PontoShareBrasil() {
         <section className={`${card} p-5`}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[.12em] text-primary">
+              <p className="text-[11px] font-bold uppercase tracking-[.12em] text-primary">
                 Hoje · {dataPt(today)}
               </p>
               <h2 className="mt-1 text-3xl font-extrabold tracking-tight">
@@ -561,15 +569,17 @@ export function PontoShareBrasil() {
                   <>
                     <div className="grid grid-cols-2 gap-2">
                       {(Object.keys(rotulosAjuste) as Array<keyof typeof rotulosAjuste>).map((campo) => (
-                        <label key={campo} className="space-y-1 text-[10px] font-semibold uppercase tracking-[.1em] text-muted-foreground">
-                          {rotulosAjuste[campo]}
+                        <Field key={campo} className="gap-1">
+                          <FieldLabel className="text-[11px] font-semibold uppercase tracking-[.1em] text-muted-foreground">
+                            {rotulosAjuste[campo]}
+                          </FieldLabel>
                           <Input
                             type="time"
                             value={ajuste[campo]}
                             onChange={(e) => setAjuste((atual) => ({ ...atual, [campo]: e.target.value }))}
                             className="h-9 text-xs"
                           />
-                        </label>
+                        </Field>
                       ))}
                     </div>
                     <Textarea
@@ -606,7 +616,7 @@ export function PontoShareBrasil() {
               type="month"
               value={month}
               onChange={(e) => setMonth(e.target.value)}
-              className="h-8 w-[145px] text-[10px]"
+              className="h-8 w-[145px] text-[11px]"
             />
           }
         />
@@ -616,9 +626,9 @@ export function PontoShareBrasil() {
           </p>
         ) : Array.isArray(data?.lancamentos) && data.lancamentos.length > 0 ? (
           <div className="w-full min-w-0 max-w-full overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left text-[10px]">
+            <table className="w-full min-w-[700px] text-left text-[11px]">
               <thead>
-                <tr className="border-b border-border text-[9px] uppercase tracking-[.1em] text-muted-foreground">
+                <tr className="border-b border-border text-[11px] uppercase tracking-[.1em] text-muted-foreground">
                   <th className="px-4 py-3">Data</th>
                   <th className="px-4 py-3">Entrada</th>
                   <th className="px-4 py-3">Almoço</th>
@@ -758,7 +768,7 @@ export function DocumentosShareBrasil() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-sm font-bold text-foreground dark:text-white">Todas as pastas</p>
-                <p className="mt-1 text-[10px] text-slate-500">
+                <p className="mt-1 text-[11px] text-slate-500">
                   Visualização lado a lado · clique em um card para abrir
                 </p>
               </div>
@@ -813,7 +823,7 @@ export function DocumentosShareBrasil() {
             >
               <ChevronLeft size={16} /> Voltar para todas as pastas
             </Button>
-            <span className="inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1.5 text-[10px] font-bold text-violet-200">
+            <span className="inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1.5 text-[11px] font-bold text-violet-200">
               <FolderOpen size={13} /> {selectedFolder?.nome || "Pasta"}
             </span>
           </div>
@@ -851,7 +861,7 @@ export function DocumentosShareBrasil() {
               <div className="border-b border-border dark:border-white/[.08] p-5 md:p-7">
                 <div className="mb-4">
                   <p className="text-sm font-bold text-foreground dark:text-white">Pastas nesta pasta</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground dark:text-slate-400">
+                  <p className="mt-1 text-[11px] text-muted-foreground dark:text-slate-400">
                     Abra uma subpasta para continuar navegando pelos documentos.
                   </p>
                 </div>
@@ -885,7 +895,7 @@ export function DocumentosShareBrasil() {
                         <span className="block text-sm font-bold text-foreground dark:text-white [overflow-wrap:anywhere]">
                           {item.nome}
                         </span>
-                        <span className="mt-1 block text-[10px] text-slate-500 [overflow-wrap:anywhere]">
+                        <span className="mt-1 block text-[11px] text-slate-500 [overflow-wrap:anywhere]">
                           {item.tipo_arquivo || "Arquivo"} ·{" "}
                           {Math.max(1, Math.round(item.tamanho_arquivo / 1024))}{" "}
                           KB
@@ -924,7 +934,7 @@ export function DocumentosShareBrasil() {
               >
                 <FolderPlus size={14} /> Nova subpasta
               </Button>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[11px] text-slate-500">
                 A subpasta será criada dentro de{" "}
                 {selectedFolder?.nome || "esta pasta"}.
               </span>
@@ -1035,7 +1045,7 @@ export function SenhasShareBrasil() {
               >
                 <div className="min-w-[170px] flex-1">
                   <p className="text-xs font-bold">{item.titulo}</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
+                  <p className="mt-1 text-[11px] text-muted-foreground">
                     {item.site} {item.setor ? `· ${item.setor}` : ""}
                   </p>
                 </div>
@@ -1049,7 +1059,7 @@ export function SenhasShareBrasil() {
                   type="button"
                   variant="outline"
                   onClick={() => void reveal(item.id)}
-                  className="h-8 text-[10px]"
+                  className="h-8 text-[11px]"
                 >
                   {visible[item.id] ? "Ocultar" : "Visualizar"}
                 </Button>
@@ -1109,8 +1119,8 @@ export function ContatosClientesShareBrasil({
   const [hangarSort, setHangarSort] = useState<"nome" | "cidade">("nome");
   const [hangarSaving, setHangarSaving] = useState(false);
   const [hangarError, setHangarError] = useState<string | null>(null);
-  const [clientStatus, setClientStatus] = useState<"ativos" | "inativos">(
-    "ativos",
+  const [clientStatus, setClientStatus] = useState<"todos" | "ativos" | "inativos">(
+    "todos",
   );
   const [showNewContact, setShowNewContact] = useState(false);
   const [editingContact, setEditingContact] = useState<ContatoAgenda>();
@@ -1236,9 +1246,9 @@ export function ContatosClientesShareBrasil({
   );
   const visibleClients = clients.filter(
     (item) =>
-      (clientStatus === "ativos"
+      (clientStatus === "todos" || (clientStatus === "ativos"
         ? item.status !== "inativo"
-        : item.status === "inativo") &&
+        : item.status === "inativo")) &&
       `${item.razao_social || ""} ${item.cnpj || ""} ${item.codigo_cliente || ""}`
         .toLowerCase()
         .includes(search.toLowerCase()),
@@ -1699,19 +1709,25 @@ export function ContatosClientesShareBrasil({
     value: "nome" | "cidade",
     setValue: (value: "nome" | "cidade") => void,
   ) => (
-    <select
+    <Select
       value={value}
-      onChange={(event) => setValue(event.target.value as "nome" | "cidade")}
-      aria-label="Ordenar lista"
-      className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none transition-colors focus:border-primary/60 sm:w-auto sm:min-w-[155px]"
+      onValueChange={(nextValue) => setValue(nextValue as "nome" | "cidade")}
     >
-      <option value="nome">Ordenar por nome</option>
-      <option value="cidade">Ordenar por cidade</option>
-    </select>
+      <SelectTrigger
+        aria-label="Ordenar lista"
+        className="h-10 w-full rounded-lg border-border bg-card text-sm sm:w-auto sm:min-w-[165px]"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="nome">Ordenar por nome</SelectItem>
+        <SelectItem value="cidade">Ordenar por cidade</SelectItem>
+      </SelectContent>
+    </Select>
   );
   const profileField = (label: string, value?: any, icon?: React.ReactNode) => (
     <div className="rounded-xl border border-border dark:border-white/[.07] bg-white/[.025] p-4">
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[.12em] text-slate-500">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[.12em] text-slate-500">
         {icon}
         {label}
       </div>
@@ -1727,13 +1743,13 @@ export function ContatosClientesShareBrasil({
     const emails = emailsCadastrados(registro);
     return (
       <div className="rounded-xl border border-border dark:border-white/[.07] bg-white/[.025] p-4 sm:col-span-2">
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[.12em] text-slate-500">
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[.12em] text-slate-500">
           <Mail
             size={13}
             className={violet ? "text-violet-300" : "text-primary"}
           />
           E-mails cadastrados
-          <span className="rounded-full bg-white/[.06] px-1.5 py-0.5 text-[9px] text-muted-foreground dark:text-slate-400">
+          <span className="rounded-full bg-white/[.06] px-1.5 py-0.5 text-[11px] text-muted-foreground dark:text-slate-400">
             {emails.length}
           </span>
         </div>
@@ -1947,7 +1963,7 @@ export function ContatosClientesShareBrasil({
             <div className="overflow-x-auto rounded-xl border border-border bg-card">
               <table className="w-full min-w-[760px] text-left text-xs">
                 <thead>
-                  <tr className="border-b border-border text-[9px] uppercase tracking-[.12em] text-muted-foreground">
+                  <tr className="border-b border-border text-[11px] uppercase tracking-[.12em] text-muted-foreground">
                     <th className="px-4 py-3 font-semibold">Nome</th>
                     <th className="px-4 py-3 font-semibold">E-mail</th>
                     <th className="px-4 py-3 font-semibold">Telefone</th>
@@ -1965,11 +1981,11 @@ export function ContatosClientesShareBrasil({
                         <p className="font-semibold text-foreground dark:text-white">
                           {item.nome}
                         </p>
-                        <p className="text-[10px] text-muted-foreground dark:text-slate-400">
+                        <p className="text-[11px] text-muted-foreground dark:text-slate-400">
                           {item.empresa || item.razao_social || "Contato profissional"}
                         </p>
                         {(item.categoria || item.empresa) && (
-                          <span className="mt-2 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-medium text-sky-300">
+                          <span className="mt-2 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">
                             {(item.categoria || item.empresa)?.toLocaleUpperCase("pt-BR")}
                           </span>
                         )}
@@ -1983,7 +1999,7 @@ export function ContatosClientesShareBrasil({
                       <td className="px-4 py-3 text-muted-foreground dark:text-slate-300">
                         <p>{[item.cidade, item.uf].filter(Boolean).join(" / ") || "—"}</p>
                         {item.endereco && (
-                          <p className="mt-1 max-w-[260px] truncate text-[10px]">
+                          <p className="mt-1 max-w-[260px] truncate text-[11px]">
                             {item.endereco}
                           </p>
                         )}
@@ -2205,7 +2221,7 @@ export function ContatosClientesShareBrasil({
         </div>
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border dark:border-white/[.07] bg-white/[.025] p-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-500">
+            <p className="text-[11px] uppercase tracking-wider text-slate-500">
               Total na carteira
             </p>
             <p className="mt-1 text-2xl font-extrabold text-foreground dark:text-white">
@@ -2213,7 +2229,7 @@ export function ContatosClientesShareBrasil({
             </p>
           </div>
           <div className="rounded-xl border border-emerald-400/10 bg-emerald-400/[.04] p-4">
-            <p className="text-[10px] uppercase tracking-wider text-emerald-300/70">
+            <p className="text-[11px] uppercase tracking-wider text-emerald-300/70">
               Clientes ativos
             </p>
             <p className="mt-1 text-2xl font-extrabold text-emerald-300">
@@ -2221,7 +2237,7 @@ export function ContatosClientesShareBrasil({
             </p>
           </div>
           <div className="rounded-xl border border-amber-400/10 bg-amber-400/[.04] p-4">
-            <p className="text-[10px] uppercase tracking-wider text-amber-300/70">
+            <p className="text-[11px] uppercase tracking-wider text-amber-300/70">
               Clientes inativos
             </p>
             <p className="mt-1 text-2xl font-extrabold text-amber-300">
@@ -2234,7 +2250,7 @@ export function ContatosClientesShareBrasil({
         <section className={`${card} p-5 md:p-6`}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">
+              <p className="text-[11px] font-bold uppercase tracking-[.14em] text-primary">
                 Novo cadastro
               </p>
               <h3 className="mt-1 text-lg font-extrabold">
@@ -2273,26 +2289,37 @@ export function ContatosClientesShareBrasil({
                   <p className="text-xs font-bold text-foreground dark:text-white">
                     Vincular aeronave
                   </p>
-                  <p className="mt-1 text-[10px] text-muted-foreground dark:text-slate-400">
+                  <p className="mt-1 text-[11px] text-muted-foreground dark:text-slate-400">
                     Opcional. O vínculo será salvo em{" "}
                     <code>cotista_aeronave</code> junto com o percentual.
                   </p>
                 </div>
               </div>
               <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_180px]">
-                <select
-                  value={newCotistaAircraftId}
-                  onChange={(e) => setNewCotistaAircraftId(e.target.value)}
-                  className={`${field} w-full px-3 text-sm`}
+                <Select
+                  value={newCotistaAircraftId || "__NONE__"}
+                  onValueChange={(nextValue) =>
+                    setNewCotistaAircraftId(nextValue === "__NONE__" ? "" : nextValue)
+                  }
                 >
-                  <option value="">Não vincular agora</option>
-                  {aircraft.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.matricula_registro || "Aeronave"} ·{" "}
-                      {[item.fabricante, item.modelo].filter(Boolean).join(" ")}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    aria-label="Vincular aeronave ao cotista"
+                    className={`${field} w-full text-sm`}
+                  >
+                    <SelectValue placeholder="Não vincular agora" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__NONE__">Não vincular agora</SelectItem>
+                    {aircraft
+                      .filter((item) => Boolean(item.id))
+                      .map((item) => (
+                        <SelectItem key={item.id} value={String(item.id)}>
+                          {item.matricula_registro || "Aeronave"} ·{" "}
+                          {[item.fabricante, item.modelo].filter(Boolean).join(" ")}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
                 <Input
                   type="number"
                   min="0"
@@ -2400,11 +2427,11 @@ export function ContatosClientesShareBrasil({
         <div className="flex flex-col gap-3 border-b border-border dark:border-white/[.07] p-4 md:flex-row md:items-center md:justify-between md:px-5">
           <div>
             <p className="text-xs font-bold text-foreground dark:text-white">
-              {clientStatus === "ativos"
-                ? "Clientes ativos"
-                : "Clientes inativos"}
+              {clientStatus === "todos"
+                ? "Todos os cotistas"
+                : clientStatus === "ativos" ? "Cotistas ativos" : "Cotistas inativos"}
             </p>
-            <p className="mt-1 text-[10px] text-slate-500">
+            <p className="mt-1 text-[11px] text-slate-500">
               {visibleClients.length} resultado(s) · abra um card para ver o
               perfil inteiro
             </p>
@@ -2425,15 +2452,22 @@ export function ContatosClientesShareBrasil({
             <div className="flex rounded-lg border border-border dark:border-white/10 bg-white/[.03] p-1">
               <button
                 type="button"
+                onClick={() => setClientStatus("todos")}
+                className={`rounded-md px-3 py-1.5 text-[11px] font-bold ${clientStatus === "todos" ? "bg-primary/15 text-primary" : "text-slate-500"}`}
+              >
+                Todos
+              </button>
+              <button
+                type="button"
                 onClick={() => setClientStatus("ativos")}
-                className={`rounded-md px-3 py-1.5 text-[10px] font-bold ${clientStatus === "ativos" ? "bg-emerald-400/15 text-emerald-300" : "text-slate-500"}`}
+                className={`rounded-md px-3 py-1.5 text-[11px] font-bold ${clientStatus === "ativos" ? "bg-emerald-400/15 text-emerald-300" : "text-slate-500"}`}
               >
                 Ativos
               </button>
               <button
                 type="button"
                 onClick={() => setClientStatus("inativos")}
-                className={`rounded-md px-3 py-1.5 text-[10px] font-bold ${clientStatus === "inativos" ? "bg-amber-400/15 text-amber-300" : "text-slate-500"}`}
+                className={`rounded-md px-3 py-1.5 text-[11px] font-bold ${clientStatus === "inativos" ? "bg-amber-400/15 text-amber-300" : "text-slate-500"}`}
               >
                 Inativos
               </button>
@@ -2475,10 +2509,10 @@ export function ContatosClientesShareBrasil({
                       <span className="block truncate text-sm font-extrabold text-foreground dark:text-white md:text-[15px]">
                         {item.razao_social || "Cliente sem razão social"}
                       </span>
-                      <span className="mt-1 block text-[10px] font-mono text-slate-500">
+                      <span className="mt-1 block text-[11px] font-mono text-slate-500">
                         {item.cnpj || "CNPJ não informado"}
                       </span>
-                      <span className="mt-2 inline-flex rounded-md bg-primary/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-primary">
+                      <span className="mt-2 inline-flex rounded-md bg-primary/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-primary">
                         {item.codigo_cliente ||
                           (item.holding ? "Holding" : "Cotista")}
                       </span>
@@ -2487,7 +2521,7 @@ export function ContatosClientesShareBrasil({
                   <span
                     className={
                       clientView === "lista"
-                        ? "ml-auto flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground dark:text-slate-400"
+                        ? "ml-auto flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground dark:text-slate-400"
                         : "mt-4 block border-t border-border dark:border-white/[.08] pt-4"
                     }
                   >
@@ -2505,7 +2539,7 @@ export function ContatosClientesShareBrasil({
                       </span>
                     )}
                     <span className="mt-3 block">
-                      <span className="mb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500">
+                      <span className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-slate-500">
                         <Plane size={12} className="text-cyan-300" /> Aeronaves
                       </span>
                       {itemLinks.length ? (
@@ -2513,7 +2547,7 @@ export function ContatosClientesShareBrasil({
                           {itemLinks.slice(0, 4).map((link) => (
                             <span
                               key={link.id}
-                              className="rounded-md bg-white/[.06] px-2 py-1 text-[10px] text-muted-foreground dark:text-slate-300"
+                              className="rounded-md bg-white/[.06] px-2 py-1 text-[11px] text-muted-foreground dark:text-slate-300"
                             >
                               {link.matricula_registro || "Aeronave"}{" "}
                               {link.percentual_sociedade
@@ -2523,7 +2557,7 @@ export function ContatosClientesShareBrasil({
                           ))}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-slate-600">
+                        <span className="text-[11px] text-slate-600">
                           Nenhuma aeronave vinculada
                         </span>
                       )}
@@ -2535,7 +2569,7 @@ export function ContatosClientesShareBrasil({
           </div>
         ) : (
           <EstadoVazio
-            label={`Nenhum cliente ${clientStatus === "ativos" ? "ativo" : "inativo"}`}
+            label={clientStatus === "todos" ? "Nenhum cotista encontrado" : `Nenhum cotista ${clientStatus === "ativos" ? "ativo" : "inativo"}`}
           />
         )}
       </section>
@@ -2582,12 +2616,12 @@ export function ContatosClientesShareBrasil({
                     {selected.razao_social}
                   </h2>
                   <span
-                    className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${selected.status === "inativo" ? "bg-amber-400/15 text-amber-300" : "bg-emerald-400/15 text-emerald-300"}`}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${selected.status === "inativo" ? "bg-amber-400/15 text-amber-300" : "bg-emerald-400/15 text-emerald-300"}`}
                   >
                     {selected.status === "inativo" ? "Inativo" : "Ativo"}
                   </span>
                   {selected.holding ? (
-                    <span className="rounded-full bg-primary/15 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-primary">
+                    <span className="rounded-full bg-primary/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-primary">
                       Holding
                     </span>
                   ) : null}
@@ -2632,7 +2666,7 @@ export function ContatosClientesShareBrasil({
           </div>
           <div className="relative mt-7 grid gap-2 sm:grid-cols-3">
             <div className="rounded-xl border border-border dark:border-white/[.08] bg-black/15 p-3">
-              <p className="text-[10px] uppercase tracking-wider text-slate-500">
+              <p className="text-[11px] uppercase tracking-wider text-slate-500">
                 Sócios
               </p>
               <p className="mt-1 text-lg font-extrabold text-foreground dark:text-white">
@@ -2640,7 +2674,7 @@ export function ContatosClientesShareBrasil({
               </p>
             </div>
             <div className="rounded-xl border border-border dark:border-white/[.08] bg-black/15 p-3">
-              <p className="text-[10px] uppercase tracking-wider text-slate-500">
+              <p className="text-[11px] uppercase tracking-wider text-slate-500">
                 Aeronaves
               </p>
               <p className="mt-1 text-lg font-extrabold text-foreground dark:text-white">
@@ -2648,7 +2682,7 @@ export function ContatosClientesShareBrasil({
               </p>
             </div>
             <div className="rounded-xl border border-border dark:border-white/[.08] bg-black/15 p-3">
-              <p className="text-[10px] uppercase tracking-wider text-slate-500">
+              <p className="text-[11px] uppercase tracking-wider text-slate-500">
                 Documentos
               </p>
               <p className="mt-1 text-lg font-extrabold text-foreground dark:text-white">
@@ -2958,20 +2992,30 @@ export function ContatosClientesShareBrasil({
                   Aeronaves vinculadas
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <select
-                    aria-label="Selecionar aeronave"
-                    value={aircraftId}
-                    onChange={(e) => setAircraftId(e.target.value)}
-                    className={`${field} w-full flex-[1_1_14rem]`}
+                  <Select
+                    value={aircraftId || "__NONE__"}
+                    onValueChange={(nextValue) =>
+                      setAircraftId(nextValue === "__NONE__" ? "" : nextValue)
+                    }
                   >
-                    <option value="">Selecionar aeronave</option>
-                    {aircraft.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.matricula_registro} · {item.fabricante}{" "}
-                        {item.modelo}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      aria-label="Selecionar aeronave"
+                      className={`${field} w-full flex-[1_1_14rem] text-sm`}
+                    >
+                      <SelectValue placeholder="Selecionar aeronave" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__NONE__">Selecionar aeronave</SelectItem>
+                      {aircraft
+                        .filter((item) => Boolean(item.id))
+                        .map((item) => (
+                          <SelectItem key={item.id} value={String(item.id)}>
+                            {item.matricula_registro} · {item.fabricante}{" "}
+                            {item.modelo}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                   <Input
                     value={aircraftPercent}
                     onChange={(e) => setAircraftPercent(e.target.value)}
@@ -2994,7 +3038,7 @@ export function ContatosClientesShareBrasil({
                   {links
                     .filter((item) => item.cliente_id === selectedClient)
                     .map((item) => (
-                      <p key={item.id} className="text-[10px] text-slate-500">
+                      <p key={item.id} className="text-[11px] text-slate-500">
                         {item.matricula_registro || "Aeronave"} ·{" "}
                         {item.fabricante} {item.modelo} ·{" "}
                         {item.percentual_sociedade}%
@@ -3019,7 +3063,7 @@ export function ContatosClientesShareBrasil({
                   </p>
                 </div>
                 <span
-                  className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${currentSocioInactive ? "bg-amber-400/15 text-amber-300" : "bg-emerald-400/15 text-emerald-300"}`}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${currentSocioInactive ? "bg-amber-400/15 text-amber-300" : "bg-emerald-400/15 text-emerald-300"}`}
                 >
                   {currentSocioInactive ? "Inativo" : "Ativo"}
                 </span>
@@ -3057,7 +3101,7 @@ export function ContatosClientesShareBrasil({
               </div>
               {editingSocio && (
                 <div className="space-y-3 rounded-xl border border-violet-300/15 bg-violet-300/[.03] p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[.12em] text-violet-200">
+                  <p className="text-[11px] font-bold uppercase tracking-[.12em] text-violet-200">
                     Editar cadastro do sócio
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -3189,7 +3233,7 @@ export function ContatosClientesShareBrasil({
             type="button"
             variant="outline"
             onClick={aoVoltar}
-            className="h-9 gap-1.5 text-[10px]"
+            className="h-9 gap-1.5 text-[11px]"
           >
             <ChevronLeft size={13} /> Voltar
           </Button>
@@ -3215,7 +3259,9 @@ export function ContatosClientesShareBrasil({
         </div>
       </div>
       )}
-      {tab === "contatos" && contactsContent}
+      {tab === "contatos" && (somenteCotistas
+        ? selected ? profileContent : clientListContent
+        : contactsContent)}
       {tab === "abastecimentos" && (
         <section className="space-y-4">
           <header className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
@@ -3251,23 +3297,41 @@ export function ContatosClientesShareBrasil({
                   <p className="ac-muted">Os campos com * são obrigatórios.</p>
                   {supplierError && <div role="alert" className="ac-notice ac-notice--error">{supplierError}</div>}
                   <div className="ac-form-grid ac-form-grid--2">
-                    <label className="ac-field"><span>Fornecedor *</span><input className="ac-control" value={supplierForm.nome_fornecedor} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_fornecedor: e.target.value }))} placeholder="Nome do fornecedor" /></label>
-                    <label className="ac-field"><span>Nome de contato</span><input className="ac-control" value={supplierForm.pessoa_contato} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, pessoa_contato: e.target.value }))} placeholder="Nome do contato" /></label>
+                    <Field className="gap-1.5">
+                      <FieldLabel>Fornecedor *</FieldLabel>
+                      <Input className={field} value={supplierForm.nome_fornecedor} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_fornecedor: e.target.value }))} placeholder="Nome do fornecedor" />
+                    </Field>
+                    <Field className="gap-1.5">
+                      <FieldLabel>Nome de contato</FieldLabel>
+                      <Input className={field} value={supplierForm.pessoa_contato} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, pessoa_contato: e.target.value }))} placeholder="Nome do contato" />
+                    </Field>
                   </div>
                   <div className="ac-form-grid ac-form-grid--3">
-                    <label className="ac-field"><span>Cidade *</span><input className="ac-control" value={supplierForm.nome_cidade} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_cidade: e.target.value }))} placeholder="Ex.: São Paulo" /></label>
-                    <label className="ac-field"><span>ICAO</span><input className="ac-control" value={supplierForm.codigo_icao} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, codigo_icao: e.target.value.toUpperCase().slice(0, 4) }))} placeholder="Ex.: SBCY" /></label>
+                    <Field className="gap-1.5">
+                      <FieldLabel>Cidade *</FieldLabel>
+                      <Input className={field} value={supplierForm.nome_cidade} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_cidade: e.target.value }))} placeholder="Ex.: São Paulo" />
+                    </Field>
+                    <Field className="gap-1.5">
+                      <FieldLabel>ICAO</FieldLabel>
+                      <Input className={field} value={supplierForm.codigo_icao} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, codigo_icao: e.target.value.toUpperCase().slice(0, 4) }))} placeholder="Ex.: SBCY" />
+                    </Field>
                     <CampoTelefone value={montarTelefone(supplierForm.telefone.ddd, supplierForm.telefone.numero)} disabled={supplierSaving} onChange={(telefone) => setSupplierForm((value) => ({ ...value, telefone: separarTelefone(telefone) }))} />
                   </div>
                   <div className="ac-form-grid ac-form-grid--2">
-                    <label className="ac-field"><span>Preço AVGAS</span><input className="ac-control" inputMode="numeric" value={supplierForm.preco_avgas} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_avgas: formatarDigitosMoeda(e.target.value.replace(/\D/g, "").slice(0, 12)) }))} placeholder="R$ 0,00" /></label>
-                    <label className="ac-field"><span>Preço JET</span><input className="ac-control" inputMode="numeric" value={supplierForm.preco_jet} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_jet: formatarDigitosMoeda(e.target.value.replace(/\D/g, "").slice(0, 12)) }))} placeholder="R$ 0,00" /></label>
+                    <Field className="gap-1.5">
+                      <FieldLabel>Preço AVGAS</FieldLabel>
+                      <Input className={field} inputMode="numeric" value={supplierForm.preco_avgas} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_avgas: formatarDigitosMoeda(e.target.value.replace(/\D/g, "").slice(0, 12)) }))} placeholder="R$ 0,00" />
+                    </Field>
+                    <Field className="gap-1.5">
+                      <FieldLabel>Preço JET</FieldLabel>
+                      <Input className={field} inputMode="numeric" value={supplierForm.preco_jet} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_jet: formatarDigitosMoeda(e.target.value.replace(/\D/g, "").slice(0, 12)) }))} placeholder="R$ 0,00" />
+                    </Field>
                   </div>
                 </div>
-                <div className="ac-footer">
-                  <button type="button" className="ac-btn" disabled={supplierSaving} onClick={() => setSupplierEditor(false)}><X size={16} aria-hidden="true" />Cancelar</button>
-                  <button type="submit" className="ac-btn ac-btn--primary" disabled={supplierSaving}><Save size={16} aria-hidden="true" />{supplierSaving ? "Salvando…" : "Salvar fornecedor"}</button>
-                </div>
+                <DialogFooter className="ac-footer">
+                  <Button type="button" variant="outline" disabled={supplierSaving} onClick={() => setSupplierEditor(false)} className="gap-2"><X size={16} aria-hidden="true" />Cancelar</Button>
+                  <Button type="submit" disabled={supplierSaving} className="gap-2"><Save size={16} aria-hidden="true" />{supplierSaving ? "Salvando…" : "Salvar fornecedor"}</Button>
+                </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
@@ -3296,7 +3360,7 @@ export function ContatosClientesShareBrasil({
               <div className="overflow-x-auto rounded-xl border border-border bg-card">
                 <table className="w-full min-w-[860px] text-left text-xs">
                   <thead>
-                    <tr className="border-b border-border text-[9px] uppercase tracking-[.12em] text-muted-foreground">
+                    <tr className="border-b border-border text-[11px] uppercase tracking-[.12em] text-muted-foreground">
                       <th className="px-4 py-3 font-semibold">Fornecedor</th>
                       <th className="px-4 py-3 font-semibold">Contato</th>
                       <th className="px-4 py-3 font-semibold">Telefone</th>
@@ -3313,7 +3377,7 @@ export function ContatosClientesShareBrasil({
                       >
                         <td className="px-4 py-3">
                           <p className="font-bold">{supplier.nome_fornecedor}</p>
-                          <p className="mt-1 text-[10px] text-muted-foreground">
+                          <p className="mt-1 text-[11px] text-muted-foreground">
                             {[supplier.nome_cidade, supplier.codigo_icao].filter(Boolean).join(" · ") || "Local não informado"}
                           </p>
                         </td>
@@ -3388,7 +3452,7 @@ export function ContatosClientesShareBrasil({
               <div className="overflow-x-auto rounded-xl border border-border bg-card">
                 <table className="w-full min-w-[640px] text-left text-xs">
                   <thead>
-                    <tr className="border-b border-border text-[9px] uppercase tracking-[.12em] text-muted-foreground">
+                    <tr className="border-b border-border text-[11px] uppercase tracking-[.12em] text-muted-foreground">
                       <th className="px-4 py-3 font-semibold">Hangar</th>
                       <th className="px-4 py-3 font-semibold">Telefone</th>
                       <th className="px-4 py-3 font-semibold">E-mail</th>
@@ -3403,7 +3467,7 @@ export function ContatosClientesShareBrasil({
                       >
                         <td className="px-4 py-3">
                           <p className="font-bold">{contact.nome}</p>
-                          {contact.empresa && <p className="mt-1 text-[10px] text-muted-foreground">{contact.empresa}</p>}
+                          {contact.empresa && <p className="mt-1 text-[11px] text-muted-foreground">{contact.empresa}</p>}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{contact.telefone || "Telefone não informado"}</td>
                         <td className="px-4 py-3 text-muted-foreground">{contact.email || "E-mail não informado"}</td>
@@ -3676,7 +3740,7 @@ export function TarefasShareBrasil() {
             >
               <Plus size={16} /> Nova tarefa
             </Button>
-            <p className="hidden text-[10px] text-muted-foreground sm:block">
+            <p className="hidden text-[11px] text-muted-foreground sm:block">
               {manager
                 ? "Crie e atribua tarefas para a equipe."
                 : "Crie tarefas individuais para você."}
@@ -3686,21 +3750,21 @@ export function TarefasShareBrasil() {
             <button
               type="button"
               onClick={() => setView("kanban")}
-              className={`rounded-md px-2.5 py-1.5 text-[10px] font-bold ${view === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+              className={`rounded-md px-2.5 py-1.5 text-[11px] font-bold ${view === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
             >
               <Columns3 size={13} className="mr-1 inline" /> Kanban
             </button>
             <button
               type="button"
               onClick={() => setView("lista")}
-              className={`rounded-md px-2.5 py-1.5 text-[10px] font-bold ${view === "lista" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"}`}
+              className={`rounded-md px-2.5 py-1.5 text-[11px] font-bold ${view === "lista" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"}`}
             >
               <ListTodo size={13} className="mr-1 inline" /> Lista
             </button>
             <button
               type="button"
               onClick={() => setView("calendario")}
-              className={`rounded-md px-2.5 py-1.5 text-[10px] font-bold ${view === "calendario" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"}`}
+              className={`rounded-md px-2.5 py-1.5 text-[11px] font-bold ${view === "calendario" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"}`}
             >
               <CalendarDays size={13} className="mr-1 inline" /> Calendário
             </button>
@@ -3719,66 +3783,81 @@ export function TarefasShareBrasil() {
             </DialogHeader>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1.5 sm:col-span-2">
-                <span className="text-xs font-semibold text-foreground">Título *</span>
+              <Field className="gap-1.5 sm:col-span-2">
+                <FieldLabel className="text-xs font-semibold text-foreground">Título *</FieldLabel>
                 <Input
                   value={taskForm.titulo}
                   onChange={(e) => setTaskForm({ ...taskForm, titulo: e.target.value })}
                   placeholder="Ex.: Revisar checklist da aeronave"
                   className={field}
                 />
-              </label>
-              <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-foreground">Prazo</span>
+              </Field>
+              <Field className="gap-1.5">
+                <FieldLabel className="text-xs font-semibold text-foreground">Prazo</FieldLabel>
                 <Input
                   type="date"
                   value={taskForm.prazo}
                   onChange={(e) => setTaskForm({ ...taskForm, prazo: e.target.value })}
                   className={field}
                 />
-              </label>
-              <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-foreground">Prioridade</span>
-                <select
+              </Field>
+              <Field className="gap-1.5">
+                <FieldLabel className="text-xs font-semibold text-foreground">Prioridade</FieldLabel>
+                <Select
                   value={taskForm.prioridade}
-                  onChange={(e) => setTaskForm({ ...taskForm, prioridade: e.target.value })}
-                  className={field}
+                  onValueChange={(nextValue) => setTaskForm({ ...taskForm, prioridade: nextValue })}
                 >
-                  <option value="BAIXA">Baixa</option>
-                  <option value="MEDIA">Média</option>
-                  <option value="ALTA">Alta</option>
-                </select>
-              </label>
+                  <SelectTrigger className={field}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BAIXA">Baixa</SelectItem>
+                    <SelectItem value="MEDIA">Média</SelectItem>
+                    <SelectItem value="ALTA">Alta</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
               {manager ? (
-                <label className="space-y-1.5 sm:col-span-2">
-                  <span className="text-xs font-semibold text-foreground">Responsável</span>
-                  <select
-                    value={taskForm.atribuido_para}
-                    onChange={(e) => setTaskForm({ ...taskForm, atribuido_para: e.target.value })}
-                    className={field}
+                <Field className="gap-1.5 sm:col-span-2">
+                  <FieldLabel className="text-xs font-semibold text-foreground">Responsável</FieldLabel>
+                  <Select
+                    value={taskForm.atribuido_para || "__PESSOAL__"}
+                    onValueChange={(nextValue) =>
+                      setTaskForm({
+                        ...taskForm,
+                        atribuido_para: nextValue === "__PESSOAL__" ? "" : nextValue,
+                      })
+                    }
                   >
-                    <option value="">Tarefa pessoal</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.nome_exibicao || user.nome_completo}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    <SelectTrigger className={field}>
+                      <SelectValue placeholder="Tarefa pessoal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__PESSOAL__">Tarefa pessoal</SelectItem>
+                      {users
+                        .filter((user) => Boolean(user.id))
+                        .map((user) => (
+                          <SelectItem key={user.id} value={String(user.id)}>
+                            {user.nome_exibicao || user.nome_completo}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
               ) : (
                 <div className="flex h-10 items-center gap-2 rounded-lg border border-border/70 px-3 text-[11px] text-muted-foreground sm:col-span-2">
                   <LockIcon /> Esta tarefa será privada
                 </div>
               )}
-              <label className="space-y-1.5 sm:col-span-2">
-                <span className="text-xs font-semibold text-foreground">Descrição</span>
+              <Field className="gap-1.5 sm:col-span-2">
+                <FieldLabel className="text-xs font-semibold text-foreground">Descrição</FieldLabel>
                 <Textarea
                   value={taskForm.descricao}
                   onChange={(e) => setTaskForm({ ...taskForm, descricao: e.target.value })}
                   placeholder="Adicione detalhes ou instruções"
                   className="min-h-[88px] bg-background/70 text-sm"
                 />
-              </label>
+              </Field>
               {manager && (
                 <label className="flex items-center gap-2 text-[11px] text-muted-foreground sm:col-span-2">
                   <input
@@ -3809,11 +3888,11 @@ export function TarefasShareBrasil() {
               <p className="text-xs font-bold">
                 {view === "kanban" ? "Quadro Kanban" : "Lista de tarefas"}
               </p>
-              <p className="mt-1 text-[10px] text-muted-foreground">
+              <p className="mt-1 text-[11px] text-muted-foreground">
                 {tasks.length} tarefa(s) visível(is) para você.
               </p>
             </div>
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[11px] text-muted-foreground">
               <Bell size={13} className="mr-1 inline text-primary" />{" "}
               {notifications.filter((item) => !item.lido).length} não lida(s)
             </span>
@@ -3826,10 +3905,10 @@ export function TarefasShareBrasil() {
                   className="min-h-[230px] rounded-lg border border-border/70 bg-background/30 p-3"
                 >
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-[10px] font-bold uppercase tracking-[.12em]">
+                    <p className="text-[11px] font-bold uppercase tracking-[.12em]">
                       {column.title}
                     </p>
-                    <span className="rounded-full bg-secondary px-2 py-1 text-[9px]">
+                    <span className="rounded-full bg-secondary px-2 py-1 text-[11px]">
                       {
                         tasks.filter((task) => task.status === column.status)
                           .length
@@ -3854,9 +3933,9 @@ export function TarefasShareBrasil() {
             </div>
           ) : tasks.length ? (
             <div className="w-full min-w-0 max-w-full overflow-x-auto">
-              <table className="w-full min-w-[650px] text-left text-[10px]">
+              <table className="w-full min-w-[650px] text-left text-[11px]">
                 <thead>
-                  <tr className="border-b border-border text-[9px] uppercase tracking-[.1em] text-muted-foreground">
+                  <tr className="border-b border-border text-[11px] uppercase tracking-[.1em] text-muted-foreground">
                     <th className="px-3 py-2">Tarefa</th>
                     <th className="px-3 py-2">Prazo</th>
                     <th className="px-3 py-2">Prioridade</th>
@@ -3890,7 +3969,7 @@ export function TarefasShareBrasil() {
                                 : "CONCLUIDA",
                             )
                           }
-                          className="h-7 text-[10px]"
+                          className="h-7 text-[11px]"
                         >
                           {task.status === "CONCLUIDA"
                             ? "Concluída"
@@ -3932,7 +4011,7 @@ export function TarefasShareBrasil() {
                   className="rounded-lg bg-background/50 p-3 text-[11px]"
                 >
                   <p>{item.comentario}</p>
-                  <p className="mt-1 text-[9px] text-muted-foreground">
+                  <p className="mt-1 text-[11px] text-muted-foreground">
                     {item.usuario_nome || "Usuário"} · {item.criado_em}
                   </p>
                 </div>
@@ -4004,7 +4083,7 @@ export function TarefasShareBrasil() {
                 <Bell size={14} className="mt-0.5 shrink-0 text-primary" />
                 <span>
                   <span className="block text-xs">{item.mensagem}</span>
-                  <span className="mt-1 block text-[9px] text-muted-foreground">
+                  <span className="mt-1 block text-[11px] text-muted-foreground">
                     {item.criado_em}
                     {item.lido ? " · lida" : " · clique para marcar como lida"}
                   </span>
@@ -4051,17 +4130,17 @@ function TaskCard({
           {task.titulo}
         </p>
         <span
-          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold ${priorityTone}`}
+          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-bold ${priorityTone}`}
         >
           {task.prioridade}
         </span>
       </div>
       {task.descricao && (
-        <p className="mt-2 line-clamp-2 text-[10px] leading-relaxed text-slate-500">
+        <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-slate-500">
           {task.descricao}
         </p>
       )}
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border dark:border-white/[.06] pt-2.5 text-[9px]">
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border dark:border-white/[.06] pt-2.5 text-[11px]">
         <span className="text-slate-500">{task.prazo || "Sem prazo"}</span>
         {task.status !== "CONCLUIDA" ? (
           <span
@@ -4128,7 +4207,7 @@ function CalendarPanel({
           <p className="text-xs font-bold capitalize">
             Calendário · {monthLabel}
           </p>
-          <p className="mt-1 text-[10px] text-muted-foreground">
+          <p className="mt-1 text-[11px] text-muted-foreground">
             Privado aparece só para você; público envia alerta para todos.
           </p>
         </div>
@@ -4155,7 +4234,7 @@ function CalendarPanel({
       </div>
       <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,300px)]">
         <div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-bold uppercase text-muted-foreground">
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold uppercase text-muted-foreground">
             {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((day) => (
               <span key={day} className="py-2">
                 {day}
@@ -4172,12 +4251,12 @@ function CalendarPanel({
                   key={day.key}
                   className={`min-h-[84px] rounded-lg border p-2 ${day.current ? "border-border/70 bg-background/30" : "border-border/30 bg-background/10 opacity-50"}`}
                 >
-                  <p className="text-[10px] font-bold">{day.date.getDate()}</p>
+                  <p className="text-[11px] font-bold">{day.date.getDate()}</p>
                   <div className="mt-2 space-y-1">
                     {dayEvents.map((event) => (
                       <div
                         key={event.id}
-                        className="truncate rounded px-1.5 py-1 text-[9px] font-semibold"
+                        className="truncate rounded px-1.5 py-1 text-[11px] font-semibold"
                         style={{
                           backgroundColor: `${event.categoria_cor || "#2fb9a7"}22`,
                           color: event.categoria_cor || "#2fb9a7",
@@ -4221,30 +4300,43 @@ function CalendarPanel({
               onChange={(e) => setForm({ ...form, hora: e.target.value })}
               className={field}
             />
-            <select
+            <Select
               value={form.visibilidade}
-              onChange={(e) =>
-                setForm({ ...form, visibilidade: e.target.value })
+              onValueChange={(nextValue) =>
+                setForm({ ...form, visibilidade: nextValue })
               }
-              className={field}
             >
-              <option value="PRIVADO">Privado · só eu</option>
-              <option value="TODOS">Público · todos os usuários</option>
-            </select>
-            <select
-              value={form.cor_categoria_id}
-              onChange={(e) =>
-                setForm({ ...form, cor_categoria_id: e.target.value })
+              <SelectTrigger aria-label="Visibilidade do lembrete" className={field}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PRIVADO">Privado · só eu</SelectItem>
+                <SelectItem value="TODOS">Público · todos os usuários</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={form.cor_categoria_id || "__NONE__"}
+              onValueChange={(nextValue) =>
+                setForm({
+                  ...form,
+                  cor_categoria_id: nextValue === "__NONE__" ? "" : nextValue,
+                })
               }
-              className={field}
             >
-              <option value="">Sem categoria</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.nome}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger aria-label="Categoria do lembrete" className={field}>
+                <SelectValue placeholder="Sem categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__NONE__">Sem categoria</SelectItem>
+                {categories
+                  .filter((category) => Boolean(category.id))
+                  .map((category) => (
+                    <SelectItem key={category.id} value={String(category.id)}>
+                      {category.nome}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
             <Button
               type="button"
               onClick={onCreate}
@@ -4254,7 +4346,7 @@ function CalendarPanel({
             </Button>
           </div>
           <div className="mt-4 border-t border-border pt-3">
-            <p className="text-[10px] font-bold">Nova categoria</p>
+            <p className="text-[11px] font-bold">Nova categoria</p>
             <div className="mt-2 flex gap-2">
               <Input
                 value={categoryName}

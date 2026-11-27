@@ -19,6 +19,39 @@ const EM_VOO = ["decolado", "em_voo", "em_rota"];
 const ENCERRADOS = ["encerrada", "concluida"];
 const INICIADOS = ["acionado", ...EM_VOO, "em_solo"];
 
+/** Extrai HH:mm de horários ISO, timestamps ou strings simples, sem depender do fuso do navegador. */
+export function formatarHora(valor: string | null | undefined): string {
+  if (!valor) return "--:--";
+  const texto = String(valor).trim();
+  const parte = texto.match(/(?:T|\s|^)(\d{1,2}):(\d{2})/);
+  return parte ? `${parte[1].padStart(2, "0")}:${parte[2]}` : texto.slice(0, 5);
+}
+
+/** Formata data ISO (yyyy-mm-dd) como "27 de nov." sem deslocamento por fuso local. */
+export function formatarData(valor: string | null | undefined): string {
+  if (!valor) return "—";
+  const data = new Date(`${valor.slice(0, 10)}T12:00:00Z`);
+  return Number.isNaN(data.getTime())
+    ? valor
+    : data.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" });
+}
+
+/** Formata data ISO (yyyy-mm-dd) como "27/11/26" sem deslocamento por fuso local. */
+export function formatarDataCurta(valor: string | null | undefined): string {
+  if (!valor) return "—";
+  const data = new Date(`${valor.slice(0, 10)}T12:00:00Z`);
+  return Number.isNaN(data.getTime())
+    ? valor
+    : data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "UTC" });
+}
+
+/** Soma dias a uma data ISO (yyyy-mm-dd) sem depender do fuso do navegador. */
+export function somarDiasIso(iso: string, dias: number): string {
+  const data = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  data.setUTCDate(data.getUTCDate() + dias);
+  return data.toISOString().slice(0, 10);
+}
+
 /** Em qual aba um agendamento "mora", para que Detalhes sempre abra no lugar certo. */
 export function abaParaAgendamento(status: string): AbaDestino {
   const normalizado = normalizarStatusAgenda(status);
@@ -67,16 +100,18 @@ export function urgenciaVoo(dataAgendada: string, hoje: string): { rotulo: strin
 }
 
 const chaveHorario = (item: Pick<SolicitacaoVooInterna, "data_agendada" | "horario_previsto_agendamento">) => {
-  const texto = String(item.horario_previsto_agendamento || "");
-  const hora = texto.match(/(?:T|\s|^)(\d{1,2}):(\d{2})/);
-  const hhmm = hora ? `${hora[1].padStart(2, "0")}:${hora[2]}` : "99:99"; // sem horário vai para o fim
+  const hora = formatarHora(item.horario_previsto_agendamento);
+  const hhmm = /^\d{2}:\d{2}$/.test(hora) ? hora : "99:99"; // sem horário vai para o fim
   return `${String(item.data_agendada || "").slice(0, 10)} ${hhmm}`;
 };
 
 /** O que vence primeiro aparece primeiro. Usado na fila de solicitações e no plano do dia. */
 export function ordenarPorDataHorario<T extends Pick<SolicitacaoVooInterna, "data_agendada" | "horario_previsto_agendamento" | "numero_voo">>(itens: T[]): T[] {
-  return [...itens].sort((a, b) => chaveHorario(a).localeCompare(chaveHorario(b))
-    || String(a.numero_voo || "").localeCompare(String(b.numero_voo || ""), "pt-BR", { numeric: true }));
+  return [...itens].sort(
+    (a, b) =>
+      chaveHorario(a).localeCompare(chaveHorario(b)) ||
+      String(a.numero_voo || "").localeCompare(String(b.numero_voo || ""), "pt-BR", { numeric: true }),
+  );
 }
 
 /** O voo toca esta data? Considera viagens de vários dias (data_agendada → data_fim). */
@@ -94,7 +129,9 @@ export function vooTocaIntervalo(item: Pick<SolicitacaoVooInterna, "data_agendad
 }
 
 /** Excluir só faz sentido antes de a operação começar; depois disso, o caminho é encerrar. */
-export function podeExcluirAgendamento(item: Pick<SolicitacaoVooInterna, "status" | "jornadas_abertas" | "jornadas_encerradas" | "jornada_id" | "solicitacao_origem_id">): boolean {
+export function podeExcluirAgendamento(
+  item: Pick<SolicitacaoVooInterna, "status" | "jornadas_abertas" | "jornadas_encerradas" | "jornada_id" | "solicitacao_origem_id">,
+): boolean {
   const status = normalizarStatusAgenda(item.status);
   if (ENCERRADOS.includes(status) || INICIADOS.includes(status)) return false;
   if (Number(item.jornadas_abertas || 0) > 0 || Number(item.jornadas_encerradas || 0) > 0 || item.jornada_id) return false;
@@ -139,16 +176,21 @@ export function etapasOperacao(estado: {
     horarios: estado.jornadaEncerrada,
     encerrar: false,
   };
-  const etapas = ([
-    ["checklist", "Checklist pré-voo"],
-    ["iniciar", "Iniciar operação"],
-    ["horarios", "Registrar horários"],
-    ["encerrar", "Encerrar operação"],
-  ] as const).map(([id, rotulo]) => ({
-    id,
-    rotulo,
-    estado: feita[id] ? "feita" : id === proxima ? "atual" : "futura",
-  } satisfies EtapaOperacao));
+  const etapas = (
+    [
+      ["checklist", "Checklist pré-voo"],
+      ["iniciar", "Iniciar operação"],
+      ["horarios", "Registrar horários"],
+      ["encerrar", "Encerrar operação"],
+    ] as const
+  ).map(
+    ([id, rotulo]) =>
+      ({
+        id,
+        rotulo,
+        estado: feita[id] ? "feita" : id === proxima ? "atual" : "futura",
+      }) satisfies EtapaOperacao,
+  );
   return { etapas, proxima };
 }
 

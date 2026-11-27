@@ -9,7 +9,7 @@ html :is(.nf-workspace, .nf-modal) {
 }
 html .nf-workspace { width: 100%; min-width: 0; padding: 24px; border: 1px solid var(--fin-border); border-radius: 10px; }
 html .nf-workspace .nf-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 24px; padding: 0; }
-html .nf-workspace .nf-eyebrow { font-size: 10px; letter-spacing: .08em; line-height: 1.5; color: var(--fin-muted); }
+html .nf-workspace .nf-eyebrow { font-size: 11px; letter-spacing: .08em; line-height: 1.5; color: var(--fin-muted); }
 html .nf-workspace .nf-header h1 { margin: 6px 0 0; font-size: 20px; line-height: 1.4; font-weight: 600; color: var(--fin-text); }
 html .nf-workspace .nf-header-actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
 html .nf-workspace .nf-header-actions .nf-btn { margin: 0; }
@@ -28,9 +28,9 @@ html .nf-workspace .nf-panel-top { padding: 16px; border-color: var(--fin-border
 html .nf-workspace .nf-segment { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; margin: 0; border: 1px solid var(--fin-border); border-radius: 7px; background: var(--fin-soft); }
 html .nf-workspace .nf-segment button { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; padding: 8px 12px; min-height: 34px; border: 1px solid transparent; border-radius: 4px; font-size: 12px; font-weight: 500; color: var(--fin-muted); background: transparent; box-shadow: none; }
 html .nf-workspace .nf-segment button.active { background: var(--fin-surface); color: var(--fin-accent); border-color: var(--fin-border); }
-html .nf-workspace .nf-segment button span { margin: 0; min-width: 22px; height: auto; padding: 1px 5px; background: var(--fin-accent-soft); color: var(--fin-accent); font-size: 10px; border-radius: 4px; }
+html .nf-workspace .nf-segment button span { margin: 0; min-width: 22px; height: auto; padding: 1px 5px; background: var(--fin-accent-soft); color: var(--fin-accent); font-size: 11px; border-radius: 4px; }
 html .nf-workspace .nf-toolbar { padding: 12px 16px; gap: 12px; background: var(--fin-soft); border-color: var(--fin-border); }
-html .nf-workspace .nf-toolbar :is(select, .nf-search, .nf-btn) { height: 36px; min-height: 36px; border-radius: 5px; font-size: 12px; border-color: var(--fin-border); background: var(--fin-surface); color: var(--fin-text); }
+html .nf-workspace .nf-toolbar :is(select, [role="combobox"], .nf-search, .nf-btn) { height: 36px; min-height: 36px; border-radius: 5px; font-size: 12px; border-color: var(--fin-border); background: var(--fin-surface); color: var(--fin-text); }
 html .nf-workspace .nf-search input { color: var(--fin-text); font-size: 12px; }
 html .nf-workspace .nf-search input::placeholder { color: var(--fin-muted); opacity: 1; }
 html .nf-workspace .nf-list-heading { padding: 16px; gap: 12px; }
@@ -113,7 +113,7 @@ html .nf-workspace .nf-stat-top { margin: 0; order: 0; gap: 6px; }
 html .nf-workspace .nf-stat-top span { font-size: 11px; }
 html .nf-workspace .nf-stat-top svg { width: 14px; height: 14px; }
 html .nf-workspace .nf-stat strong { font-size: 16px; line-height: 1.2; text-align: right; }
-html .nf-workspace .nf-stat small { margin: 0; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+html .nf-workspace .nf-stat small { margin: 0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
 
 /* Painel ocupa o resto da altura */
 html .nf-workspace .nf-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -121,7 +121,7 @@ html .nf-workspace .nf-panel-top { padding: 8px 12px; gap: 12px; flex-wrap: wrap
 html .nf-workspace .nf-panel-top .nf-segment[aria-label="Tipo de documento"] { gap: 4px; margin: 0; padding: 3px; }
 html .nf-workspace .nf-segment button { min-height: 28px; padding: 4px 10px; }
 html .nf-workspace .nf-panel-top > .nf-toolbar { flex: 1; min-width: 280px; padding: 0; background: transparent; border: 0; gap: 8px; }
-html .nf-workspace .nf-toolbar :is(select, .nf-search, .nf-btn, input) { height: 30px; min-height: 30px; padding-top: 0; padding-bottom: 0; }
+html .nf-workspace .nf-toolbar :is(select, [role="combobox"], .nf-search, .nf-btn, input) { height: 32px; min-height: 32px; padding-top: 0; padding-bottom: 0; }
 html .nf-workspace .nf-period { margin: 0 12px 6px; padding: 8px 12px; flex-shrink: 0; }
 html .nf-workspace .nf-period input { min-height: 30px; margin-top: 2px; padding: 4px 8px; }
 html .nf-workspace .nf-list-heading { padding: 6px 12px; flex-shrink: 0; }

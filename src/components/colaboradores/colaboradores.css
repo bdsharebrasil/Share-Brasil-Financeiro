@@ -388,7 +388,7 @@
   gap: 5px;
   border-radius: 5px;
   padding: 3px 7px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 550;
   white-space: nowrap;
   background: var(--rh-suave);
@@ -742,11 +742,16 @@
   font-size: 12px;
   font-weight: 550;
 }
+.rh-field [data-slot="field-label"] {
+  font-size: 12px;
+  font-weight: 550;
+}
 .rh-field-wide {
   grid-column: 1/-1;
 }
-.rh-input {
-  display: block;
+.rh-input,
+.rh-field [role="combobox"] {
+  display: flex;
   width: 100%;
   min-width: 0;
   min-height: 42px;
@@ -763,14 +768,17 @@
     border-color 160ms;
   color-scheme: light;
 }
-.dark .rh-input {
+.dark .rh-input,
+.dark .rh-field [role="combobox"] {
   color-scheme: dark;
 }
-.rh-input:focus {
+.rh-input:focus,
+.rh-field [role="combobox"]:focus-visible {
   border-color: var(--rh-acento);
   box-shadow: 0 0 0 3px var(--rh-acento-suave);
 }
-.rh-input[aria-invalid="true"] {
+.rh-input[aria-invalid="true"],
+.rh-field [role="combobox"][aria-invalid="true"] {
   border-color: var(--rh-vermelho);
 }
 .rh-field-error {

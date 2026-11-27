@@ -71,20 +71,20 @@ function WeatherTophead({ tema }: { tema: Tema }) {
 
   return (
     <div className="relative">
-      <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-label="Abrir condições meteorológicas" className={cn("tophead-control flex items-center gap-2 overflow-hidden rounded-[9px] border px-2.5 py-2 text-left text-[10px] transition-colors hover:border-[rgba(71,140,172,0.35)] hover:bg-secondary/60 sm:px-3 [html:not(.dark)_&]:border-[rgba(36,81,102,0.35)] [html:not(.dark)_&]:bg-[rgb(5,9,14)] [html:not(.dark)_&]:text-[rgb(251,254,255)]", open && "border-primary/45 bg-primary/[.05]")}>
+      <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-label="Abrir condições meteorológicas" className={cn("tophead-control flex items-center gap-2 overflow-hidden rounded-[9px] border px-2.5 py-2 text-left text-[11px] transition-colors hover:border-[rgba(71,140,172,0.45)] hover:bg-[rgb(14,25,36)] sm:px-3 [html:not(.dark)_&]:border-[rgba(36,81,102,0.4)] [html:not(.dark)_&]:bg-[rgb(5,9,14)] [html:not(.dark)_&]:text-[rgb(251,254,255)] [html:not(.dark)_&]:hover:bg-[rgb(14,25,36)]", open && "border-primary/55 bg-[rgb(14,25,36)] [html:not(.dark)_&]:bg-[rgb(14,25,36)]")}>
         {loading ? <LoaderCircle size={14} className="animate-spin text-primary" /> : <WeatherIcon size={14} className={weatherIconClass} />}
-        <span className="hidden text-muted-foreground sm:inline [html:not(.dark)_&]:text-[rgb(153,167,175)]">{selectedCity.label.split(" · ")[0]}</span>
-        <strong className="font-mono text-foreground [html:not(.dark)_&]:text-[rgb(182,186,189)]">{error ? "—" : valorTemperatura(weather?.temperature_c)}</strong>
+        <span className="hidden text-muted-foreground sm:inline [html:not(.dark)_&]:text-[rgb(169,183,192)]">{selectedCity.label.split(" · ")[0]}</span>
+        <strong className="font-mono text-foreground [html:not(.dark)_&]:text-[rgb(240,247,252)]">{error ? "—" : valorTemperatura(weather?.temperature_c)}</strong>
         <ChevronDown size={12} className={cn("text-muted-foreground transition-transform", open && "rotate-180")} />
       </button>
-      {open && <div className="fixed inset-x-2 top-[var(--app-header-height)] z-[1000] max-h-[calc(100dvh-84px)] w-auto overflow-y-auto rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-[0_18px_45px_rgba(0,0,0,.3)] sm:inset-x-auto sm:right-4 sm:w-[min(92vw,350px)] md:absolute md:right-0 md:top-[calc(100%+10px)] md:max-h-[calc(100dvh-84px)] md:w-[350px]">
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.14em] text-primary">Condições atuais</p><p className="mt-1 break-words text-xs font-bold">{selectedCity.label}</p></div><span className="shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[9px] font-bold text-primary">AISWEB</span></div>
-        <SearchableCombobox items={CIDADES_METEOROLOGIA} value={icao} onChange={chooseCity} placeholder="Selecionar cidade" searchPlaceholder="Buscar cidade ou ICAO" emptyMessage="Cidade não cadastrada." icon={<CloudSun size={14} />} className="h-10 bg-background text-sm" />
-        {loading ? <div className="flex items-center gap-2 py-5 text-[10px] text-muted-foreground"><LoaderCircle size={14} className="animate-spin text-primary" /> Consultando METAR...</div> : error ? <div className="mt-3 rounded-lg border border-[#e77b80]/30 bg-[#e77b80]/10 p-3 text-[10px] text-destructive">Não foi possível obter o METAR de {icao}. Tente novamente em instantes.</div> : <>
+      {open && <div className="fixed inset-x-2 top-[var(--app-header-height)] z-[1000] max-h-[calc(100dvh-84px)] w-auto overflow-y-auto rounded-xl border border-border bg-popover p-3.5 text-popover-foreground shadow-[0_18px_45px_rgba(0,0,0,.3)] sm:inset-x-auto sm:right-4 sm:w-[min(92vw,350px)] md:absolute md:right-0 md:top-[calc(100%+10px)] md:max-h-[calc(100dvh-84px)] md:w-[350px]">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><p className="text-[11px] font-bold uppercase tracking-[.12em] text-primary">Condições atuais</p><p className="mt-1 break-words text-sm font-bold text-foreground">{selectedCity.label}</p></div><span className="shrink-0 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary">AISWEB</span></div>
+        <SearchableCombobox items={CIDADES_METEOROLOGIA} value={icao} onChange={chooseCity} placeholder="Selecionar cidade" searchPlaceholder="Buscar cidade ou ICAO" emptyMessage="Cidade não cadastrada." icon={<CloudSun size={14} />} className="h-10 bg-card text-sm" />
+        {loading ? <div className="flex items-center gap-2 py-5 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin text-primary" /> Consultando METAR...</div> : error ? <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">Não foi possível obter o METAR de {icao}. Tente novamente em instantes.</div> : <>
           <div className="mt-3 grid grid-cols-2 gap-2"><WeatherTopMetric label="Temperatura" value={valorTemperatura(weather?.temperature_c)} /><WeatherTopMetric label="Vento" value={valorVento(weather)} /><WeatherTopMetric label="Ponto de orvalho" value={valorTemperatura(weather?.dew_point_c)} /><WeatherTopMetric label="QNH" value={weather?.qnh_hpa == null ? "—" : `${weather.qnh_hpa} hPa`} /></div>
-          <div className="mt-3 flex items-start gap-2 rounded-lg bg-secondary/60 p-2 text-[9px] text-muted-foreground"><Wind size={13} className="mt-0.5 shrink-0 text-primary" /><span className="min-w-0 break-words">METAR <strong className="font-mono text-foreground">{weather?.loc || icao}</strong>{weather?.observed_at ? ` · ${weather.observed_at}` : ""}</span></div>
-          {weather?.metar && <p className="mt-2 break-words rounded-lg border border-border/70 bg-background/60 p-2 font-mono text-[9px] leading-relaxed text-muted-foreground">{weather.metar}</p>}
-          <p className="mt-3 text-[9px] text-muted-foreground">Informações meteorológicas · AISWEB/DECEA</p>
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-border bg-secondary/60 p-2.5 text-[11px] text-muted-foreground"><Wind size={14} className="mt-0.5 shrink-0 text-primary" /><span className="min-w-0 break-words">METAR <strong className="font-mono text-foreground">{weather?.loc || icao}</strong>{weather?.observed_at ? ` · ${weather.observed_at}` : ""}</span></div>
+          {weather?.metar && <p className="mt-2 break-words rounded-lg border border-border bg-secondary/40 p-2.5 font-mono text-[11px] leading-relaxed text-foreground/90">{weather.metar}</p>}
+          <p className="mt-3 text-[11px] text-muted-foreground">Informações meteorológicas · AISWEB/DECEA</p>
         </>}
       </div>}
     </div>
@@ -92,7 +92,7 @@ function WeatherTophead({ tema }: { tema: Tema }) {
 }
 
 function WeatherTopMetric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-lg border border-border/70 bg-secondary/30 p-2.5"><p className="text-[9px] text-muted-foreground">{label}</p><p className="mt-1 font-mono text-[11px] font-bold text-foreground">{value}</p></div>;
+  return <div className="rounded-lg border border-border bg-secondary/50 p-2.5"><p className="text-[11px] text-muted-foreground">{label}</p><p className="mt-1 font-mono text-xs font-bold text-foreground">{value}</p></div>;
 }
 
 function ImagemAnexoRejeicao({ item }: { item: NotificacaoInterna }) {

@@ -38,10 +38,10 @@ function CardAtalho({
     <button
       type="button"
       onClick={() => aoNavegar(item.menu)}
-      className={`menu-dashboard group flex h-full aspect-[6/5] min-h-[112px] sm:min-h-[140px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-xl border border-border bg-card/75 text-[rgba(17,20,25,1)] dark:border-border dark:bg-card/65 dark:text-card-foreground dark:hover:!border-[#308db8] dark:hover:!bg-[#123e5a] dark:hover:!text-[#f0f9ff] px-2 py-3 text-center shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-3`}
+      className="menu-dashboard group flex h-full aspect-[6/5] min-h-[112px] sm:min-h-[140px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm dark:bg-card/65 dark:text-card-foreground dark:shadow-none dark:hover:!border-[#308db8]  dark:hover:!text-[#f0f9ff] px-2 py-3 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-3"
     >
       <span
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${item.tone}`}
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm ${item.tone}`}
       >
         <Icone size={18} strokeWidth={1.8} aria-hidden="true" />
       </span>
@@ -90,25 +90,28 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
 
   return (
     <div className="route-enter mx-auto box-border w-full min-w-0 max-w-[1600px] space-y-3 px-2 py-2 sm:space-y-4 sm:px-4 lg:px-6">
-      <header
-        className="min-w-0 rounded-2xl border border-border dark:border-white/10 bg-cover bg-center p-3 shadow-sm sm:p-5 lg:p-6"
-        style={{
-          backgroundImage: `linear-gradient(rgba(5, 10, 20, 0.7), rgba(5, 10, 20, 0.7)), url(${aviationHero})`,
-        }}
-      >
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-primary sm:text-xs">
-          Portal do colaborador
-        </p>
-        <h1 className="mt-1 text-lg font-extrabold leading-tight tracking-tight text-white [overflow-wrap:anywhere] sm:text-2xl lg:text-3xl">
-          {aba.label}
-        </h1>
+      <header className="hero-panel relative overflow-hidden rounded-xl border border-border bg-card shadow-[0_12px_36px_rgba(0,0,0,.18)] dark:border-white/10 sm:rounded-2xl">
+        <img src={aviationHero} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-center" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,12,22,.94)_0%,rgba(5,12,22,.68)_45%,rgba(5,12,22,.28)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(5,12,22,.45)_0%,transparent_60%)]" />
+        <div className="relative flex min-h-[84px] items-center justify-between gap-3 px-4 py-3 sm:min-h-[96px] sm:gap-6 sm:px-6 sm:py-4 md:px-8">
+          <div className="min-w-0">
+            <p className="mb-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.14em] text-[hsl(var(--sidebar-primary))]">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+              <span className="truncate">Portal do colaborador</span>
+            </p>
+            <h1 className="truncate text-xl font-extrabold leading-tight tracking-[-.02em] text-white sm:text-2xl md:text-[28px]">
+              {aba.label}
+            </h1>
+          </div>
+        </div>
       </header>
 
       <div
         role="tablist"
         aria-label="Áreas do portal"
         aria-orientation="horizontal"
-        className="grid w-full min-w-0 grid-cols-2 gap-1 overflow-hidden rounded-[9px] bg-muted/40 p-1 sm:mx-auto sm:max-w-xl"
+        className="grid w-full min-w-0 grid-cols-2 gap-1.5 overflow-hidden rounded-xl border border-border bg-card p-1 shadow-sm dark:bg-card/65 dark:shadow-none sm:mx-auto sm:max-w-xl"
       >
         {ABAS_DASHBOARD.map((item, indice) => {
           const selecionada = abaAtiva === item.id;
@@ -128,10 +131,10 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
               tabIndex={selecionada ? 0 : -1}
               onClick={() => setAbaAtiva(item.id)}
               onKeyDown={(event) => navegarAbas(event, indice)}
-              className={`aba-dashboard flex min-h-9 min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal overflow-hidden rounded-[9px] px-2 py-2 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:gap-2 sm:px-4 sm:text-sm ${
+              className={`aba-dashboard flex min-h-9 min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal overflow-hidden rounded-lg px-2 py-2 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:gap-2 sm:px-4 sm:text-sm ${
                 selecionada
-                  ? "border border-[rgba(82,187,194,1)] bg-[rgba(21,47,71,1)] text-[rgba(185,246,232,1)] dark:bg-[rgba(21,47,71,1)] dark:text-[rgba(185,246,232,1)]"
-                  : "border border-[rgba(20,106,168,1)] text-muted-foreground hover:text-foreground"
+                  ? "border border-primary bg-primary text-primary-foreground shadow-sm dark:border-[rgba(82,187,194,1)] dark:bg-[rgba(21,47,71,1)] dark:text-[rgba(185,246,232,1)] dark:shadow-none"
+                  : "border border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground dark:border-[rgba(20,106,168,0.65)] dark:hover:bg-white/5"
               }`}
             >
               <Icone size={16} className="shrink-0" aria-hidden="true" />
@@ -188,7 +191,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
           )}
 
           {item.id === "minha-central" && (
-            <div className="mt-4 sm:mt-6">
+            <div className="mx-auto mt-4 w-full max-w-[1200px] sm:mt-6">
               <RecadosPanel compact aoAbrir={() => aoNavegar("recados")} />
             </div>
           )}

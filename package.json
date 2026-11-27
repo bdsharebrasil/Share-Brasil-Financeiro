@@ -4,18 +4,18 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:frontend": "vite",
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "dev:frontend": "vite --host 0.0.0.0 --port 3000",
     "dev:backend": "tsx watch dev-server/server.ts",
     "build": "NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "build:dev": "NODE_OPTIONS=--max-old-space-size=4096 vite build --mode development",
     "lint": "eslint .",
     "test": "tsx --test tests/*.test.mjs",
     "preview": "vite preview",
-    "type-check": "pnpm type-check:app && pnpm type-check:kanban",
+    "type-check": "npm run type-check:app && npm run type-check:kanban",
     "type-check:app": "tsc --noEmit --project tsconfig.app.json",
     "type-check:kanban": "tsc --noEmit --project src/components/ui/kanban-board/tsconfig.json",
-    "deploy": "wrangler pages deploy app/share-brasil/dist/public"
+    "deploy": "wrangler pages deploy dist"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -53,6 +53,7 @@
     "@supabase/supabase-js": "^2.98.0",
     "@tailwindcss/vite": "^4.3.5",
     "@tanstack/react-query": "^5.56.2",
+    "@vis.gl/react-google-maps": "^1.10.2",
     "@vitejs/plugin-react": "^4.7.0",
     "apex-grid": "^3.4.0",
     "apexmaps": "^0.3.0",

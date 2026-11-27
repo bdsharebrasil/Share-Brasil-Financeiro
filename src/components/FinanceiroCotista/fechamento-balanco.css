@@ -7,11 +7,11 @@
   --fb-navy: var(--brand-navy);
   --fb-blue: var(--app-info);
   --fb-soft: var(--app-soft);
-  --fb-ok: #1f8a5b;
-  --fb-warn: #b7791f;
-  --fb-bad: #d14343;
-  --fb-wait: #7c5cd6;
-  --fb-violet: #7c5cd6;
+  --fb-ok: var(--app-success);
+  --fb-warn: var(--app-warning);
+  --fb-bad: var(--app-danger);
+  --fb-wait: var(--app-violet);
+  --fb-violet: var(--app-violet);
 
   width: 100%;
   min-width: 0;
@@ -20,17 +20,7 @@
   padding: 12px 0 36px;
   color: var(--fb-text);
   font: 13.5px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
-  color-scheme: light;
-}
-
-:root[data-theme="dark"] .fb,
-.dark .fb {
-  --fb-ok: #5fd09b;
-  --fb-warn: #f0c15a;
-  --fb-bad: #f07878;
-  --fb-wait: #b7a2f5;
-  --fb-violet: #b7a2f5;
-  color-scheme: dark;
+  color-scheme: var(--app-color-scheme);
 }
 
 .fb .bcp {
@@ -108,7 +98,7 @@
   overflow: hidden;
   border-style: inset;
   border-width: 1px;
-  border-color: rgba(10, 94, 144, 1);
+  border-color: var(--fb-blue);
   color: var(--fb-blue);
   font-weight: 650;
 }
@@ -155,7 +145,7 @@
   justify-content: space-between;
   gap: 20px 32px;
   background: var(--fb-navy);
-  color: #ffffff;
+  color: var(--app-primary-text);
   border: 1px solid color-mix(in srgb, var(--fb-navy) 82%, white);
   border-radius: 12px;
   padding: 5px 24px;

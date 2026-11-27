@@ -34,11 +34,13 @@ import {
 } from "lucide-react";
 import { createElement, forwardRef, type ComponentType, type SVGProps } from "react";
 
-const URL_ICONE_AGENDA = "https://cdn.builder.io/api/v1/image/assets%2F46aa69654530411793d5011e629d04aa%2F206f0cb63b6d4b2ebfd2582f4461d757?format=webp&width=800&height=1200";
-
-export function IconeAgenda({ size = 18, className }: LucideProps) {
-  return createElement("img", { src: URL_ICONE_AGENDA, alt: "", width: size, height: size, className: `shrink-0 object-contain brightness-0 invert ${className ?? ""}` });
-}
+export const IconeAgenda: LucideIcon = forwardRef<SVGSVGElement, LucideProps>(({ size = 24, ...props }, ref) => createElement(
+  "svg",
+  { ...props, ref, width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: props.strokeWidth ?? 2, strokeLinecap: "round", strokeLinejoin: "round" },
+  createElement("path", { d: "M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" }),
+  createElement("circle", { cx: 12, cy: 8, r: 2 }),
+  createElement("path", { d: "M15 13a3 3 0 1 0-6 0" }),
+));
 
 const BanknoteArrowUp: LucideIcon = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>((props, ref) => createElement(
   "svg",

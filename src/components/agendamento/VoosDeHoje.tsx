@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { MapPin, Radio } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { buscarHistoricoRastreio, type SolicitacaoVooInterna, type VooEmOperacao } from "@/lib/colaborador-api";
 import HistoricoRastreioVoo from "@/components/dashboard/operacoes/HistoricoRastreioVoo";
 import { horarioRastreio, vooComSinalNoAr } from "@/lib/rastreio";
@@ -100,70 +101,84 @@ export default function VoosDeHoje({ item, voosEmOperacao, carregandoAoVivo, err
   const vooMapa = modo === "ao-vivo" ? vooAoVivo || vooSelecionado : vooSelecionado;
   const pernaMapa = modo === "ao-vivo" ? vooMapa?.perna_atual?.id : pernaSelecionadaId === "todas" ? undefined : pernaSelecionadaId;
 
-  return <div className="sb-monitor-selected">
-    <section className="sb-monitor-map" aria-label="Mapa do voo selecionado">
-      <header className="sb-monitor-map-heading">
-        <h2>Monitoramento Voos</h2>
-        <div role="group" aria-label="Visualização do mapa">
-          <button type="button" aria-pressed={modo === "ao-vivo"} onClick={() => setModo("ao-vivo")}><Radio size={13} />Ao vivo</button>
-          <button type="button" aria-pressed={modo === "historico"} onClick={() => setModo("historico")}>Histórico da rota</button>
+  return <div className="space-y-4">
+    <section className="rounded-xl border border-border bg-card p-3 sm:p-4" aria-label="Mapa do voo selecionado">
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-sm font-bold text-foreground">Monitoramento de voo</h3>
+        <div role="group" aria-label="Visualização do mapa" className="flex gap-1.5 rounded-lg border border-border bg-secondary/40 p-1">
+          <button type="button" aria-pressed={modo === "ao-vivo"} onClick={() => setModo("ao-vivo")} className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors ${modo === "ao-vivo" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}><Radio size={13} />Ao vivo</button>
+          <button type="button" aria-pressed={modo === "historico"} onClick={() => setModo("historico")} className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors ${modo === "historico" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>Histórico da rota</button>
         </div>
       </header>
-      {modo === "historico" && <label className="sb-leg-select">Perna do voo
-        <select value={pernaSelecionadaId} onChange={(event) => setPernaSelecionadaId(event.target.value)}>
-          <option value="todas">Percurso completo · todas as pernas</option>
-          {pernasSelecionadas.map((perna, indice) => <option key={perna.id} value={perna.id}>{indice + 1} · {perna.origem} → {perna.destino} · {dataPerna(perna)}</option>)}
-        </select>
-      </label>}
-      {vooMapa ? <Suspense fallback={<p className="sb-empty">Carregando mapa...</p>}><MapaVoo key={`${item.id}-${modo}-${pernaMapa || "todas"}`} voo={vooMapa} pernaId={pernaMapa} historico={modo === "historico" || !aoVivo} altura={480} /></Suspense>
-        : <div className="sb-map-empty"><MapPin size={28} /><strong>{carregandoHistorico || carregandoAoVivo ? "Carregando percurso..." : "Aguardando posições do voo"}</strong><p>O mapa será exibido quando houver coordenadas ou posições registradas para esta operação.</p></div>}
+      {modo === "historico" && (
+        <div className="mb-3 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+          <span className="text-xs font-semibold text-muted-foreground">Perna do voo</span>
+          <Select value={pernaSelecionadaId} onValueChange={setPernaSelecionadaId}>
+            <SelectTrigger aria-label="Perna do voo" className="h-10 max-w-md rounded-lg text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Percurso completo · todas as pernas</SelectItem>
+              {pernasSelecionadas.map((perna, indice) => (
+                <SelectItem key={perna.id} value={perna.id}>
+                  {indice + 1} · {perna.origem} → {perna.destino} · {dataPerna(perna)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      {vooMapa ? <Suspense fallback={<p className="py-12 text-center text-xs text-muted-foreground">Carregando mapa...</p>}><MapaVoo key={`${item.id}-${modo}-${pernaMapa || "todas"}`} voo={vooMapa} pernaId={pernaMapa} historico={modo === "historico" || !aoVivo} altura={460} /></Suspense>
+        : <div className="flex min-h-[340px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-secondary/20 p-6 text-center text-muted-foreground"><MapPin size={28} /><strong className="text-sm text-foreground">{carregandoHistorico || carregandoAoVivo ? "Carregando percurso..." : "Aguardando posições do voo"}</strong><p className="max-w-md text-xs">O mapa será exibido quando houver coordenadas ou posições registradas para esta operação.</p></div>}
     </section>
-    <section className="sb-monitor-history sb-monitor-status" aria-label="Informações de monitoramento">
-      <h3>{item.numero_voo || "Voo selecionado"} · {item.matricula_registro || "Aeronave a definir"}</h3>
-      <p>{aoVivo ? "Sinal ao vivo disponível" : "Sem sinal ADS-B ao vivo neste momento"} · {atualizadoAoVivo ? `Última consulta ${new Date(atualizadoAoVivo).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : "Aguardando atualização"}</p>
-      {erroAoVivo && <p role="status">Não foi possível atualizar o rastreio: {erroAoVivo}</p>}
-      {erroHistorico && <p role="status">{erroHistorico}</p>}
+
+    <section className="rounded-xl border border-border bg-secondary/20 p-4" aria-label="Informações de monitoramento">
+      <h4 className="text-sm font-bold text-foreground">{item.numero_voo || "Voo selecionado"} · {item.matricula_registro || "Aeronave a definir"}</h4>
+      <p className="mt-1 text-xs text-muted-foreground">{aoVivo ? "Sinal ao vivo disponível" : "Sem sinal ADS-B ao vivo neste momento"} · {atualizadoAoVivo ? `Última consulta ${new Date(atualizadoAoVivo).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : "Aguardando atualização"}</p>
+      {erroAoVivo && <p role="status" className="mt-1 text-xs text-red-700 dark:text-red-300">Não foi possível atualizar o rastreio: {erroAoVivo}</p>}
+      {erroHistorico && <p role="status" className="mt-1 text-xs text-red-700 dark:text-red-300">{erroHistorico}</p>}
     </section>
-          {vooSelecionado && (
-            <div className="sb-monitor-history">
-              <h3 className="mb-2 text-xs font-bold text-foreground">Trechos e horários registrados · UTC</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[480px] text-left text-[10px]">
-                  <thead className="text-muted-foreground"><tr>
-                    {["Trecho", "AC", "DEP", "POU", "COR"].map((titulo) => (
-                      <th key={titulo} className="px-1 py-1 font-semibold">{titulo}</th>
-                    ))}
-                  </tr></thead>
-                  <tbody>
-                    {[...pernasSelecionadas].sort((a, b) => (diaUTC(a.horario_dep || a.horario_ac || a.horario_pouso || a.horario_corte) || "").localeCompare(diaUTC(b.horario_dep || b.horario_ac || b.horario_pouso || b.horario_corte) || "")).map((perna, indice) => (
-                      <tr key={perna.id} className="border-t border-border/70">
-                        <td className="whitespace-nowrap px-1 py-2 font-mono font-semibold"><span className="mr-1 text-muted-foreground">{dataPerna(perna)}</span>{perna.origem} → {perna.destino}{pernaAtualDetectada && perna.id === vooSelecionado.perna_atual?.id && <span className="mt-1 block font-sans text-[9px] font-normal text-primary">Trecho detectado pelo sistema · {dataPerna(perna)}</span>}</td>
-                        {[perna.horario_ac, perna.horario_dep, perna.horario_pouso, perna.horario_corte].map((horario, indice) => (
-                          <td key={indice} className="whitespace-nowrap px-1 py-2 font-mono">{horarioRastreio(horario).replace(" UTC", "")}</td>
-                        ))}
-                      </tr>
-                    ))}
-                    {trechosSistema.map((trecho) => (
-                      <tr key={`sistema-${trecho.dia}`} className="border-t border-primary/20 bg-primary/[.04]">
-                        <td className="whitespace-nowrap px-1 py-2 font-mono font-semibold text-primary">{diaCurto(trecho.dia)} · Trecho detectado pelo sistema</td>
-                        <td colSpan={4} className="px-1 py-2 text-[9px] text-muted-foreground">
-                          {horarioRastreio(trecho.inicio)} – {horarioRastreio(trecho.fim)} ·
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {!vooSelecionado.rastreio && (
-                <p className="mt-2 text-[10px] text-muted-foreground">
-                  Os horários acima foram informados pela tripulação. A rota tracejada no mapa é prevista, não um percurso confirmado.
-                </p>
-              )}
-              <div className="mt-3 border-t border-border/70 pt-3">
-                <h3 className="mb-2 text-xs font-bold text-foreground">Histórico de sinais ADS-B</h3>
-                <HistoricoRastreioVoo voo={vooSelecionado} />
-              </div>
-            </div>
-          )}
+
+    {vooSelecionado && (
+      <div className="rounded-xl border border-border bg-card p-4">
+        <h4 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">Trechos e horários registrados · UTC</h4>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[480px] text-left text-xs">
+            <thead className="text-muted-foreground"><tr>
+              {["Trecho", "AC", "DEP", "POU", "COR"].map((titulo) => (
+                <th key={titulo} className="px-2 py-1.5 font-semibold">{titulo}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {[...pernasSelecionadas].sort((a, b) => (diaUTC(a.horario_dep || a.horario_ac || a.horario_pouso || a.horario_corte) || "").localeCompare(diaUTC(b.horario_dep || b.horario_ac || b.horario_pouso || b.horario_corte) || "")).map((perna) => (
+                <tr key={perna.id} className="border-t border-border/70">
+                  <td className="whitespace-nowrap px-2 py-2 font-mono font-semibold"><span className="mr-1.5 text-muted-foreground">{dataPerna(perna)}</span>{perna.origem} → {perna.destino}{pernaAtualDetectada && perna.id === vooSelecionado.perna_atual?.id && <span className="mt-0.5 block font-sans text-[11px] font-normal text-primary">Trecho detectado pelo sistema · {dataPerna(perna)}</span>}</td>
+                  {[perna.horario_ac, perna.horario_dep, perna.horario_pouso, perna.horario_corte].map((horario, idx) => (
+                    <td key={idx} className="whitespace-nowrap px-2 py-2 font-mono">{horarioRastreio(horario).replace(" UTC", "")}</td>
+                  ))}
+                </tr>
+              ))}
+              {trechosSistema.map((trecho) => (
+                <tr key={`sistema-${trecho.dia}`} className="border-t border-primary/20 bg-primary/[.04]">
+                  <td className="whitespace-nowrap px-2 py-2 font-mono font-semibold text-primary">{diaCurto(trecho.dia)} · Trecho detectado pelo sistema</td>
+                  <td colSpan={4} className="px-2 py-2 text-[11px] text-muted-foreground">
+                    {horarioRastreio(trecho.inicio)} – {horarioRastreio(trecho.fim)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!vooSelecionado.rastreio && (
+          <p className="mt-2.5 text-xs text-muted-foreground">
+            Os horários acima foram informados pela tripulação. A rota tracejada no mapa é prevista, não um percurso confirmado.
+          </p>
+        )}
+        <div className="mt-4 border-t border-border/70 pt-3">
+          <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Histórico de sinais ADS-B</h4>
+          <HistoricoRastreioVoo voo={vooSelecionado} />
+        </div>
+      </div>
+    )}
   </div>;
 }

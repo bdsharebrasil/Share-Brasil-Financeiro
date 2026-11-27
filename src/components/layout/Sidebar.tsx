@@ -59,6 +59,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
   const nome = dados?.perfil.nome_exibicao || dados?.perfil.nome_completo || "Colaborador";
   const funcao = dados?.funcoes?.[0]?.funcao || dados?.perfil.tipo_user || "Colaborador";
   const avatar = dados?.perfil.foto_url || "/icon.pilot.png";
+  const sidebarMaiuscula = ambiente === "share-brasil" || ambiente === "gestor";
 
   const renderItem = (item: ItemMenu, compacto = false) => {
     const Icon = item.icon;
@@ -80,8 +81,8 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
         )}
       >
         <Icon size={item.id === "financeiro-cotista" ? (compacto ? 16 : 14) : (compacto ? 18 : 16)} strokeWidth={selecionado ? 2.3 : 1.8} />
-        {!compacto && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
-        {compacto && <span className="pointer-events-none absolute left-full z-[60] ml-3 whitespace-nowrap rounded-md border border-sidebar-border bg-sidebar px-2.5 py-1 text-xs text-sidebar-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100">{item.label}</span>}
+        {!compacto && <span className={cn("min-w-0 flex-1 truncate", sidebarMaiuscula && "uppercase")}>{item.label}</span>}
+        {compacto && <span className={cn("pointer-events-none absolute left-full z-[60] ml-3 whitespace-nowrap rounded-md border border-sidebar-border bg-sidebar px-2.5 py-1 text-xs text-sidebar-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100", sidebarMaiuscula && "uppercase")}>{item.label}</span>}
       </button>
     );
   };
@@ -100,7 +101,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
         className={cn("sb-tab", recolhida && "sb-tab--rail")}
       >
         <Icon size={tamanho} strokeWidth={selecionado ? 2.3 : 1.8} />
-        {recolhida ? <span className="sb-tab-tip">{item.label}</span> : <span className="sb-tab-label">{item.label}</span>}
+        {recolhida ? <span className={cn("sb-tab-tip", sidebarMaiuscula && "uppercase")}>{item.label}</span> : <span className={cn("sb-tab-label", sidebarMaiuscula && "uppercase")}>{item.label}</span>}
       </button>
     );
   };
@@ -132,7 +133,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
 
   return (
     <>
-      <div className="app-sidebar fixed bottom-0 left-[var(--safe-area-left)] top-[var(--app-header-height)] z-30 hidden w-[var(--sidebar-w,76px)] flex-col bg-[rgb(7,17,25)] py-4 md:flex">
+      <div className={cn("app-sidebar fixed bottom-0 left-[var(--safe-area-left)] top-[var(--app-header-height)] z-30 hidden w-[var(--sidebar-w,76px)] flex-col bg-[rgb(7,17,25)] py-4 md:flex", sidebarMaiuscula && "uppercase")}>
         <nav aria-label="Menu principal" className={cn("sb-nav flex-1", !recolhida && "sb-nav--scroll")}>{itens.map(renderItemDesktop)}</nav>
         <div className="sb-footer">
           <button type="button" aria-label={recolhida ? "Expandir menu" : "Recolher menu"} title={recolhida ? "Expandir menu" : undefined} onClick={aoAlternarRecolhimento} className={cn("sb-toggle", recolhida && "sb-toggle--rail")}>
@@ -142,7 +143,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
       </div>
 
       <Sheet open={aberta} onOpenChange={(open) => !open && aoFechar()}>
-        <SheetContent side="left" className="app-sidebar-drawer w-[min(20rem,calc(100vw-1rem))] border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
+        <SheetContent side="left" className={cn("app-sidebar-drawer w-[min(20rem,calc(100vw-1rem))] border-sidebar-border bg-sidebar p-0 text-sidebar-foreground", sidebarMaiuscula && "uppercase")}>
           <div className="safe-area-header flex items-center border-b border-sidebar-border px-6">
             <LogoShare inversa />
             <span className="ml-auto rounded-md border border-sidebar-border px-2 py-1 font-mono text-[9px] text-sidebar-foreground/40">{nomesAmbiente[ambiente]}</span>

@@ -27,6 +27,15 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { ColaboradorGestao } from "@/lib/colaborador-api";
 import { dataBr, hojeLocal, validarArquivo } from "@/lib/gestao-colaboradores";
 import {
@@ -110,6 +119,13 @@ export function FormularioColaborador({
   const [realizado, setRealizado] = useState(
     Boolean(inicial?.exame_admissional_realizado),
   );
+  const [uf, setUf] = useState(inicial?.uf?.toUpperCase() || "");
+  const [statusColab, setStatusColab] = useState(
+    inicial?.status?.toLowerCase() || "ativo",
+  );
+  const [tipoConta, setTipoConta] = useState(
+    inicial?.tipo_conta || "corrente",
+  );
   const [departamento, setDepartamento] = useState(
     inicial?.departamentos_email || inicial?.departamento || "",
   );
@@ -137,10 +153,12 @@ export function FormularioColaborador({
   const dados = () => new FormData(formRef.current!);
   function valores(formData: FormData): Record<string, unknown> {
     const values: Record<string, unknown> = Object.fromEntries(
-      [...formData.entries()].filter(
-        ([key, value]) =>
-          !(value instanceof File) && !key.startsWith("documento_"),
-      ),
+      [...formData.entries()]
+        .filter(
+          ([key, value]) =>
+            !(value instanceof File) && !key.startsWith("documento_"),
+        )
+        .map(([key, value]) => [key, value === "__NONE__" ? "" : value]),
     );
     values.exame_admissional_realizado = realizado;
     values.departamento = departamento;
@@ -169,7 +187,10 @@ export function FormularioColaborador({
   }
   function validar(target: number, formData: FormData): Record<string, string> {
     const errors: Record<string, string> = {};
-    const value = (key: string) => String(formData.get(key) || "").trim();
+    const value = (key: string) => {
+      const raw = String(formData.get(key) || "").trim();
+      return raw === "__NONE__" ? "" : raw;
+    };
     const required = (key: string, message: string) => {
       if (!value(key)) errors[key] = message;
     };
@@ -277,7 +298,11 @@ export function FormularioColaborador({
       }
     }
     setErros({});
-    setRevisao(Object.fromEntries(formData.entries()));
+    setRevisao(
+      Object.fromEntries(
+        [...formData.entries()].map(([k, v]) => [k, v === "__NONE__" ? "" : v]),
+      ),
+    );
     setEtapa(next);
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -353,7 +378,7 @@ export function FormularioColaborador({
       wide={options.wide}
       help={options.help}
     >
-      <input
+      <Input
         id={`rh-${name}`}
         name={name}
         type={options.type || "text"}
@@ -537,17 +562,26 @@ export function FormularioColaborador({
                       autoComplete: "address-level2",
                     })}
                     <Campo nome="uf" titulo="Estado">
-                      <select
+                      <Select
                         name="uf"
-                        id="rh-uf"
-                        className="rh-input"
-                        defaultValue={inicial?.uf?.toUpperCase() || ""}
+                        value={uf || "__NONE__"}
+                        onValueChange={(v) => {
+                          setUf(v === "__NONE__" ? "" : v);
+                          dirtyRef.current = true;
+                        }}
                       >
-                        <option value="">Selecione</option>
-                        {estados.map((uf) => (
-                          <option key={uf}>{uf}</option>
-                        ))}
-                      </select>
+                        <SelectTrigger id="rh-uf">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__NONE__">Selecione</SelectItem>
+                          {estados.map((itemUf) => (
+                            <SelectItem key={itemUf} value={itemUf}>
+                              {itemUf}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </Campo>
                   </fieldset>
                 </AnimatedStepPanel>
@@ -562,23 +596,33 @@ export function FormularioColaborador({
                   </p>
                   <fieldset className="rh-fields" disabled={salvando}>
                     <Campo nome="departamento" titulo="Departamento">
-                      <select
-                        id="rh-departamento"
+                      <Select
                         name="departamento"
-                        value={departamento}
-                        onChange={(e) => setDepartamento(e.target.value)}
-                        className="rh-input"
+                        value={departamento || "__NONE__"}
+                        onValueChange={(v) => {
+                          setDepartamento(v === "__NONE__" ? "" : v);
+                          dirtyRef.current = true;
+                        }}
                       >
-                        <option value="">Selecione o departamento</option>
-                        {[
-                          ...new Set([
-                            ...departamentos,
-                            ...(departamento ? [departamento] : []),
-                          ]),
-                        ].map((d) => (
-                          <option key={d}>{d}</option>
-                        ))}
-                      </select>
+                        <SelectTrigger id="rh-departamento">
+                          <SelectValue placeholder="Selecione o departamento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__NONE__">
+                            Selecione o departamento
+                          </SelectItem>
+                          {[
+                            ...new Set([
+                              ...departamentos,
+                              ...(departamento ? [departamento] : []),
+                            ]),
+                          ].map((d) => (
+                            <SelectItem key={d} value={d}>
+                              {d}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </Campo>
                     {field("data_admissao", "Data de admissão", {
                       type: "date",
@@ -590,18 +634,23 @@ export function FormularioColaborador({
                     )}
                     {inicial && (
                       <Campo nome="status" titulo="Situação">
-                        <select
-                          id="rh-status"
+                        <Select
                           name="status"
-                          className="rh-input"
-                          defaultValue={
-                            inicial.status?.toLowerCase() || "ativo"
-                          }
+                          value={statusColab}
+                          onValueChange={(v) => {
+                            setStatusColab(v);
+                            dirtyRef.current = true;
+                          }}
                         >
-                          <option value="ativo">Ativo</option>
-                          <option value="inativo">Inativo</option>
-                          <option value="ferias">Férias</option>
-                        </select>
+                          <SelectTrigger id="rh-status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ativo">Ativo</SelectItem>
+                            <SelectItem value="inativo">Inativo</SelectItem>
+                            <SelectItem value="ferias">Férias</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </Campo>
                     )}
                     {!inicial ? (
@@ -617,7 +666,7 @@ export function FormularioColaborador({
                           wide
                         >
                           <div className="rh-input-group">
-                            <input
+                            <Input
                               id="rh-email"
                               name="email"
                               aria-required="true"
@@ -627,7 +676,7 @@ export function FormularioColaborador({
                               aria-describedby={
                                 erros.email ? "rh-error-email" : undefined
                               }
-                              className="rh-input"
+                              className="rh-input border-0 shadow-none focus-visible:ring-0"
                             />
                             <span>@share-brasil.com</span>
                           </div>
@@ -640,7 +689,7 @@ export function FormularioColaborador({
                           wide
                         >
                           <div className="rh-input-group">
-                            <input
+                            <Input
                               id="rh-senha"
                               name="senha"
                               aria-required="true"
@@ -650,7 +699,7 @@ export function FormularioColaborador({
                               aria-describedby={
                                 erros.senha ? "rh-error-senha" : undefined
                               }
-                              className="rh-input"
+                              className="rh-input border-0 shadow-none focus-visible:ring-0"
                             />
                             <button
                               type="button"
@@ -692,26 +741,33 @@ export function FormularioColaborador({
                       placeholder: "Nome do banco",
                     })}
                     <Campo nome="tipo_conta" titulo="Tipo de conta">
-                      <select
-                        id="rh-tipo_conta"
+                      <Select
                         name="tipo_conta"
-                        className="rh-input"
-                        defaultValue={inicial?.tipo_conta || "corrente"}
+                        value={tipoConta}
+                        onValueChange={(v) => {
+                          setTipoConta(v);
+                          dirtyRef.current = true;
+                        }}
                       >
-                        {TIPOS_CONTA.map((item) => (
-                          <option key={item.value} value={item.value}>
-                            {item.label}
-                          </option>
-                        ))}
-                        {inicial?.tipo_conta &&
-                          !TIPOS_CONTA.some(
-                            (t) => t.value === inicial.tipo_conta,
-                          ) && (
-                            <option value={inicial.tipo_conta}>
-                              {inicial.tipo_conta}
-                            </option>
-                          )}
-                      </select>
+                        <SelectTrigger id="rh-tipo_conta">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIPOS_CONTA.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                          {inicial?.tipo_conta &&
+                            !TIPOS_CONTA.some(
+                              (t) => t.value === inicial.tipo_conta,
+                            ) && (
+                              <SelectItem value={inicial.tipo_conta}>
+                                {inicial.tipo_conta}
+                              </SelectItem>
+                            )}
+                        </SelectContent>
+                      </Select>
                     </Campo>
                     {field("agencia_numero", "Agência", {
                       placeholder: "0000",
@@ -724,30 +780,47 @@ export function FormularioColaborador({
                       titulo="Tipo de chave Pix"
                       erro={erros.tipo_chave_pix}
                     >
-                      <select
-                        id="rh-tipo_chave_pix"
+                      <Select
                         name="tipo_chave_pix"
-                        className="rh-input"
-                        value={tipoPix}
-                        onChange={(e) => setTipoPix(e.target.value)}
-                        aria-invalid={Boolean(erros.tipo_chave_pix)}
-                        aria-describedby={
-                          erros.tipo_chave_pix
-                            ? "rh-error-tipo_chave_pix"
-                            : undefined
-                        }
+                        value={tipoPix || "__NONE__"}
+                        onValueChange={(v) => {
+                          const next = v === "__NONE__" ? "" : v;
+                          setTipoPix(next);
+                          dirtyRef.current = true;
+                          setErros((current) => {
+                            if (!current.tipo_chave_pix) return current;
+                            const copy = { ...current };
+                            delete copy.tipo_chave_pix;
+                            return copy;
+                          });
+                        }}
                       >
-                        <option value="">Sem chave Pix</option>
-                        {TIPOS_CHAVE_PIX.map((item) => (
-                          <option key={item.value} value={item.value}>
-                            {item.label}
-                          </option>
-                        ))}
-                        {tipoPix &&
-                          !TIPOS_CHAVE_PIX.some((t) => t.value === tipoPix) && (
-                            <option value={tipoPix}>{tipoPix}</option>
-                          )}
-                      </select>
+                        <SelectTrigger
+                          id="rh-tipo_chave_pix"
+                          aria-invalid={Boolean(erros.tipo_chave_pix)}
+                          aria-describedby={
+                            erros.tipo_chave_pix
+                              ? "rh-error-tipo_chave_pix"
+                              : undefined
+                          }
+                        >
+                          <SelectValue placeholder="Sem chave Pix" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__NONE__">Sem chave Pix</SelectItem>
+                          {TIPOS_CHAVE_PIX.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                          {tipoPix &&
+                            !TIPOS_CHAVE_PIX.some(
+                              (t) => t.value === tipoPix,
+                            ) && (
+                              <SelectItem value={tipoPix}>{tipoPix}</SelectItem>
+                            )}
+                        </SelectContent>
+                      </Select>
                     </Campo>
                     {field("pix", "Chave Pix", {
                       placeholder:
@@ -782,16 +855,22 @@ export function FormularioColaborador({
                         nome="exame_admissional_realizado"
                         titulo="Situação do exame"
                       >
-                        <select
-                          id="rh-exame_admissional_realizado"
+                        <Select
                           name="exame_admissional_realizado"
                           value={realizado ? "1" : "0"}
-                          onChange={(e) => setRealizado(e.target.value === "1")}
-                          className="rh-input"
+                          onValueChange={(v) => {
+                            setRealizado(v === "1");
+                            dirtyRef.current = true;
+                          }}
                         >
-                          <option value="0">Exame pendente</option>
-                          <option value="1">Exame realizado</option>
-                        </select>
+                          <SelectTrigger id="rh-exame_admissional_realizado">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">Exame pendente</SelectItem>
+                            <SelectItem value="1">Exame realizado</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </Campo>
                       <div hidden={realizado}>
                         {field(
@@ -898,14 +977,14 @@ export function FormularioColaborador({
                               <X size={16} />
                             </button>
                           </div>
-                          <label className="rh-field">
-                            <span>Nome do documento</span>
-                            <input
+                          <Field className="rh-field gap-1.5">
+                            <FieldLabel>Nome do documento</FieldLabel>
+                            <Input
                               name={`documento_nome_${id}`}
                               className="rh-input"
                               placeholder="Ex.: RG frente e verso"
                             />
-                          </label>
+                          </Field>
                           <Campo
                             nome={`documento_arquivo_${id}`}
                             titulo="Arquivo"
@@ -1170,8 +1249,8 @@ function Campo({
   help?: string;
 }) {
   return (
-    <div className={`rh-field ${wide ? "rh-field-wide" : ""}`}>
-      <label htmlFor={`rh-${nome}`}>{titulo}</label>
+    <Field className={`rh-field gap-1.5 ${wide ? "rh-field-wide" : ""}`}>
+      <FieldLabel htmlFor={`rh-${nome}`}>{titulo}</FieldLabel>
       {children}
       {erro ? (
         <span className="rh-field-error" id={`rh-error-${nome}`}>
@@ -1180,6 +1259,6 @@ function Campo({
       ) : help ? (
         <span className="rh-field-help">{help}</span>
       ) : null}
-    </div>
+    </Field>
   );
 }

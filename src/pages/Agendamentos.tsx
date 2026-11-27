@@ -1,7 +1,6 @@
 import "@/pages/agendamentos-screen.css";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { createPortal } from "react-dom";
-import { CalendarDays, ChevronDown, ChevronLeft, Clock3, Inbox, Plane, Plus, Radio, Users, Search, ArrowRight, X, History } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, ChevronLeft, Clock3, History, Inbox, Plane, Plus, Radio, Search, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +44,6 @@ import { consolidarHorasVoadas, formatarHorasVoadas } from "@/lib/horas-voadas-o
 import { vincularPlanejamentos } from "@/components/agendamento/planejamentoAgendamento";
 import OperacaoVooSelecionado from "@/components/agendamento/OperacaoVooSelecionado";
 import { filtrarOperacoes, operacaoIniciada, rotuloOperacao, selecionarOperacao, statusOperacao, type FiltroOperacoes } from "@/components/agendamento/operacoesPainelModel";
-import VoosDeHoje from "@/components/agendamento/VoosDeHoje";
 import { useVoosEmOperacao } from "@/hooks/useVoosEmOperacao";
 import type { AbaAgendamento } from "@/components/agendamento/AgendamentoNavigation";
 import { abaExibeLista, obterFiltroDaAba } from "@/components/agendamento/agendamentoNavigationModel";
@@ -75,12 +73,26 @@ function normalizarAgendamentos(itens: SolicitacaoVooInterna[] | null | undefine
 function dataIso(data: Date) {
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
 }
-/** Data padrão de um novo agendamento: hoje em Brasília (em UTC viraria “amanhã” a partir das 21h). */
 const hojeUtc = () => hojeBrasilia();
 
 function horaUtcCurta(valor?: string | null) {
   const parte = String(valor || "").match(/(?:T|\s|^)(\d{1,2}):(\d{2})/);
   return parte ? `${parte[1].padStart(2, "0")}:${parte[2]}` : "";
+}
+
+function formatarDataCompletaBr(data?: string | null, dataFim?: string | null) {
+  const inicio = String(data || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio)) return "Sem data";
+  const fim = String(dataFim || "").slice(0, 10);
+  const dtInicio = new Date(`${inicio}T12:00:00Z`);
+  const inicioFmt = dtInicio.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).replace(/\./g, "");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(fim) && fim > inicio) {
+    const dtFim = new Date(`${fim}T12:00:00Z`);
+    const iniC = dtInicio.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
+    const fimC = dtFim.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
+    return `${iniC} a ${fimC}`;
+  }
+  return inicioFmt;
 }
 
 function horarioUtc(data: string, hora?: string) {
@@ -140,13 +152,12 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
   const [selecionada, setSelecionada] = useState<SolicitacaoVooInterna | null>(null);
   const [dataOperacoes, setDataOperacoes] = useState(hojeBrasilia());
   const [vooHojeSelecionadoId, setVooHojeSelecionadoId] = useState<string | null>(null);
-  const [dadosVooAbertoId, setDadosVooAbertoId] = useState<string | null>(null);
   const [abaAnterior, setAbaAnterior] = useState<AbaAgendamento | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroOperacoes, setFiltroOperacoes] = useState<FiltroOperacoes>("operacao");
   const [semVooSelecionado, setSemVooSelecionado] = useState(false);
   const [visaoAndamento, setVisaoAndamento] = useState<"monitoramento" | "hoje">("hoje");
-  
+
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatusCronograma>("todos");
   const [visaoCronograma, setVisaoCronograma] = useState<VisaoCronograma>("grid");
   const [buscaCalendario, setBuscaCalendario] = useState("");
@@ -170,6 +181,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
   const [jornadaAberta, setJornadaAberta] = useState(false);
   const [jornadaModo, setJornadaModo] = useState<"historico" | "atualizar">("atualizar");
   const [agendamentoParaExcluir, setAgendamentoParaExcluir] = useState<SolicitacaoVooInterna | null>(null);
+  const [agendamentoParaFinalizar, setAgendamentoParaFinalizar] = useState<SolicitacaoVooInterna | null>(null);
   const [mensagensConfirmacaoId, setMensagensConfirmacaoId] = useState<string | null>(null);
   const [excluindo, setExcluindo] = useState(false);
   const [novo, setNovo] = useState<NovoAgendamento>({ aeronave_id: "", origem: "", destino: "", data_agendada: hojeUtc(), data_fim: hojeUtc(), horario_previsto_agendamento: "", numero_passageiros: 1, passageiros: [""], piloto_id: "", copiloto_id: "", observacoes: "" });
@@ -245,12 +257,10 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
 
   const agendaCompleta = useMemo(() => normalizarAgendamentos(painel?.agendamentos), [painel?.agendamentos]);
   const agendamentos = useMemo(() => agendaCompleta.filter(item => !item.solicitacao_origem_id), [agendaCompleta]);
-  // Mesma regra da lista “Confirmados”: aprovados que ainda não começaram a operar.
   const confirmados = useMemo(() => agendaCompleta.filter((item) => String(item.status || "").trim().toLowerCase() === "aprovada"), [agendaCompleta]);
   const encerrados = useMemo(() => agendamentos.filter((item) => ["encerrada", "concluida"].includes(String(item.status || "").trim().toLowerCase())), [agendamentos]);
   const pendentes = useMemo(() => agendamentos.filter((item) => item.status === "pendente"), [agendamentos]);
 
-  // Card e modal consomem o MESMO consolidado dos lançamentos reais do diário.
   const referenciaHoras = hojeBrasilia();
   const anoHoras = Number(referenciaHoras.slice(0, 4));
   const mesHoras = Number(referenciaHoras.slice(5, 7));
@@ -285,8 +295,6 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
 
   const solicitacoesFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    // A visão inicial não duplica os filtros dos KPIs: mostra somente operações
-    // programadas/realizadas hoje, incluindo voos de múltiplos dias.
     const hoje = hojeBrasilia();
     const ativos = (aba === "historico" ? agendamentos : agendaCompleta).filter((item) => aba === "cronograma"
       ? operacaoNaData(item, hoje)
@@ -296,7 +304,6 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     const encontrados = termo
       ? ativos.filter((item) => [item.id, item.data_agendada, item.cliente_razao_social, item.socio_nome, item.codigo_cliente, item.origem, item.destino, item.matricula_registro, item.numero_voo].filter(Boolean).join(" ").toLowerCase().includes(termo))
       : ativos;
-    // Fila de trabalho: o que acontece primeiro aparece primeiro. Histórico: o mais recente no topo.
     const ordenados = ordenarPorDataHorario(encontrados);
     return aba === "historico" ? ordenados.reverse() : ordenados;
   }, [agendamentos, agendaCompleta, aba, busca, filtroCronograma]);
@@ -356,7 +363,6 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     setTimeout(() => document.getElementById("confirmacao-voo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   };
 
-  // “Recusar” na lista abre a mesma solicitação já no bloco de recusa (motivo obrigatório).
   const recusarSolicitacao = (item: SolicitacaoVooInterna) => {
     setRecusandoId(item.id);
     abrirSolicitacao(item);
@@ -583,7 +589,6 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
         copiloto_id: novo.copiloto_id || null,
       });
       setMostrarNovo(false);
-      // Leva o coordenador para onde o próximo passo acontece: pendente → fila de aprovação; confirmado → agenda.
       selecionarArea(resposta.status === "pendente" ? "pendentes" : "calendario");
       setNovo({ aeronave_id: "", origem: "", destino: "", data_agendada: hojeUtc(), data_fim: hojeUtc(), horario_previsto_agendamento: "", numero_passageiros: 1, passageiros: [""], piloto_id: "", copiloto_id: "", observacoes: "" });
       await carregar(true);
@@ -594,16 +599,22 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     }
   };
 
-  const finalizar = async (item: SolicitacaoVooInterna) => {
+  const finalizar = (item: SolicitacaoVooInterna) => {
     if (obterAcoesAgendamento(item, calcularProgressoChecklist(item)).historico) {
       toast({ title: "Operação já concluída", description: "Agendamentos encerrados são somente leitura.", variant: "destructive" });
       return;
     }
-    if (!window.confirm(`Finalizar o agendamento ${item.numero_voo || 'sem número'}? Ele sairá do cronograma, mas o número do voo será preservado no histórico.`)) return;
+    setAgendamentoParaFinalizar(item);
+  };
+
+  const executarFinalizacao = async () => {
+    const item = agendamentoParaFinalizar;
+    if (!item || processando) return;
     setProcessando(true);
     try {
       await finalizarAgendamento(item.id);
       if (selecionada?.id === item.id) setSelecionada(null);
+      setAgendamentoParaFinalizar(null);
       toast({ title: 'Agendamento finalizado', description: 'A operação foi concluída e saiu do cronograma.' });
       await carregar(true);
     } catch (error) {
@@ -631,17 +642,18 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     }
   };
 
-  const atualizarSelecionada = async (dados: AtualizacaoAgendamento) => {
-    if (!selecionada) return;
-    if (dados.piloto_id && dados.piloto_id !== selecionada.piloto_id) {
+  const atualizarSelecionada = async (alvo: SolicitacaoVooInterna, dados: AtualizacaoAgendamento): Promise<boolean> => {
+    if (!alvo?.id) return false;
+    const dataAnterior = String(alvo.data_agendada || "").slice(0, 10);
+    if (dados.piloto_id && dados.piloto_id !== alvo.piloto_id) {
       avisarConflitoComandante(dados.piloto_id, {
-        id: selecionada.id,
-        data_agendada: dados.data_agendada || selecionada.data_agendada,
-        data_fim: dados.data_fim || selecionada.data_fim || selecionada.data_agendada,
-        numero_voo: selecionada.numero_voo ?? null,
-        origem: dados.origem || selecionada.origem,
-        destino: dados.destino || selecionada.destino,
-        horario_previsto_agendamento: dados.horario_previsto_agendamento ?? selecionada.horario_previsto_agendamento ?? null,
+        id: alvo.id,
+        data_agendada: dados.data_agendada || alvo.data_agendada,
+        data_fim: dados.data_fim || alvo.data_fim || alvo.data_agendada,
+        numero_voo: alvo.numero_voo ?? null,
+        origem: dados.origem || alvo.origem,
+        destino: dados.destino || alvo.destino,
+        horario_previsto_agendamento: dados.horario_previsto_agendamento ?? alvo.horario_previsto_agendamento ?? null,
         piloto_id: dados.piloto_id,
         piloto_nome: null,
         copiloto_id: dados.copiloto_id || null,
@@ -651,11 +663,35 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     }
     setProcessando(true);
     try {
-      await atualizarAgendamento(selecionada.id, dados);
+      const resposta = await atualizarAgendamento(alvo.id, dados);
       const atualizadoEm = new Date().toISOString();
-      setSelecionada((atual) => atual?.id === selecionada.id ? { ...atual, ...dados, atualizado_em: atualizadoEm } : atual);
-      setPainel((atual) => atual ? { ...atual, agendamentos: atual.agendamentos.map((item) => item.id === selecionada.id ? { ...item, ...dados, atualizado_em: atualizadoEm } : item) } : atual);
-      toast({ title: "Agendamento atualizado", description: "As alterações foram disponibilizadas para toda a equipe." });
+      const patchConfirmado: Partial<SolicitacaoVooInterna> = {
+        ...dados,
+        ...(resposta.data_agendada ? { data_agendada: resposta.data_agendada } : {}),
+        ...(resposta.data_fim ? { data_fim: resposta.data_fim } : {}),
+        ...(resposta.dias_duracao != null ? { dias_duracao: resposta.dias_duracao } : {}),
+        ...(resposta.horario_previsto_agendamento !== undefined ? { horario_previsto_agendamento: resposta.horario_previsto_agendamento } : {}),
+        ...(resposta.numero_passageiros != null ? { numero_passageiros: resposta.numero_passageiros } : {}),
+        ...(resposta.aeronave_id !== undefined ? { aeronave_id: resposta.aeronave_id } : {}),
+        ...(resposta.piloto_id !== undefined ? { piloto_id: resposta.piloto_id } : {}),
+        ...(resposta.copiloto_id !== undefined ? { copiloto_id: resposta.copiloto_id } : {}),
+        atualizado_em: atualizadoEm,
+      };
+      setSelecionada((atual) => (atual?.id === alvo.id ? { ...atual, ...patchConfirmado } : atual));
+      setPainel((atual) =>
+        atual
+          ? {
+              ...atual,
+              agendamentos: atual.agendamentos.map((item) => (item.id === alvo.id ? { ...item, ...patchConfirmado } : item)),
+            }
+          : atual,
+      );
+      const novaData = String(resposta.data_agendada || dados.data_agendada || "").slice(0, 10);
+      if (aba === "voos-hoje" && filtroOperacoes === "confirmados" && novaData && novaData !== dataAnterior) {
+        setDataOperacoes(novaData);
+        setVooHojeSelecionadoId(alvo.id);
+      }
+      toast({ title: "Agendamento atualizado", description: "As alterações foram salvas e disponibilizadas para toda a equipe." });
       await carregar(true);
       return true;
     } catch (error) {
@@ -746,7 +782,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     aprovados: "Voos confirmados com tripulação definida e plano de voo.",
     calendario: "Visualização por período (hoje, amanhã, semana) e calendário mensal.",
     escala: "Disponibilidade, escalas e limites RBAC 117 da tripulação.",
-    "voos-hoje": visaoAndamento === "hoje" ? "Selecione um voo à esquerda e siga as etapas: checklist → iniciar → registrar horários → encerrar." : "Selecione uma operação à esquerda para acompanhar o mapa ao vivo ou o histórico da rota.",
+    "voos-hoje": "Selecione um voo na lista para acompanhar checklist, horários em UTC e telemetria.",
     historico: "Operações concluídas e registros de voo para consulta.",
     "horas-voadas": "Tempo de voo registrado no diário de bordo, por aeronave, mês, dia e ano.",
   };
@@ -755,17 +791,12 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
   const voosEmAndamento = ordenarPorAeronave(filtrarOperacoes(agendamentos, "operacao", hojeOperacoes));
   const voosConfirmadosHoje = ordenarPorDataHorario(filtrarOperacoes(agendaCompleta, "confirmados", hojeOperacoes));
 
-  // Ao abrir a Operação sem nenhum voo em curso, mostra direto os confirmados do dia (em vez de uma tela vazia).
   useEffect(() => {
     if (carregando || !painel || filtroOperacoesAjustado.current) return;
     filtroOperacoesAjustado.current = true;
     if (voosEmAndamento.length === 0 && voosConfirmadosHoje.length > 0) setFiltroOperacoes("confirmados");
   }, [carregando, painel, voosEmAndamento.length, voosConfirmadosHoje.length]);
 
-  const alternarDadosVoo = (id: string) => {
-    setDadosVooAbertoId((atual) => (atual === id ? null : id));
-    window.setTimeout(() => document.getElementById("dados-do-voo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-  };
   const baseLateral = visaoAndamento === "monitoramento" || filtroOperacoes === "operacao" ? voosEmAndamento : voosConfirmadosHoje;
   const voosLateral = baseLateral.filter((voo) => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
@@ -780,12 +811,12 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     setSemVooSelecionado(false);
     abrirSolicitacao(item);
   };
-  // A mesma seleção governa a lista, os controles, os detalhes e o mapa.
+
   useEffect(() => {
     if (aba !== "voos-hoje") return;
     setSelecionada(vooOperacional);
   }, [aba, vooOperacional]);
-  // Os campos digitados só são zerados quando o voo MUDA; um refresh silencioso não apaga o que o usuário escolheu.
+
   const idVooOperacional = vooOperacional?.id ?? null;
   useEffect(() => {
     if (aba !== "voos-hoje") return;
@@ -799,8 +830,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
 
   const tabsPainel: { id: AbaAgendamento; label: string; icon: typeof Plane; badge?: number }[] = [
     { id: "voos-hoje", label: "Operação", icon: Plane },
-    { id: "pendentes", label: "Solicitações", icon: Inbox, badge: pendentes.length },
-    { id: "calendario", label: "Agenda", icon: CalendarDays },
+    { id: "calendario", label: "Agenda", icon: CalendarDays, badge: pendentes.length },
     { id: "escala", label: "Escala", icon: Users },
     { id: "historico", label: "Histórico", icon: History },
     { id: "horas-voadas", label: "Horas voadas", icon: Clock3 },
@@ -829,75 +859,641 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
     setJornadaAberta(false);
   };
   const dentroDoAgendamento = aba === "voos-hoje" ? vooHojeSelecionadoId !== null : Boolean(abaLista && selecionada);
-  const renderizarDetalhes = (item: SolicitacaoVooInterna, somenteLeitura = false, incorporado = false) => <DetalhesSolicitacao
-    key={item.id} incorporado={incorporado} somenteLeitura={somenteLeitura}
-    mostrarMensagensConfirmacao={mensagensConfirmacaoId === item.id}
-    acoes={incorporado ? null : <AcoesDetalhe item={item} aoChecklist={(voo) => { setSelecionada(voo); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={(voo) => abrirJornada(voo, ["encerrada", "concluida"].includes(voo.status) ? "historico" : "atualizar")} aoFinalizar={(voo) => void finalizar(voo)} progressoChecklist={progressoChecklistPorId[item.id] ?? calcularProgressoChecklist(item)} checklistAberto={checklistAberto} />}
-    selecionada={item} escala={painel?.escala || []} disponibilidades={painel?.disponibilidades || []} iniciarRecusa={recusandoId === item.id} opcoes={opcoes} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando}
-    aoAtualizar={atualizarSelecionada} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={(alteracoes) => void aprovar(alteracoes)} aoReprovar={() => void reprovar()} />;
+  const renderizarDetalhes = (item: SolicitacaoVooInterna, somenteLeitura = false, incorporado = false) => (
+    <DetalhesSolicitacao
+      key={item.id}
+      incorporado={incorporado}
+      somenteLeitura={somenteLeitura}
+      mostrarMensagensConfirmacao={mensagensConfirmacaoId === item.id}
+      acoes={incorporado ? null : <AcoesDetalhe item={item} aoChecklist={(voo) => { setSelecionada(voo); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={(voo) => abrirJornada(voo, ["encerrada", "concluida"].includes(voo.status) ? "historico" : "atualizar")} aoFinalizar={(voo) => void finalizar(voo)} progressoChecklist={progressoChecklistPorId[item.id] ?? calcularProgressoChecklist(item)} checklistAberto={checklistAberto} />}
+      selecionada={item}
+      escala={painel?.escala || []}
+      disponibilidades={painel?.disponibilidades || []}
+      iniciarRecusa={recusandoId === item.id}
+      opcoes={opcoes}
+      tripulacao={painel?.tripulacao || []}
+      pilotoId={pilotoId}
+      copilotoId={copilotoId}
+      motivo={motivo}
+      processando={processando}
+      aoAtualizar={(dados) => atualizarSelecionada(item, dados)}
+      aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }}
+      aoPiloto={setPilotoId}
+      aoCopiloto={setCopilotoId}
+      aoMotivo={setMotivo}
+      aoAprovar={(alteracoes) => void aprovar(alteracoes)}
+      aoReprovar={() => void reprovar()}
+    />
+  );
+
+  const vooDestaque = vooOperacional || voosEmAndamento[0] || voosConfirmadosHoje[0] || ordenarPorDataHorario(confirmados)[0] || null;
+  const comandanteDestaque = vooDestaque
+    ? vooDestaque.piloto_nome || nomesTripulantes.get(vooDestaque.piloto_id || "") || "A definir"
+    : "—";
+  const statusDestaque = vooDestaque ? rotuloOperacao(statusOperacao(vooDestaque.status)) : "Sem voos";
+  const urgentesPendentes = pendentes.filter((item) => urgenciaVoo(item.data_agendada, hojeBrasilia()).urgente).length;
 
   return (
     <div className="sb-ops">
-      <header className="sb-pillbar">
-        <div className="sb-pillbar-brand"><Plane size={15}/>Agendamentos</div>
-        <nav className="sb-tabs" aria-label="Áreas de operações">{tabsPainel.map(({id, label, icon: Icon, badge}) => <button type="button" key={id} aria-current={(aba === id || (id === "calendario" && ["cronograma", "aprovados"].includes(aba))) ? "page" : undefined} className={(aba === id || (id === "calendario" && ["cronograma", "aprovados"].includes(aba))) ? "active" : ""} onClick={() => selecionarArea(id)}><Icon size={16}/>{label}{id === "horas-voadas" && <strong className="font-mono text-[10px] opacity-80">{horasVoadasMes}</strong>}{badge ? <strong className="sb-badge" aria-label={`${badge} pendentes`}>{badge}</strong> : null}</button>)}</nav>
-      </header>
-      <div className={`sb-layout${aba === "voos-hoje" ? " sb-stage" : ""}`}>
-        {aba === "voos-hoje" && <aside className="sb-sidebar">
-          <div className="sb-sidebar-heading"><h2><Plane size={21}/> Voos</h2><span className="sb-total-tag">{baseLateral.length} voos</span></div>
-          <label className="sb-search"><Search size={17}/><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar voo, rota, matrícula ou tripulante" /></label>
-          {visaoAndamento === "hoje" && filtroOperacoes === "confirmados" && <div className="sb-sidebar-caption"><label>Data dos voos<input type="date" aria-label="Data dos voos" value={dataOperacoes} onChange={event => { setDataOperacoes(event.target.value); setVooHojeSelecionadoId(null); }} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs" /></label>{dataOperacoes !== hojeBrasilia() && <button type="button" className="mt-1 text-[11px] font-semibold text-primary underline" onClick={() => { setDataOperacoes(hojeBrasilia()); setVooHojeSelecionadoId(null); }}>Voltar para hoje</button>}</div>}
-          {visaoAndamento === "hoje" ? <div className="sb-filters" role="group" aria-label="Filtrar voos da operação">
-            {([['operacao', 'Em operação', voosEmAndamento.length], ['confirmados', 'Confirmados do dia', voosConfirmadosHoje.length]] as const).map(([valor, rotulo, quantidade]) => <button key={valor} type="button" aria-pressed={filtroOperacoes === valor} className={filtroOperacoes === valor ? "active" : ""} onClick={() => { setFiltroOperacoes(valor); setVooHojeSelecionadoId(null); }}>{rotulo} ({quantidade})</button>)}
-          </div> : <p className="sb-sidebar-caption">Todas as operações ativas, inclusive sem sinal ao vivo.</p>}
-          <div className="sb-flight-list">
-            {carregando && !painel ? <p className="sb-empty">Carregando operações...</p> : voosLateral.length === 0 ? <p className="sb-empty">Nenhum voo encontrado para esta visualização.</p> : voosLateral.map((voo) => {
-              const status = statusOperacao(voo.status);
-              const rotulo = voo.solicitacao_origem_id ? "CONFIRMADO" : operacaoIniciada(voo) && status === "aprovada" ? "EM OPERAÇÃO" : rotuloOperacao(status);
-              return <button type="button" key={voo.id} aria-pressed={vooOperacional?.id === voo.id} className={`sb-flight-card ${vooOperacional?.id === voo.id ? "selected" : ""}`} onClick={() => selecionarVooLateral(voo)}>
-                <div className="sb-flight-heading"><span><Plane size={17}/><b>{voo.numero_voo || "Voo sem número"}</b></span><span className={`sb-pill ${status === "aprovada" && !operacaoIniciada(voo) ? "confirmed" : status === "em_solo" ? "pending" : "live"}`}>{rotulo}</span></div>
-                <div className="sb-flight-route"><div><strong>{voo.origem || "—"}</strong><small>Origem</small></div><ArrowRight size={18}/><div><strong>{voo.destino || "—"}</strong><small>Destino</small></div></div>
-                <div className="sb-flight-meta"><span><CalendarDays size={13}/>{voo.data_agendada?.slice(0,10).split("-").reverse().join("/") || "—"}</span>{horaUtcCurta(voo.horario_previsto_agendamento) && <span><Clock3 size={13}/>{horaUtcCurta(voo.horario_previsto_agendamento)} UTC</span>}<span><Plane size={13}/>{voo.matricula_registro || "Aeronave a definir"}</span></div>
-                <div className="sb-flight-crew"><Users size={13}/><span>{[voo.piloto_nome || nomesTripulantes.get(voo.piloto_id || ""), voo.copiloto_nome || nomesTripulantes.get(voo.copiloto_id || "")].filter(Boolean).join(" · ") || "Tripulação a definir"}</span></div>
-              </button>;
+      {/* ───────── CABEÇALHO DE COMANDO EM NAVY (ESTILO WIREFRAME) ───────── */}
+      <header className="sb-command-header">
+        {/* Linha 1: Pílulas de navegação + Ações */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <nav className="sb-top-nav" aria-label="Áreas de operações">
+            {tabsPainel.map(({ id, label, icon: Icon, badge }) => {
+              const ativo = aba === id || (id === "calendario" && ["cronograma", "pendentes", "aprovados"].includes(aba));
+              return (
+                <button
+                  type="button"
+                  key={id}
+                  aria-current={ativo ? "page" : undefined}
+                  className={ativo ? "active" : ""}
+                  onClick={() => selecionarArea(id)}
+                >
+                  <Icon size={13} />
+                  <span>{label}</span>
+                  {id === "horas-voadas" && <strong className="font-mono text-[11px] opacity-80">{horasVoadasMes}</strong>}
+                  {badge ? <strong className="sb-badge" aria-label={`${badge} pendentes`}>{badge}</strong> : null}
+                </button>
+              );
             })}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            {dentroDoAgendamento && aba !== "voos-hoje" && (
+              <button type="button" className="sb-cta-ghost" onClick={voltarTelaAnterior}>
+                <ChevronLeft size={14} />
+                Voltar
+              </button>
+            )}
+            <button type="button" className="sb-cta-gold" onClick={() => abrirNovoAgendamento()}>
+              <Plus size={14} strokeWidth={2.6} />
+              Novo agendamento
+            </button>
           </div>
-        </aside>}
-        <main className="sb-main">
-          <div className="sb-main-heading"><div><h1>{tituloAba[aba]}</h1><p>{descricaoAba[aba]}</p></div><div className="sb-main-actions">
-            {dentroDoAgendamento && <button type="button" className="sb-back" onClick={voltarTelaAnterior}><ChevronLeft size={16}/>Voltar</button>}
-          </div></div>
-          {["calendario", "cronograma", "aprovados"].includes(aba) && <div className="sb-subtabs"><button type="button" onClick={() => selecionarAba("calendario")} className={aba === "calendario" ? "active" : ""}>Calendário</button><button type="button" onClick={() => selecionarAba("cronograma")} className={aba === "cronograma" ? "active" : ""}>Voos de hoje</button><button type="button" onClick={() => selecionarAba("aprovados")} className={aba === "aprovados" ? "active" : ""}>Confirmados ({confirmados.length})</button></div>}
-          {aba === "voos-hoje" && pendentes.length > 0 && (() => {
-            const urgentes = pendentes.filter((item) => urgenciaVoo(item.data_agendada, hojeBrasilia()).urgente).length;
-            return <div className="sb-alert" role="status"><Inbox size={16}/><span><b>{pendentes.length}</b> {pendentes.length === 1 ? "solicitação aguardando" : "solicitações aguardando"} aprovação{urgentes > 0 ? <> · <b>{urgentes}</b> para hoje, amanhã ou já vencida{urgentes === 1 ? "" : "s"}</> : null}</span><button type="button" onClick={() => selecionarArea("pendentes")}>Analisar agora</button></div>;
-          })()}
-          {erro && <div className="sb-error">{erro}<button type="button" onClick={() => void carregar()}>Tentar novamente</button></div>}
-          {aba === "voos-hoje" && <>
-            <div className="sb-subtabs sb-monitor-tabs" role="group" aria-label="Visualização dos voos">
-              <button type="button" aria-pressed={visaoAndamento === "hoje"} className={visaoAndamento === "hoje" ? "active" : ""} onClick={() => setVisaoAndamento("hoje")}><Plane size={14} />Gerenciar voo</button>
-              <button type="button" aria-pressed={visaoAndamento === "monitoramento"} className={visaoAndamento === "monitoramento" ? "active" : ""} onClick={() => setVisaoAndamento("monitoramento")}><Radio size={14} />Mapa ao vivo</button>
+        </div>
+
+        {/* Linha 2: Título limpo (sem inputs espremidos) */}
+        <div className="mt-3.5">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#efbd45]">
+            <Plane size={11} />
+            Coordenação operacional{atualizando ? " · sincronizando..." : ""}
+          </span>
+          <h1 className="mt-0.5 text-xl font-extrabold tracking-tight text-white sm:text-2xl">
+            {tituloAba[aba]}
+          </h1>
+        </div>
+
+        {/* Linha 3: Bento Deck compacto (exibido na visão Operação) */}
+        {aba === "voos-hoje" && (
+          <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-12">
+            <div className="sb-bento-card flex flex-col justify-between p-3.5 sm:p-4 lg:col-span-8">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    selecionarArea("voos-hoje");
+                    setFiltroOperacoes("operacao");
+                  }}
+                  className={`sb-kpi-item${aba === "voos-hoje" && filtroOperacoes === "operacao" ? " active" : ""}`}
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
+                    Em operação
+                  </span>
+                  <strong className="mt-1 text-2xl font-extrabold leading-none tabular-nums">
+                    {String(voosEmAndamento.length).padStart(2, "0")}
+                  </strong>
+                  <span className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Ativos agora</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    selecionarArea("voos-hoje");
+                    setFiltroOperacoes("confirmados");
+                    setDataOperacoes(hojeBrasilia());
+                  }}
+                  className={`sb-kpi-item${aba === "voos-hoje" && filtroOperacoes === "confirmados" ? " active" : ""}`}
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
+                    Confirmados
+                  </span>
+                  <strong className="mt-1 text-2xl font-extrabold leading-none tabular-nums">
+                    {String(voosConfirmadosHoje.length).padStart(2, "0")}
+                  </strong>
+                  <span className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                    {dataOperacoes === hojeBrasilia() ? "Previstos hoje" : `Em ${dataOperacoes.slice(5).split("-").reverse().join("/")}`}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => selecionarArea("pendentes")}
+                  className="sb-kpi-item"
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
+                    Pendentes
+                  </span>
+                  <strong className="mt-1 text-2xl font-extrabold leading-none tabular-nums">
+                    {String(pendentes.length).padStart(2, "0")}
+                  </strong>
+                  <span className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                    {pendentes.length > 0 ? "Para analisar" : "Fila limpa"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => selecionarArea("horas-voadas")}
+                  className="sb-kpi-item"
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
+                    Horas no mês
+                  </span>
+                  <strong className="mt-1 text-xl font-extrabold leading-none tabular-nums sm:text-2xl">
+                    {horasVoadasMes}
+                  </strong>
+                  <span className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Diário de bordo</span>
+                </button>
+              </div>
+
+              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/80 pt-2.5 text-xs dark:border-slate-700/70">
+                {pendentes.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-2 text-amber-800 dark:text-amber-300">
+                    <Inbox size={14} className="shrink-0" />
+                    <span className="font-semibold">
+                      {pendentes.length} {pendentes.length === 1 ? "solicitação pendente" : "solicitações pendentes"}
+                      {urgentesPendentes > 0 ? ` · ${urgentesPendentes} urgente${urgentesPendentes === 1 ? "" : "s"}` : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => selecionarArea("pendentes")}
+                      className="inline-flex items-center gap-1 rounded-full bg-amber-600 px-2.5 py-0.5 text-[11px] font-bold text-white hover:bg-amber-700"
+                    >
+                      Analisar
+                      <ArrowRight size={11} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                    <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400" />
+                    <span className="font-medium">
+                      {confirmados.length} {confirmados.length === 1 ? "voo confirmado" : "voos confirmados"} · {encerrados.length} encerrados
+                    </span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => selecionarArea("calendario")}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[#0969a8] hover:underline dark:text-sky-400"
+                >
+                  <CalendarDays size={13} />
+                  Agenda completa
+                </button>
+              </div>
             </div>
-            {vooOperacional && operacaoSelecionada ? <>
-              {visaoAndamento === "hoje" ? <OperacaoVooSelecionado key={vooOperacional.id} item={vooOperacional} operacao={operacaoSelecionada} processando={processando} dadosVooAbertos={dadosVooAbertoId === vooOperacional.id}
-                aoAbrirAgendamento={(id) => { const agendamento = agendaCompleta.find(item => item.id === id); if (agendamento) abrirSolicitacao(agendamento); }}
-                aoAbrirPlano={aoAbrirPlano}
-                aoAlternarDados={() => alternarDadosVoo(vooOperacional.id)}
-                aoAtualizar={async (status) => { await carregar(true); if (status && status !== "aprovada") { setVooHojeSelecionadoId(operacaoSelecionada.id); setFiltroOperacoes("operacao"); } }}
-                aoFinalizar={(item) => void finalizar(item)} />
-                : <VoosDeHoje key={operacaoSelecionada.id} item={operacaoSelecionada} voosEmOperacao={voosAoVivo} carregandoAoVivo={carregandoAoVivo} erroAoVivo={erroAoVivo} atualizadoAoVivo={atualizadoAoVivo} />}
-              <details id="dados-do-voo" key={`dados-${vooOperacional.id}`} className="sb-flight-details" aria-label="Detalhes do voo selecionado" open={dadosVooAbertoId === vooOperacional.id} onToggle={(evento) => setDadosVooAbertoId(evento.currentTarget.open ? vooOperacional.id : null)}><summary>Dados do voo <span>{visaoAndamento === "monitoramento" ? "Expandir para consultar" : "Expandir para consultar e editar"}</span><ChevronDown size={16} /></summary><div className="sb-flight-details-body">{renderizarDetalhes(vooOperacional, visaoAndamento === "monitoramento", true)}</div></details>
-            </> : <section className="sb-empty">{carregando ? "Carregando voos..." : visaoAndamento === "monitoramento" ? "Nenhuma operação ativa para monitorar." : "Selecione um dos filtros à esquerda para consultar os voos."}</section>}
-          </>}
-          {abaLista && aba !== "voos-hoje" && !selecionada && <section className="sb-content-card"><Cronograma titulo={tituloAba[aba]} detalhe={descricaoAba[aba]} mostrarFiltros={false} selecionada={null} progressoChecklistPorId={progressoChecklistPorId} checklistAberto={checklistAberto} solicitacoes={solicitacoesFiltradas} nomesTripulantes={nomesTripulantes} busca={busca} filtroStatus={filtroCronograma} visao={visaoCronograma} aoMudarBusca={setBusca} aoMudarFiltroStatus={setFiltroStatus} aoMudarVisao={setVisaoCronograma} aoAbrir={abrirSolicitacao} aoHistorico={(item) => abrirJornada(item, "historico")} aoConfirmar={confirmarSolicitacao} aoRecusar={recusarSolicitacao} aoVoltar={() => setSelecionada(null)} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={abrirJornada} aoFinalizar={(item) => void finalizar(item)} aoExcluir={(item) => excluir(item)}/></section>}
-          {abaLista && selecionada && !checklistAberto && !jornadaAberta && <section className="sb-content-card" id="detalhes-solicitacao">{renderizarDetalhes(selecionada)}</section>}
-          {abaLista && selecionada && checklistAberto && (statusPermiteChecklist(selecionada.status) || selecionada.checklist_status === "concluido") && <section className="sb-content-card"><button type="button" className="sb-back" onClick={() => setChecklistAberto(false)}><ChevronLeft size={16}/> Voltar aos detalhes</button><ChecklistPreVoo key={selecionada.id} item={selecionada} aoConcluir={() => carregar(true)} aoAtualizarProgresso={notificarProgressoChecklist}/></section>}
-          {aba === "calendario" && <section className="sb-content-card"><CalendarioAgendamento mes={mes} semana={semanaCalendario} dias={dias} visao={visaoCalendario} confirmados={agendaCompleta.filter(item => item.status !== "pendente" && !["cancelada", "reprovada"].includes(item.status))} pendentes={pendentes} aeronaves={painel?.aeronaves || []} buscaVoo={buscaCalendario} aoMudarBuscaVoo={setBuscaCalendario} aoNavegarParaData={navegarParaDataCalendario} aoMudarMes={mudarMes} aoMudarSemana={mudarSemana} aoMudarVisao={mudarVisaoCalendario} aoAbrir={abrirSolicitacao} aoNovoAgendamento={abrirNovoAgendamento}/></section>}
-          {aba === "horas-voadas" && <section className="sb-content-card"><DetalhamentoHorasVoadas dados={dadosHoras} carregando={carregandoHoras} erro={erroHoras} ano={anoHoras} mes={mesHoras}/></section>}
-          {aba === "escala" && <section className="sb-content-card"><EscalaCalendario tripulacao={painel?.tripulacao || []} escala={painel?.escala || []} disponibilidades={painel?.disponibilidades || []} aoCriarEscala={abrirCriacaoEscala} aoAbrirVoo={(id) => { const item = agendaCompleta.find((a) => a.id === id); if (item) abrirSolicitacao(item); }} aoAbrirExtrato={abrirExtrato}/></section>}
+
+            <div className="sb-bento-spotlight flex flex-col justify-between p-3.5 sm:p-4 lg:col-span-4">
+              {vooDestaque ? (
+                <>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
+                        {operacaoIniciada(vooDestaque) ? "Em operação agora" : "Próximo voo"}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0969a8] dark:text-sky-400">
+                        <CalendarDays size={12} />
+                        {formatarDataCompletaBr(vooDestaque.data_agendada, vooDestaque.data_fim)}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <div className="flex items-baseline gap-2">
+                        <h2 className="text-lg font-extrabold tracking-tight tabular-nums">
+                          {vooDestaque.numero_voo || "Sem número"}
+                        </h2>
+                        <span className="font-mono text-xs font-bold text-[#0969a8] dark:text-sky-400">
+                          {vooDestaque.matricula_registro || "—"}
+                        </span>
+                      </div>
+                      <span className="font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
+                        {vooDestaque.origem || "—"} → {vooDestaque.destino || "—"}
+                        {horaUtcCurta(vooDestaque.horario_previsto_agendamento) ? ` · ${horaUtcCurta(vooDestaque.horario_previsto_agendamento)}Z` : ""}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-100/90 px-2.5 py-1.5 text-[11px] dark:bg-slate-800/70">
+                      <span className="truncate font-semibold" title={comandanteDestaque}>
+                        CMD: {comandanteDestaque}
+                      </span>
+                      <span className="shrink-0 font-bold text-slate-600 dark:text-slate-300">{statusDestaque}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      selecionarArea("voos-hoje");
+                      setFiltroOperacoes(operacaoIniciada(vooDestaque) ? "operacao" : "confirmados");
+                      if (!operacaoIniciada(vooDestaque) && vooDestaque.data_agendada) {
+                        setDataOperacoes(String(vooDestaque.data_agendada).slice(0, 10));
+                      }
+                      setVooHojeSelecionadoId(vooDestaque.id);
+                      setSemVooSelecionado(false);
+                    }}
+                    className="mt-2.5 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-full bg-[#10263a] px-3 text-xs font-bold text-white transition-colors hover:bg-[#163653] dark:bg-[#efbd45] dark:text-[#10263a] dark:hover:bg-[#f5ca5c]"
+                  >
+                    <Radio size={13} />
+                    Focar no painel
+                  </button>
+                </>
+              ) : (
+                <div className="flex h-full flex-col justify-between gap-2">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
+                      Próximo voo
+                    </span>
+                    <p className="mt-1 text-xs font-bold">Nenhum voo ativo ou confirmado</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => abrirNovoAgendamento()}
+                    className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-full bg-[#10263a] px-3 text-xs font-bold text-white hover:bg-[#163653] dark:bg-[#efbd45] dark:text-[#10263a]"
+                  >
+                    <Plus size={13} />
+                    Agendar voo
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* ───────── WORKSPACE PRINCIPAL ───────── */}
+      <section className="sb-workspace-shell">
+        {erro && (
+          <div className="sb-error">
+            {erro}
+            <button type="button" onClick={() => void carregar()}>
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
+        <main className="sb-main">
+          {/* Sub-abas da Agenda */}
+          {["calendario", "cronograma", "pendentes", "aprovados"].includes(aba) && !selecionada && (
+            <div className="sb-subtabs" role="navigation" aria-label="Visões da agenda">
+              <button type="button" onClick={() => selecionarAba("calendario")} className={aba === "calendario" || aba === "cronograma" ? "active" : ""}>
+                Calendário
+              </button>
+              <button type="button" onClick={() => selecionarAba("pendentes")} className={aba === "pendentes" ? "active" : ""}>
+                <span>Solicitações</span>
+                {pendentes.length > 0 && <strong className="sb-badge">{pendentes.length}</strong>}
+              </button>
+              <button type="button" onClick={() => selecionarAba("aprovados")} className={aba === "aprovados" ? "active" : ""}>
+                Confirmados ({confirmados.length})
+              </button>
+            </div>
+          )}
+
+          {/* Visão Operação: Filtros dedicados + Container 100% largura com abas centralizadas */}
+          {aba === "voos-hoje" && (
+            <div className="space-y-3">
+              {/* Barra dedicada de busca e data (fora do container claro, sem estourar bordas) */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5">
+                <label className="flex h-9 w-full min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 text-xs text-foreground shadow-sm transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary sm:max-w-xs">
+                  <Search size={14} className="shrink-0 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={busca}
+                    onChange={(event) => setBusca(event.target.value)}
+                    placeholder="Buscar voo, matrícula, rota ou piloto..."
+                    className="h-full min-w-0 flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  />
+                  {busca && (
+                    <button
+                      type="button"
+                      aria-label="Limpar busca"
+                      onClick={() => setBusca("")}
+                      className="shrink-0 text-muted-foreground hover:text-foreground"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </label>
+
+                {visaoAndamento === "hoje" && filtroOperacoes === "confirmados" && (
+                  <div className="flex items-center gap-2">
+                    <label className="flex h-9 items-center gap-2 rounded-xl border border-border bg-card px-3 text-xs text-foreground shadow-sm focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
+                      <CalendarDays size={14} className="shrink-0 text-primary" />
+                      <input
+                        type="date"
+                        aria-label="Data dos voos confirmados"
+                        value={dataOperacoes}
+                        onChange={(event) => {
+                          setDataOperacoes(event.target.value);
+                          setVooHojeSelecionadoId(null);
+                          setSemVooSelecionado(false);
+                        }}
+                        className="h-full bg-transparent font-mono text-xs font-semibold text-foreground focus:outline-none"
+                      />
+                    </label>
+                    {dataOperacoes !== hojeBrasilia() && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 rounded-xl px-3 text-xs font-semibold"
+                        onClick={() => {
+                          setDataOperacoes(hojeBrasilia());
+                          setVooHojeSelecionadoId(null);
+                        }}
+                      >
+                        Hoje
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Container claro unificado ocupando 100% da largura */}
+              <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                {/* Encaixe superior com abas centralizadas (igual ao wireframe) */}
+                <div className="flex items-center justify-center border-b border-border bg-secondary/35 px-3 py-2.5">
+                  <div
+                    className="inline-flex flex-wrap items-center justify-center gap-1 rounded-xl border border-border/80 bg-background/80 p-1 shadow-xs"
+                    role="group"
+                    aria-label="Filtrar voos da operação"
+                  >
+                    {(
+                      [
+                        ["operacao", "Em operação", voosEmAndamento.length],
+                        ["confirmados", "Confirmados", voosConfirmadosHoje.length],
+                      ] as const
+                    ).map(([valor, rotulo, quantidade]) => {
+                      const ativo = filtroOperacoes === valor;
+                      return (
+                        <button
+                          key={valor}
+                          type="button"
+                          aria-pressed={ativo}
+                          onClick={() => {
+                            setFiltroOperacoes(valor);
+                            setVooHojeSelecionadoId(null);
+                            setSemVooSelecionado(false);
+                          }}
+                          className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3.5 text-xs font-bold whitespace-nowrap transition-all ${
+                            ativo
+                              ? "bg-[#10263a] text-white shadow-sm dark:bg-primary dark:text-primary-foreground"
+                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          }`}
+                        >
+                          <span>{rotulo}</span>
+                          <span
+                            className={`rounded-full px-1.5 py-0.5 font-mono text-[10px] tabular-nums ${
+                              ativo ? "bg-white/20 text-white" : "bg-secondary text-foreground"
+                            }`}
+                          >
+                            {quantidade}
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => selecionarArea("pendentes")}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3.5 text-xs font-bold whitespace-nowrap text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
+                    >
+                      <span>Pendentes</span>
+                      <span className="rounded-full bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-foreground tabular-nums">
+                        {pendentes.length}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Seletor horizontal compacto: aparece SOMENTE se houver mais de 1 voo */}
+                {voosLateral.length > 1 && (
+                  <div
+                    className="flex items-center gap-2 overflow-x-auto border-b border-border bg-secondary/15 px-4 py-2.5"
+                    role="listbox"
+                    aria-label="Alternar entre os voos disponíveis"
+                  >
+                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Voos ({voosLateral.length}):
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {voosLateral.map((voo) => {
+                        const selecionado = vooOperacional?.id === voo.id;
+                        const status = statusOperacao(voo.status);
+                        const rotulo = voo.solicitacao_origem_id
+                          ? "Confirmado"
+                          : operacaoIniciada(voo) && status === "aprovada"
+                            ? "Em operação"
+                            : rotuloOperacao(status);
+                        const horaPrevista = horaUtcCurta(voo.horario_previsto_agendamento);
+
+                        return (
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={selecionado}
+                            key={voo.id}
+                            onClick={() => selecionarVooLateral(voo)}
+                            className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-left text-xs transition-all ${
+                              selecionado
+                                ? "border-[#10263a] bg-[#10263a] text-white shadow-sm dark:border-primary dark:bg-primary dark:text-primary-foreground"
+                                : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-secondary/40"
+                            }`}
+                          >
+                            <strong className="font-extrabold tabular-nums">
+                              {voo.numero_voo || "Sem nº"}
+                            </strong>
+                            <span
+                              className={`font-mono text-[11px] font-bold ${
+                                selecionado ? "text-[#efbd45]" : "text-primary"
+                              }`}
+                            >
+                              {voo.matricula_registro || "—"}
+                            </span>
+                            <span className="font-mono text-[11px] font-semibold opacity-90">
+                              {voo.origem || "—"} → {voo.destino || "—"}
+                            </span>
+                            {horaPrevista && (
+                              <span className="font-mono text-[10px] opacity-75">
+                                {horaPrevista}Z
+                              </span>
+                            )}
+                            <span
+                              className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                selecionado
+                                  ? "bg-white/15 text-emerald-300"
+                                  : "bg-secondary text-muted-foreground"
+                              }`}
+                            >
+                              {rotulo}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {vooOperacional && operacaoSelecionada ? (
+                  <OperacaoVooSelecionado
+                    key={vooOperacional.id}
+                    semContainerExterno
+                    item={vooOperacional}
+                    operacao={operacaoSelecionada}
+                    processando={processando}
+                    voosAoVivo={voosAoVivo}
+                    carregandoAoVivo={carregandoAoVivo}
+                    erroAoVivo={erroAoVivo}
+                    atualizadoAoVivo={atualizadoAoVivo}
+                    tripulacao={painel?.tripulacao || []}
+                    detalhesVoo={renderizarDetalhes(vooOperacional, visaoAndamento === "monitoramento", true)}
+                    aoAlternarMonitoramento={(ativo) => setVisaoAndamento(ativo ? "monitoramento" : "hoje")}
+                    aoAbrirAgendamento={(id) => {
+                      const agendamento = agendaCompleta.find((item) => item.id === id);
+                      if (agendamento) abrirSolicitacao(agendamento);
+                    }}
+                    aoAbrirPlano={aoAbrirPlano}
+                    aoAtualizar={async (status) => {
+                      await carregar(true);
+                      if (status && status !== "aprovada") {
+                        setVooHojeSelecionadoId(operacaoSelecionada.id);
+                        setFiltroOperacoes("operacao");
+                      }
+                    }}
+                    aoFinalizar={(item) => finalizar(item)}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-3 p-10 text-center">
+                    {carregando ? (
+                      <p className="text-xs text-muted-foreground">Carregando voos...</p>
+                    ) : (
+                      <>
+                        <p className="text-sm font-semibold text-foreground">
+                          Nenhum voo {filtroOperacoes === "operacao" ? "em operação" : "confirmado para esta data"}.
+                        </p>
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          {filtroOperacoes === "operacao" && confirmados.length > 0 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setFiltroOperacoes("confirmados");
+                                setVooHojeSelecionadoId(null);
+                              }}
+                            >
+                              Ver confirmados ({voosConfirmadosHoje.length})
+                            </Button>
+                          )}
+                          <Button type="button" size="sm" onClick={() => selecionarArea("calendario")}>
+                            Abrir agenda completa
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {abaLista && aba !== "voos-hoje" && !selecionada && (
+            <section className="sb-content-card">
+              <Cronograma
+                titulo={tituloAba[aba]}
+                detalhe={descricaoAba[aba]}
+                mostrarFiltros={false}
+                selecionada={null}
+                progressoChecklistPorId={progressoChecklistPorId}
+                checklistAberto={checklistAberto}
+                solicitacoes={solicitacoesFiltradas}
+                nomesTripulantes={nomesTripulantes}
+                busca={busca}
+                filtroStatus={filtroCronograma}
+                visao={visaoCronograma}
+                aoMudarBusca={setBusca}
+                aoMudarFiltroStatus={setFiltroStatus}
+                aoMudarVisao={setVisaoCronograma}
+                aoAbrir={abrirSolicitacao}
+                aoHistorico={(item) => abrirJornada(item, "historico")}
+                aoConfirmar={confirmarSolicitacao}
+                aoRecusar={recusarSolicitacao}
+                aoVoltar={() => setSelecionada(null)}
+                aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }}
+                aoJornada={abrirJornada}
+                aoFinalizar={(item) => finalizar(item)}
+                aoExcluir={(item) => excluir(item)}
+              />
+            </section>
+          )}
+
+          {abaLista && selecionada && !checklistAberto && !jornadaAberta && (
+            <section className="sb-content-card" id="detalhes-solicitacao">{renderizarDetalhes(selecionada)}</section>
+          )}
+
+          {abaLista && selecionada && checklistAberto && (statusPermiteChecklist(selecionada.status) || selecionada.checklist_status === "concluido") && (
+            <section className="sb-content-card space-y-3">
+              <button type="button" className="sb-back" onClick={() => setChecklistAberto(false)}>
+                <ChevronLeft size={16} /> Voltar aos detalhes
+              </button>
+              <ChecklistPreVoo key={selecionada.id} item={selecionada} aoConcluir={() => carregar(true)} aoAtualizarProgresso={notificarProgressoChecklist} />
+            </section>
+          )}
+
+          {aba === "calendario" && (
+            <section className="sb-content-card">
+              <CalendarioAgendamento
+                mes={mes}
+                semana={semanaCalendario}
+                dias={dias}
+                visao={visaoCalendario}
+                confirmados={agendaCompleta.filter((item) => item.status !== "pendente" && !["cancelada", "reprovada"].includes(item.status))}
+                pendentes={pendentes}
+                aeronaves={painel?.aeronaves || []}
+                buscaVoo={buscaCalendario}
+                aoMudarBuscaVoo={setBuscaCalendario}
+                aoNavegarParaData={navegarParaDataCalendario}
+                aoMudarMes={mudarMes}
+                aoMudarSemana={mudarSemana}
+                aoMudarVisao={mudarVisaoCalendario}
+                aoAbrir={abrirSolicitacao}
+                aoNovoAgendamento={abrirNovoAgendamento}
+              />
+            </section>
+          )}
+
+          {aba === "horas-voadas" && (
+            <section className="sb-content-card">
+              <DetalhamentoHorasVoadas dados={dadosHoras} carregando={carregandoHoras} erro={erroHoras} ano={anoHoras} mes={mesHoras} />
+            </section>
+          )}
+
+          {aba === "escala" && (
+            <section className="sb-content-card">
+              <EscalaCalendario
+                tripulacao={painel?.tripulacao || []}
+                escala={painel?.escala || []}
+                disponibilidades={painel?.disponibilidades || []}
+                aoCriarEscala={abrirCriacaoEscala}
+                aoAbrirVoo={(id) => { const item = agendaCompleta.find((a) => a.id === id); if (item) abrirSolicitacao(item); }}
+                aoAbrirExtrato={abrirExtrato}
+              />
+            </section>
+          )}
         </main>
-      </div>
-      {/* O formulário de novo agendamento permanece disponível pela ação do calendário. */}
+      </section>
+
+      {/* Novo Agendamento */}
       <Dialog open={mostrarNovo} onOpenChange={(aberto) => { if (!aberto && !processando) setMostrarNovo(false); }}>
         <DialogContent className="max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-5xl overflow-y-auto p-0">
           <DialogTitle className="sr-only">Novo agendamento</DialogTitle>
@@ -906,6 +1502,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
         </DialogContent>
       </Dialog>
 
+      {/* Disponibilidade na Escala */}
       <Dialog open={mostrarDisponibilidade} onOpenChange={(aberto) => { if (!aberto && !processando) setMostrarDisponibilidade(false); }}>
         <DialogContent className="max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-4xl overflow-y-auto p-0">
           <DialogTitle className="sr-only">Criar escala</DialogTitle>
@@ -914,6 +1511,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
         </DialogContent>
       </Dialog>
 
+      {/* Extrato de Jornadas */}
       <Dialog open={!!extrato} onOpenChange={(aberto) => { if (!aberto) setExtrato(null); }}>
         <DialogContent className="max-h-[88dvh] max-w-3xl overflow-y-auto">
           <DialogHeader>
@@ -924,7 +1522,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
           {extrato?.erro && <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-700 dark:text-red-300">{extrato.erro}</p>}
           {extrato && !extrato.carregando && !extrato.erro && (extrato.jornadas.length ? (
             <div className="overflow-x-auto"><table className="w-full text-left text-xs">
-              <thead className="text-[10px] uppercase tracking-wider text-muted-foreground"><tr><th className="p-2">Data</th><th className="p-2">Voo</th><th className="p-2">Rota</th><th className="p-2">Função</th><th className="p-2">AC</th><th className="p-2">POU</th><th className="p-2">COR</th><th className="p-2">Jornada</th></tr></thead>
+              <thead className="text-[11px] uppercase tracking-wider text-muted-foreground"><tr><th className="p-2">Data</th><th className="p-2">Voo</th><th className="p-2">Rota</th><th className="p-2">Função</th><th className="p-2">AC</th><th className="p-2">POU</th><th className="p-2">COR</th><th className="p-2">Jornada</th></tr></thead>
               <tbody>{extrato.jornadas.map((j) => <tr key={j.id} className="border-t border-border">
                 <td className="p-2 font-mono">{j.data?.slice(0, 10).split("-").reverse().join("/")}</td><td className="p-2 font-mono">{j.numero_voo || "—"}</td><td className="p-2 font-mono">{j.origem || "—"} → {j.destino || "—"}</td><td className="p-2">{j.funcao_tripulante}</td>
                 <td className="p-2 font-mono">{horaUtcCurta(j.horario_acionamento) || "--:--"}</td><td className="p-2 font-mono">{horaUtcCurta(j.horario_pouso) || "--:--"}</td><td className="p-2 font-mono">{horaUtcCurta(j.horario_corte) || "--:--"}</td>
@@ -935,10 +1533,21 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
         </DialogContent>
       </Dialog>
 
-      {/* Modal Jornada */}
-      {selecionada && statusPermiteAbrirJornada(selecionada.status) && jornadaAberta && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-6">
-          <div className="agenda-jornada-modal max-h-[92dvh] w-full max-w-5xl overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-card pb-[env(safe-area-inset-bottom)] shadow-[0_10px_30px_rgb(0_0_0_/_0.28)] sm:max-h-[92dvh] sm:rounded-2xl">
+      {/* Modal Jornada via Dialog */}
+      <Dialog
+        open={Boolean(selecionada && statusPermiteAbrirJornada(selecionada.status) && jornadaAberta)}
+        onOpenChange={(aberto) => {
+          if (!aberto) {
+            setJornadaAberta(false);
+            setSelecionada(null);
+            void carregar(true);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-5xl overflow-y-auto p-0">
+          <DialogTitle className="sr-only">Jornada e histórico do voo</DialogTitle>
+          <DialogDescription className="sr-only">Acompanhamento de horários, pernas e jornada da tripulação em UTC</DialogDescription>
+          {selecionada && (
             <JornadaVoo
               item={selecionada}
               modo={jornadaModo}
@@ -946,7 +1555,7 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
               voosEmOperacao={voosAoVivo}
               aoAtualizarAgendamento={async (status) => {
                 await carregar(true);
-                if (status) setSelecionada((atual) => atual ? { ...atual, status } : atual);
+                if (status) setSelecionada((atual) => (atual ? { ...atual, status } : atual));
               }}
               aoFechar={() => {
                 setJornadaAberta(false);
@@ -954,10 +1563,36 @@ export default function Agendamentos({ aoAbrirPlano }: { aoAbrirPlano?: (id: str
                 void carregar(true);
               }}
             />
-          </div>
-        </div>,
-        document.body
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmação Finalizar Operação */}
+      <Dialog
+        open={Boolean(agendamentoParaFinalizar)}
+        onOpenChange={(aberto) => {
+          if (!aberto && !processando) setAgendamentoParaFinalizar(null);
+        }}
+      >
+        <DialogContent className="w-[calc(100%-2rem)] rounded-2xl border-border bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-foreground">
+              Finalizar agendamento {agendamentoParaFinalizar?.numero_voo || "sem número"}?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              A operação sairá do cronograma ativo, mas todo o histórico e o número do voo serão preservados.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={() => setAgendamentoParaFinalizar(null)} disabled={processando} className="w-full rounded-xl text-xs font-semibold sm:w-auto">
+              Cancelar
+            </Button>
+            <Button type="button" onClick={() => void executarFinalizacao()} disabled={processando} className="w-full rounded-xl text-xs font-semibold sm:w-auto">
+              {processando ? "Finalizando..." : "Finalizar operação"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Diálogo Exclusão */}
       <Dialog

@@ -59,17 +59,17 @@ export default function AgendamentoNavigation({ abaAtiva, contagens, aoSeleciona
             tabIndex={ativo ? 0 : -1}
             onClick={() => aoSelecionar(id)}
             onKeyDown={(event) => navegarPorTeclado(event, id, aoSelecionar)}
-            className={`flex min-h-[38px] items-center gap-2 rounded-lg px-4 text-xs font-semibold transition-all ${
+            className={`flex min-h-[40px] items-center gap-2 rounded-lg px-4 text-xs font-semibold transition-all ${
               ativo
-                ? "bg-[#3867ed] text-white shadow-sm"
+                ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            <Icon size={16} aria-hidden="true" className={ativo ? "text-white" : "text-muted-foreground"} />
+            <Icon size={16} aria-hidden="true" className={ativo ? "text-primary-foreground" : "text-muted-foreground"} />
             <span>{label}</span>
-            {live && contagem ? <span className="h-2 w-2 rounded-full bg-[#17885f] shadow-[0_0_0_2px_rgba(23,136,95,0.2)]" /> : null}
+            {live && contagem ? <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.2)]" /> : null}
             {!live && typeof contagem === "number" && id === "historico" && contagem > 0 ? (
-              <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              <span className={`ml-1 rounded-md px-2 py-0.5 text-[11px] font-bold ${
                 ativo ? "bg-white/20 text-white" : "bg-secondary text-foreground"
               }`}>
                 {contagem}

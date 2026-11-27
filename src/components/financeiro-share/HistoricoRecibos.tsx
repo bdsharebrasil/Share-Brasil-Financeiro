@@ -228,7 +228,7 @@ export default function HistoricoRecibos({
           <div>
             <div className="flex items-center gap-2 text-primary">
               <FolderOpen size={16} />
-              <span className="text-[10px] font-black uppercase tracking-[.2em]">
+              <span className="text-[11px] font-black uppercase tracking-[.2em]">
                 Arquivo financeiro
               </span>
             </div>
@@ -243,12 +243,12 @@ export default function HistoricoRecibos({
           <div className="flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/[.07] px-3.5 py-2.5">
             <FileText size={16} className="text-primary" />
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">
+              <p className="text-[11px] font-bold uppercase tracking-[.12em] text-muted-foreground">
                 Total arquivado
               </p>
               <p className="font-mono text-sm font-black">
                 {recibos.length}{" "}
-                <span className="font-sans text-[10px] font-semibold text-muted-foreground">
+                <span className="font-sans text-[11px] font-semibold text-muted-foreground">
                   recibo(s)
                 </span>
               </p>
@@ -258,7 +258,7 @@ export default function HistoricoRecibos({
 
         <div className="mt-5 grid gap-2.5 rounded-2xl border border-border/80 bg-background/35 p-2.5 md:grid-cols-[minmax(220px,1fr)_180px_180px_auto_auto] md:items-end">
           <label className="block md:col-span-1">
-            <span className="mb-1.5 block px-1 text-[9px] font-black uppercase tracking-[.13em] text-muted-foreground">
+            <span className="mb-1.5 block px-1 text-[11px] font-black uppercase tracking-[.13em] text-muted-foreground">
               Buscar
             </span>
             <span className="relative block">
@@ -280,7 +280,7 @@ export default function HistoricoRecibos({
             </span>
           </label>
           <label className="block">
-            <span className="mb-1.5 block px-1 text-[9px] font-black uppercase tracking-[.13em] text-muted-foreground">
+            <span className="mb-1.5 block px-1 text-[11px] font-black uppercase tracking-[.13em] text-muted-foreground">
               Data inicial
             </span>
             <span className="relative block">
@@ -302,7 +302,7 @@ export default function HistoricoRecibos({
             </span>
           </label>
           <label className="block">
-            <span className="mb-1.5 block px-1 text-[9px] font-black uppercase tracking-[.13em] text-muted-foreground">
+            <span className="mb-1.5 block px-1 text-[11px] font-black uppercase tracking-[.13em] text-muted-foreground">
               Data final
             </span>
             <span className="relative block">
@@ -334,7 +334,7 @@ export default function HistoricoRecibos({
                 filtros.data_inicial > filtros.data_final,
               )
             }
-            className="h-10 gap-2 rounded-xl px-4 text-[10px] font-bold"
+            className="h-10 gap-2 rounded-xl px-4 text-[11px] font-bold"
           >
             <SlidersHorizontal size={14} /> Filtrar
           </Button>
@@ -344,7 +344,7 @@ export default function HistoricoRecibos({
               variant="ghost"
               onClick={() => void limparFiltros()}
               disabled={carregando}
-              className="h-10 gap-1.5 rounded-xl px-3 text-[10px] text-muted-foreground hover:text-foreground"
+              className="h-10 gap-1.5 rounded-xl px-3 text-[11px] text-muted-foreground hover:text-foreground"
             >
               <X size={13} /> Limpar
             </Button>
@@ -353,7 +353,7 @@ export default function HistoricoRecibos({
         {filtros.data_inicial &&
           filtros.data_final &&
           filtros.data_inicial > filtros.data_final && (
-            <p className="mt-2 px-1 text-[10px] font-semibold text-red-400">
+            <p className="mt-2 px-1 text-[11px] font-semibold text-red-400">
               A data inicial precisa ser anterior à data final.
             </p>
           )}
@@ -361,7 +361,7 @@ export default function HistoricoRecibos({
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-5 py-3.5 md:px-7">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[.16em] text-muted-foreground">
+          <p className="text-[11px] font-black uppercase tracking-[.16em] text-muted-foreground">
             {temFiltro ? "Resultado da busca" : "Organização mensal"}
           </p>
           <p className="mt-1 text-[11px] text-muted-foreground">
@@ -372,7 +372,7 @@ export default function HistoricoRecibos({
           <button
             type="button"
             onClick={() => setMesAberto(null)}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold text-primary transition-colors hover:bg-primary/10"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-bold text-primary transition-colors hover:bg-primary/10"
           >
             Ver todas as pastas <ChevronRight size={13} />
           </button>
@@ -421,7 +421,7 @@ export default function HistoricoRecibos({
               >
                 {pasta.titulo}
               </strong>
-              <span className="mt-1 block text-[10px] font-medium text-muted-foreground">
+              <span className="mt-1 block text-[11px] font-medium text-muted-foreground">
                 Clique para abrir
               </span>
             </button>
@@ -434,14 +434,14 @@ export default function HistoricoRecibos({
               <FolderOpen size={20} />
             </div>
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[.15em] text-primary">
+              <p className="text-[11px] font-black uppercase tracking-[.15em] text-primary">
                 Pasta aberta
               </p>
               <h3 className="text-base font-extrabold">
                 {pastaSelecionada.titulo}
               </h3>
             </div>
-            <span className="ml-auto rounded-full border border-primary/20 bg-card/70 px-2.5 py-1 font-mono text-[10px] font-bold">
+            <span className="ml-auto rounded-full border border-primary/20 bg-card/70 px-2.5 py-1 font-mono text-[11px] font-bold">
               {pastaSelecionada.total} recibo(s)
             </span>
           </div>
@@ -459,7 +459,7 @@ export default function HistoricoRecibos({
                     <EtiquetaStatus tone={tomStatus(recibo.status)}>
                       {rotuloStatus(recibo.status)}
                     </EtiquetaStatus>
-                    <span className="rounded-full border border-border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+                    <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                       {rotuloTipo(recibo.tipo_recibo)}
                     </span>
                   </div>
@@ -468,7 +468,7 @@ export default function HistoricoRecibos({
                     {recibo.recebedor_nome ? `→ ${recibo.recebedor_nome}` : ""}{" "}
                     · {recibo.descricao ?? recibo.descricao_servico}
                   </p>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
                     Pagador:{" "}
                     {recibo.pagador_tipo === "cotista_aeronave"
                       ? `Cotista da aeronave (${recibo.nome_pagador || recibo.pagador_id || "não identificado"})`
@@ -484,7 +484,7 @@ export default function HistoricoRecibos({
                       : ""}
                   </p>
                   {recibo.rateio_linhas?.length ? (
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
                       Rateio:{" "}
                       {recibo.rateio_linhas
                         .map(
@@ -498,7 +498,7 @@ export default function HistoricoRecibos({
                     type="button"
                     onClick={() => void onVisualizarPdf(recibo)}
                     disabled={pdfAbrindoId === recibo.id}
-                    className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline disabled:cursor-wait disabled:opacity-60"
+                    className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline disabled:cursor-wait disabled:opacity-60"
                   >
                     {pdfAbrindoId === recibo.id ? (
                       <Loader2 size={12} className="animate-spin" />
@@ -514,7 +514,7 @@ export default function HistoricoRecibos({
                   </strong>
                   <div className="flex items-center gap-1.5">
                     {recibo.despesa_programada ? (
-                      <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-300">
+                      <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-300">
                         <CheckCircle2 size={13} /> {recibo.tipo_recibo === "recibo_pagamento" ? "Despesa rateada" : "Despesa programada"}
                       </span>
                     ) : ![
@@ -527,13 +527,13 @@ export default function HistoricoRecibos({
                         type="button"
                         variant="outline"
                         onClick={() => onProgramarEmail(recibo)}
-                        className="h-8 gap-1.5 rounded-lg px-2.5 text-[10px]"
+                        className="h-8 gap-1.5 rounded-lg px-2.5 text-[11px]"
                       >
                         {recibo.tipo_recibo === "recibo_pagamento" ? <Send size={13} /> : <Mail size={13} />} {recibo.tipo_recibo === "recibo_pagamento" ? "Enviar despesa rateio" : String(recibo.status).toUpperCase() === "EMAIL_ENVIADO" ? "Programar contas a pagar" : "Programar e enviar email"}
                       </Button>
                     )}
                     {["cancelado", "CANCELADO"].includes(String(recibo.status)) && (
-                      <Button type="button" variant="outline" onClick={() => abrirReativacao(recibo)} className="h-8 gap-1.5 rounded-lg px-2.5 text-[10px]">
+                      <Button type="button" variant="outline" onClick={() => abrirReativacao(recibo)} className="h-8 gap-1.5 rounded-lg px-2.5 text-[11px]">
                         <RotateCcw size={13} /> Reativar recibo
                       </Button>
                     )}
@@ -547,7 +547,7 @@ export default function HistoricoRecibos({
                         type="button"
                         variant="ghost"
                         onClick={() => void onCancelar(recibo.id)}
-                        className="h-8 gap-1.5 rounded-lg px-2.5 text-[10px] text-red-600 hover:text-red-700 dark:text-red-300"
+                        className="h-8 gap-1.5 rounded-lg px-2.5 text-[11px] text-red-600 hover:text-red-700 dark:text-red-300"
                       >
                         <XCircle size={13} /> Cancelar
                       </Button>
@@ -566,9 +566,9 @@ export default function HistoricoRecibos({
               <div><h3 className="text-base font-extrabold">Reativar recibo</h3><p className="mt-1 font-mono text-[11px] text-muted-foreground">{reativando.numero_recibo}</p></div>
               <button type="button" onClick={fecharReativacao} disabled={salvandoReativacao} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
             </div>
-            <label className="mt-4 block"><span className="mb-1.5 block text-[9px] font-black uppercase tracking-[.13em] text-muted-foreground">Justificativa</span><textarea value={justificativa} onChange={(event) => setJustificativa(event.target.value)} rows={4} maxLength={1000} placeholder="Explique o motivo da reativação..." className="w-full resize-none rounded-xl border border-border bg-card/80 p-3 text-[11px] outline-none focus:border-primary/70" /></label>
-            {erroReativacao && <p className="mt-2 text-[10px] font-semibold text-red-400">{erroReativacao}</p>}
-            <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="ghost" onClick={fecharReativacao} disabled={salvandoReativacao} className="h-9 rounded-xl px-4 text-[10px]">Voltar</Button><Button type="button" onClick={() => void confirmarReativacao()} disabled={salvandoReativacao || justificativa.trim().length < 5} className="h-9 gap-2 rounded-xl px-4 text-[10px] font-bold">{salvandoReativacao ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} Salvar e reativar</Button></div>
+            <label className="mt-4 block"><span className="mb-1.5 block text-[11px] font-black uppercase tracking-[.13em] text-muted-foreground">Justificativa</span><textarea value={justificativa} onChange={(event) => setJustificativa(event.target.value)} rows={4} maxLength={1000} placeholder="Explique o motivo da reativação..." className="w-full resize-none rounded-xl border border-border bg-card/80 p-3 text-[11px] outline-none focus:border-primary/70" /></label>
+            {erroReativacao && <p className="mt-2 text-[11px] font-semibold text-red-400">{erroReativacao}</p>}
+            <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="ghost" onClick={fecharReativacao} disabled={salvandoReativacao} className="h-9 rounded-xl px-4 text-[11px]">Voltar</Button><Button type="button" onClick={() => void confirmarReativacao()} disabled={salvandoReativacao || justificativa.trim().length < 5} className="h-9 gap-2 rounded-xl px-4 text-[11px] font-bold">{salvandoReativacao ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} Salvar e reativar</Button></div>
           </div>
         </div>
       )}

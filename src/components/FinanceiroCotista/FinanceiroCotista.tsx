@@ -1938,7 +1938,7 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
                               {formatarData(movimento.data)}
                             </div>
                             <div className="min-w-0">
-                              <p className="whitespace-pre-wrap break-words font-semibold leading-relaxed [overflow-wrap:anywhere]">
+                              <p className="whitespace-pre-wrap break-words font-semibold leading-relaxed">
                                 {movimento.descricao}
                               </p>
                               <p className="mt-0.5 text-[10px] text-muted-foreground">

@@ -1,10 +1,1 @@
-.pv.pv-etapa-sheet{width:calc(100vw - 16px);max-width:none;padding:0;border:0;border-radius:12px;font-size:13px}
-@media(min-width:640px){.pv.pv-etapa-sheet{width:min(680px,calc(100vw - 32px))}}
-.pv-etapa-sheet-cabecalho{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 20px 14px;border-bottom:1px solid var(--pv-line)}
-.pv-etapa-sheet-cabecalho>div{min-width:0}
-.pv-etapa-sheet-cabecalho h2{margin:0}
-.pv button.pv-etapa-sheet-fechar{width:40px;min-width:40px;min-height:40px;padding:0;flex-shrink:0}
-.pv-etapa-sheet-corpo{flex:1;min-height:0;overflow-y:auto;padding:16px 20px}
-.pv-etapa-sheet-corpo .pv-etapa-cabecalho{margin-top:0}
-.pv-etapa-sheet-rodape{display:flex;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--pv-line)}
-@media(max-width:600px){.pv-etapa-sheet-rodape>button{width:100%}}
+/* Estilos de folha de etapa integrados diretamente ao layout responsivo em preparacao.css e PreparacaoVoo.tsx */

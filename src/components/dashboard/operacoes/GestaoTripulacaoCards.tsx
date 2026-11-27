@@ -20,6 +20,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import {
   atualizarHabilitacaoTripulante,
@@ -218,18 +219,18 @@ export function CrewCard({
         <p className="truncate text-sm font-extrabold uppercase tracking-wide">
           {crew.nome_completo}
         </p>
-        <p className="mt-1 text-[10px] uppercase tracking-[.12em] text-muted-foreground">
+        <p className="mt-1 text-[11px] uppercase tracking-[.12em] text-muted-foreground">
           CANAC{" "}
           <span className="font-bold text-foreground">{crew.canac || "—"}</span>
         </p>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {crew.tipo_licenca && (
-          <span className="text-[10px] font-semibold text-muted-foreground">
+          <span className="text-[11px] font-semibold text-muted-foreground">
             {crew.tipo_licenca}
           </span>
         )}
-        {fsRh && <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary">FS/RH {fsRh}</span>}
+        {fsRh && <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-1 text-[11px] font-bold text-primary">FS/RH {fsRh}</span>}
       </div>
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-border/60 pt-3">
         <HabSituacaoBadge situacao={situacao} />
@@ -242,24 +243,24 @@ export function CrewCard({
 function HabSituacaoBadge({ situacao }: { situacao: HabSituacao }) {
   if (situacao === "vencida")
     return (
-      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-red-400">
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-red-400">
         <AlertTriangle size={13} /> Habilitação vencida
       </span>
     );
   if (situacao === "atencao")
     return (
-      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-300">
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-300">
         <AlertTriangle size={13} /> Vence em breve
       </span>
     );
   if (situacao === "vazia")
     return (
-      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
         <FileText size={13} /> Sem habilitações
       </span>
     );
   return (
-    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
       <ShieldCheck size={13} /> Documentação regular
     </span>
   );
@@ -469,20 +470,24 @@ export function CrewProfile({
                   placeholder="Tipo de licença"
                   className={field}
                 />
-                <select
+                <Select
                   value={edit.status}
-                  onChange={(e) => setEdit({ ...edit, status: e.target.value })}
-                  className={`${field} px-3`}
+                  onValueChange={(value) => setEdit({ ...edit, status: value })}
                 >
-                  <option value="ativo">Ativo</option>
-                  <option value="inativo">Inativo</option>
-                </select>
+                  <SelectTrigger className={field}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ativo">Ativo</SelectItem>
+                    <SelectItem value="inativo">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
                 <label className="space-y-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Tipo sanguíneo</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Tipo sanguíneo</span>
                   <SearchableCombobox items={gruposSanguineos} value={bloodGroup} onChange={setBloodGroup} placeholder="Selecione o tipo" searchPlaceholder="Buscar tipo..." className={field} />
                 </label>
                 <label className="space-y-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Fator Rh</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Fator Rh</span>
                   <SearchableCombobox items={fatoresRh} value={rhFactor} onChange={setRhFactor} placeholder="Selecione o fator Rh" searchPlaceholder="Buscar fator..." className={field} />
                 </label>
               </div>
@@ -529,7 +534,7 @@ function InfoField({
 }) {
   return (
     <div className="rounded-xl border border-border/60 bg-background/40 px-4 py-3.5">
-      <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[.14em] text-muted-foreground">
+      <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.14em] text-muted-foreground">
         {icon}
         {label}
       </p>
@@ -678,7 +683,7 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
               <Clock3 size={20} />
             </span>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[.16em] text-primary">
+              <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">
                 Horas de voo
               </p>
               <h2 className="mt-1 text-lg font-extrabold capitalize">
@@ -686,7 +691,7 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
                   ? `Extrato ${aeronave.matricula_registro}`
                   : "Aeronaves voadas"}
               </h2>
-              <p className="mt-1 text-[10px] text-muted-foreground">
+              <p className="mt-1 text-[11px] text-muted-foreground">
                 {aeronave
                   ? `Período: ${periodo}. Selecione PIC ou SIC para consultar os lançamentos.`
                   : "Selecione uma aeronave para abrir o extrato dos voos realizados."}
@@ -694,43 +699,52 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              aria-label="Tipo de período"
+            <Select
               value={consultaTipo}
-              onChange={(e) =>
-                setConsultaTipo(e.target.value as "mes" | "personalizado")
+              onValueChange={(value) =>
+                setConsultaTipo(value as "mes" | "personalizado")
               }
-              className="h-9 rounded-lg border border-border/70 bg-background/70 px-2 text-[10px] font-medium"
             >
-              <option value="mes">Selecionar mês</option>
-              <option value="personalizado">Período personalizado</option>
-            </select>
+              <SelectTrigger aria-label="Tipo de período" className="h-9 w-[175px] rounded-lg border-border/70 bg-background/70 text-[11px] font-medium">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mes">Selecionar mês</SelectItem>
+                <SelectItem value="personalizado">Período personalizado</SelectItem>
+              </SelectContent>
+            </Select>
             {consultaTipo === "mes" ? (
               <>
-                <select
-                  aria-label="Mês do extrato"
+                <Select
                   value={mes.slice(5, 7)}
-                  onChange={(e) => setMes(`${mes.slice(0, 4)}-${e.target.value}`)}
-                  className="h-9 rounded-lg border border-border/70 bg-background/70 px-2 text-xs"
+                  onValueChange={(value) => setMes(`${mes.slice(0, 4)}-${value}`)}
                 >
-                  {mesesDoAno.map((nome, index) => (
-                    <option key={nome} value={String(index + 1).padStart(2, "0")}>
-                      {nome}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  aria-label="Ano do extrato"
+                  <SelectTrigger aria-label="Mês do extrato" className="h-9 w-[128px] rounded-lg border-border/70 bg-background/70 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mesesDoAno.map((nome, index) => (
+                      <SelectItem key={nome} value={String(index + 1).padStart(2, "0")}>
+                        {nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
                   value={mes.slice(0, 4)}
-                  onChange={(e) => setMes(`${e.target.value}-${mes.slice(5, 7)}`)}
-                  className="h-9 rounded-lg border border-border/70 bg-background/70 px-2 text-xs"
+                  onValueChange={(value) => setMes(`${value}-${mes.slice(5, 7)}`)}
                 >
-                  {Array.from({ length: 11 }, (_, index) => new Date().getFullYear() - 5 + index).map((ano) => (
-                    <option key={ano} value={ano}>
-                      {ano}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger aria-label="Ano do extrato" className="h-9 w-[92px] rounded-lg border-border/70 bg-background/70 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 11 }, (_, index) => new Date().getFullYear() - 5 + index).map((ano) => (
+                      <SelectItem key={ano} value={String(ano)}>
+                        {ano}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </>
             ) : (
               <>
@@ -789,7 +803,7 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
                   <p className="font-mono text-base font-extrabold tracking-wide">
                     {aeronave.matricula_registro}
                   </p>
-                  <p className="text-[9px] font-bold uppercase tracking-[.14em] text-muted-foreground">
+                  <p className="text-[11px] font-bold uppercase tracking-[.14em] text-muted-foreground">
                     {aeronave.voos} voo(s) no período
                   </p>
                 </div>
@@ -823,13 +837,13 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
               />
               {funcaoVoos.length ? (
                 <div className="mt-4 space-y-2">
-                  <p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-primary">
+                  <p className="text-[11px] font-extrabold uppercase tracking-[.14em] text-primary">
                     Voos como {funcaoSelecionada}
                   </p>
                   {funcaoVoos.map((flight) => (
                     <div
                       key={flight.id}
-                      className="rounded-lg border border-border/60 bg-background/40 p-3 text-[10px]"
+                      className="rounded-lg border border-border/60 bg-background/40 p-3 text-[11px]"
                     >
                       <div className="flex flex-wrap justify-between gap-2 font-bold">
                         <span>
@@ -876,7 +890,7 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
                     <span className="block font-mono text-base font-extrabold tracking-wide">
                       {item.matricula_registro}
                     </span>
-                    <span className="mt-1 block text-[9px] font-bold uppercase tracking-[.14em] text-muted-foreground">
+                    <span className="mt-1 block text-[11px] font-bold uppercase tracking-[.14em] text-muted-foreground">
                       Abrir extrato de voos
                     </span>
                   </span>
@@ -895,7 +909,7 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
           <p className="mt-3 text-sm font-bold">
             Nenhum voo registrado no período
           </p>
-          <p className="mt-1 text-[10px] text-muted-foreground">
+          <p className="mt-1 text-[11px] text-muted-foreground">
             Selecione outro mês ou período para consultar as aeronaves voadas.
           </p>
         </div>
@@ -914,7 +928,7 @@ function AccumulatedMetric({
 }) {
   return (
     <div className="bg-card px-4 py-3">
-      <p className="text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">
+      <p className="text-[11px] font-bold uppercase tracking-[.12em] text-muted-foreground">
         {label}
       </p>
       <p className="mt-1 text-base font-extrabold">
@@ -942,7 +956,7 @@ function HourRoleCard({
       className={`rounded-xl border p-3 ${role === "PIC" ? "border-sky-400/25 bg-sky-400/[.06]" : "border-violet-400/25 bg-violet-400/[.06]"}`}
     >
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-extrabold uppercase tracking-[.16em]">
+        <span className="text-[11px] font-extrabold uppercase tracking-[.16em]">
           {role}
         </span>
         <span className="text-base font-extrabold">
@@ -1006,8 +1020,8 @@ function HabilitacoesTab({
   return (
     <section className="rounded-2xl border border-border/70 bg-card/80 p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2"><Award size={16} className="text-primary" /><div><h2 className="text-base font-extrabold">Habilitações</h2><p className="mt-0.5 text-[10px] text-muted-foreground">Licenças, habilitações e CMA do tripulante.</p></div></div>
-        <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary">{habilitations.length}</span><Button type="button" variant="outline" onClick={() => setFormOpen((open) => open === "habilitacao" ? null : "habilitacao")} className="h-9 gap-2 text-xs"><Plus size={14} /> Nova habilitação</Button><Button type="button" variant="outline" onClick={() => setFormOpen((open) => open === "cma" ? null : "cma")} className="h-9 gap-2 text-xs"><Plus size={14} /> Novo CMA</Button></div>
+        <div className="flex items-center gap-2"><Award size={16} className="text-primary" /><div><h2 className="text-base font-extrabold">Habilitações</h2><p className="mt-0.5 text-[11px] text-muted-foreground">Licenças, habilitações e CMA do tripulante.</p></div></div>
+        <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">{habilitations.length}</span><Button type="button" variant="outline" onClick={() => setFormOpen((open) => open === "habilitacao" ? null : "habilitacao")} className="h-9 gap-2 text-xs"><Plus size={14} /> Nova habilitação</Button><Button type="button" variant="outline" onClick={() => setFormOpen((open) => open === "cma" ? null : "cma")} className="h-9 gap-2 text-xs"><Plus size={14} /> Novo CMA</Button></div>
       </div>
       {formOpen === "habilitacao" && <div className="mt-5 rounded-xl border border-border/70 bg-muted/20 p-4"><p className="text-xs font-extrabold">Adicionar habilitação</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><Input value={newHab.tipo_habilitacao} onChange={(e) => setNewHab({ ...newHab, tipo_habilitacao: e.target.value })} placeholder="Tipo de habilitação" className={field} /><Input type="date" value={newHab.data_validade} onChange={(e) => setNewHab({ ...newHab, data_validade: e.target.value })} aria-label="Validade da habilitação" className={field} /></div><Button type="button" variant="outline" onClick={() => void addHabilitation()} className="mt-3 h-9 gap-2 text-xs"><Plus size={14} /> Salvar habilitação</Button></div>}
       {formOpen === "cma" && <div className="mt-5 rounded-xl border border-primary/30 bg-primary/5 p-4"><p className="text-xs font-extrabold">Adicionar CMA</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><SearchableCombobox items={cmaClassOptions} value={newCma.classe_cma} onChange={(value) => setNewCma({ ...newCma, classe_cma: value })} placeholder="Selecione a classe do CMA" searchPlaceholder="Buscar classe..." className={field} /><Input type="date" value={newCma.validade_cma} onChange={(e) => setNewCma({ ...newCma, validade_cma: e.target.value })} aria-label="Validade do CMA" className={field} /></div><Button type="button" variant="outline" onClick={() => void addCma()} className="mt-3 h-9 gap-2 text-xs"><Plus size={14} /> Salvar CMA</Button></div>}
@@ -1057,7 +1071,7 @@ function EscalaTripulanteTab({ crew }: { crew: TripulanteGestao }) {
         <CalendarDays size={16} className="text-primary" />
         <div>
           <h2 className="text-base font-extrabold">Escala de voo</h2>
-          <p className="mt-0.5 text-[10px] text-muted-foreground">
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
             Voos agendados diretamente na escala do agendamento.
           </p>
         </div>
@@ -1082,18 +1096,18 @@ function EscalaTripulanteTab({ crew }: { crew: TripulanteGestao }) {
             >
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">
+                  <p className="text-[11px] font-bold uppercase tracking-[.12em] text-muted-foreground">
                     {item.numero_voo || "Voo sem número"}
                   </p>
                   <p className="mt-1 font-mono text-sm font-extrabold">
                     {item.origem} → {item.destino}
                   </p>
                 </div>
-                <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[.1em] text-primary">
+                <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-bold uppercase tracking-[.1em] text-primary">
                   {item.piloto_id === crew.id ? "PIC" : "SIC"}
                 </span>
               </div>
-              <div className="mt-3 grid gap-2 text-[10px] text-muted-foreground sm:grid-cols-2">
+              <div className="mt-3 grid gap-2 text-[11px] text-muted-foreground sm:grid-cols-2">
                 <div>
                   <span className="font-bold uppercase tracking-[.12em] text-foreground">
                     Início
@@ -1137,15 +1151,15 @@ function HabilitationCard({ item, onSave }: { item: HabilitacaoTripulante; onSav
   const [cmaClass, setCmaClass] = useState(item.classe_cma || "");
   const reference = cma ? item.validade_cma || item.data_validade : item.data_validade;
   return <div className={`rounded-xl border p-4 ${dueTone(reference)}`}>
-    <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-extrabold">{cma ? "CMA — Certificado de Exame Médico" : item.tipo_habilitacao}</p><p className="mt-1 text-[10px] text-muted-foreground">{cma ? `Classe ${cmaClass || "não informada"} · ` : ""}{dueLabel(reference)}</p></div>{reference && (diasParaVencer(reference)! < 0 ? <AlertTriangle size={16} className="text-red-400" /> : <CheckCircle2 size={16} className="text-emerald-400" />)}</div>
-    <div className="mt-3 flex flex-wrap gap-2">{cma && <Input value={cmaClass} onChange={(e) => setCmaClass(e.target.value)} aria-label="Classe do CMA" placeholder="Classe" className="h-8 w-[120px] text-[10px]" />}<Input type="date" aria-label={cma ? "Validade do CMA" : "Data de vencimento"} value={validity} onChange={(e) => setValidity(e.target.value)} className="h-8 w-[142px] text-[10px]" /><Button type="button" variant="outline" onClick={() => onSave(item.id, cma ? { tipo_habilitacao: "CMA", data_validade: null, classe_cma: cmaClass || null, validade_cma: validity || null } : { data_validade: validity || null, classe_cma: null, validade_cma: null })} className="h-8 text-[10px]">Atualizar</Button></div>
+    <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-extrabold">{cma ? "CMA — Certificado de Exame Médico" : item.tipo_habilitacao}</p><p className="mt-1 text-[11px] text-muted-foreground">{cma ? `Classe ${cmaClass || "não informada"} · ` : ""}{dueLabel(reference)}</p></div>{reference && (diasParaVencer(reference)! < 0 ? <AlertTriangle size={16} className="text-red-400" /> : <CheckCircle2 size={16} className="text-emerald-400" />)}</div>
+    <div className="mt-3 flex flex-wrap gap-2">{cma && <Input value={cmaClass} onChange={(e) => setCmaClass(e.target.value)} aria-label="Classe do CMA" placeholder="Classe" className="h-8 w-[120px] text-[11px]" />}<Input type="date" aria-label={cma ? "Validade do CMA" : "Data de vencimento"} value={validity} onChange={(e) => setValidity(e.target.value)} className="h-8 w-[142px] text-[11px]" /><Button type="button" variant="outline" onClick={() => onSave(item.id, cma ? { tipo_habilitacao: "CMA", data_validade: null, classe_cma: cmaClass || null, validade_cma: validity || null } : { data_validade: validity || null, classe_cma: null, validade_cma: null })} className="h-8 text-[11px]">Atualizar</Button></div>
   </div>;
 }
 function Status({ status }: { status: string | null }) {
   const active = isActive(status);
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-bold ${active ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-400" : "border-border bg-muted text-muted-foreground"}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${active ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-400" : "border-border bg-muted text-muted-foreground"}`}
     >
       {active && <CheckCircle2 size={11} />}
       {active ? "Ativo" : status || "Inativo"}

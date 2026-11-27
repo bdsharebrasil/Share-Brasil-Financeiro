@@ -32,7 +32,7 @@ export function CabecalhoSecao({ icon, title, detail, action, tituloClassName, c
 export function HeroDashboard({ ambiente, title, subtitle, children }: { ambiente: Ambiente; title: string; subtitle?: string; children?: ReactNode }) {
   const heroImage = ambiente === "operacoes" ? aviationHeroOperacoes : aviationHero;
   return (
-    <section className="hero-panel relative mb-4 overflow-hidden rounded-xl border border-border dark:border-white/10 bg-[rgba(233,245,242,1)] dark:bg-card shadow-[0_12px_36px_rgba(0,0,0,.18)] sm:rounded-2xl">
+    <section className="hero-panel relative mb-4 overflow-hidden rounded-xl border border-border dark:border-white/10 bg-card shadow-[0_12px_36px_rgba(0,0,0,.18)] sm:rounded-2xl">
       <img src={heroImage} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-center" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,12,22,.94)_0%,rgba(5,12,22,.68)_45%,rgba(5,12,22,.28)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(5,12,22,.45)_0%,transparent_60%)]" />
@@ -52,34 +52,35 @@ export function HeroDashboard({ ambiente, title, subtitle, children }: { ambient
 }
 export type TomKpi = "blue" | "green" | "amber" | "red" | "violet";
 
+
 export function CartaoKpi({ label, value, detail, tone = "blue", icon, trend, className, onClick }: { label: string; value: string; detail: string; tone?: TomKpi; icon: ReactNode; trend?: string; className?: string; onClick?: () => void }) {
   const styles: Record<TomKpi, string> = { blue: "text-primary border-primary/25", green: "text-emerald-600 dark:text-emerald-300 border-emerald-500/30", amber: "text-amber-600 dark:text-amber-300 border-amber-500/30", red: "text-red-600 dark:text-red-300 border-red-500/30", violet: "text-violet-600 dark:text-violet-300 border-violet-500/30" };
   const content = (
     <>
       <div className="flex min-w-0 items-start justify-between gap-2">
-        <span className="min-w-0 break-words text-[9px] font-bold uppercase tracking-[.08em] text-muted-foreground sm:text-[10px] sm:tracking-[.1em]">{label}</span>
+        <span className="min-h-8 min-w-0 break-words text-[11px] font-bold uppercase leading-tight tracking-[.08em] text-muted-foreground sm:tracking-[.1em]">{label}</span>
         <span className={cn("shrink-0 rounded-lg border bg-secondary/70 p-1.5 shadow-sm sm:p-2", styles[tone])}>
           <span className="[&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4">{icon}</span>
         </span>
       </div>
       <div className="mt-3 flex flex-wrap items-end justify-between gap-2 sm:mt-4 sm:gap-3">
-        <strong className="break-all font-mono text-lg font-medium tracking-[-.04em] sm:text-[23px] sm:tracking-[-.05em]">{value}</strong>
+        <strong className="break-all font-mono text-lg font-semibold tracking-[-.04em] sm:text-[23px] sm:tracking-[-.05em]">{value}</strong>
         {trend && (
-          <span className={cn("mb-0.5 flex items-center gap-0.5 text-[9px] font-bold sm:mb-1", trend.startsWith("+") ? "text-emerald-600 dark:text-emerald-300" : "text-red-600 dark:text-red-300")}>
+          <span className={cn("mb-0.5 flex items-center gap-0.5 text-[11px] font-bold sm:mb-1", trend.startsWith("+") ? "text-emerald-600 dark:text-emerald-300" : "text-red-600 dark:text-red-300")}>
             {trend.startsWith("+") ? <ArrowDownRight size={11} className="rotate-180" /> : <ArrowDownRight size={11} />}
             {trend}
           </span>
         )}
       </div>
-      <p className="mt-1 break-words text-[10px] leading-snug text-muted-foreground">{detail}</p>
+      <p className="mt-2 min-h-8 break-words text-[11px] leading-snug text-muted-foreground">{detail}</p>
     </>
   );
   return onClick ? (
-    <button type="button" onClick={onClick} className={cn("group min-w-0 rounded-xl border border-border dark:border-border bg-card p-3.5 text-card-foreground shadow-sm dark:border-border dark:bg-card/80 dark:text-card-foreground dark:shadow-none text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-4", className)}>
+    <button type="button" onClick={onClick} className={cn("group min-w-0 rounded-xl border border-border dark:border-border bg-card p-3.5 text-card-foreground shadow-sm dark:bg-card/80 dark:text-card-foreground dark:shadow-none text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-4", className)}>
       {content}
     </button>
   ) : (
-    <div className={cn("group min-w-0 rounded-xl border border-border dark:border-border bg-card p-3.5 text-card-foreground shadow-sm dark:border-border dark:bg-card/80 dark:text-card-foreground dark:shadow-none sm:p-4", className)}>{content}</div>
+    <div className={cn("group min-w-0 rounded-xl border border-border dark:border-border bg-card p-3.5 text-card-foreground shadow-sm dark:bg-card/80 dark:text-card-foreground dark:shadow-none sm:p-4", className)}>{content}</div>
   );
 }
 
@@ -89,17 +90,17 @@ export function AcaoRapida({ icon, label, detail, color = "blue", onClick, icone
     <button
       type="button"
       onClick={onClick}
-      className="menu-dashboard group flex min-h-[92px] min-w-0 w-full flex-col justify-between rounded-xl border border-border dark:border-border bg-card/75 p-3 text-card-foreground shadow-sm dark:border-border dark:bg-card/65 dark:text-card-foreground dark:shadow-none dark:hover:!border-[#308db8] dark:hover:!bg-[#123e5a] dark:hover:!text-[#f0f9ff] text-left sm:min-h-[100px] sm:p-3.5"
+      className="menu-dashboard group flex min-h-[92px] min-w-0 w-full flex-col justify-between rounded-xl border border-border dark:border-border bg-card/75 p-3 text-card-foreground shadow-sm dark:bg-card/65 dark:text-card-foreground dark:hover:!border-sidebar-border dark:hover:!bg-sidebar-accent dark:hover:!text-sidebar-accent-foreground text-left sm:min-h-[100px] sm:p-3.5"
     >
       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-secondary/70 shadow-sm sm:h-8 sm:w-8", colors[color], iconeClassName)}>
         <span className={cn("[&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4", iconeInternoClassName)}>{icon}</span>
       </span>
       <span className="mt-2.5 min-w-0 sm:mt-3">
-        <span className="flex min-w-0 items-start justify-between gap-2 text-[10px] font-bold sm:text-[11px]">
+          <span className="flex min-w-0 items-start justify-between gap-2 text-[11px] font-bold">
           <span className="min-w-0 break-words">{label}</span>
           <ArrowRight size={12} className="mt-0.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
         </span>
-        <span className="mt-1 block break-words text-[9px] text-muted-foreground">{detail}</span>
+        <span className="mt-1 block break-words text-[11px] text-muted-foreground">{detail}</span>
       </span>
     </button>
   );
@@ -115,10 +116,17 @@ export function BarraProgresso({ value, color = "blue" }: { value: number; color
 }
 
 export function EtiquetaStatus({ children, tone = "neutral", className }: { children: ReactNode; tone?: "green" | "amber" | "red" | "blue" | "violet" | "neutral"; className?: string }) {
-  const styles = { green: "text-[rgba(16,185,55,1)] dark:text-emerald-300", amber: "text-amber-500 dark:text-amber-300", red: "text-red-500 dark:text-red-300", blue: "text-sky-500 dark:text-sky-300", violet: "text-violet-500 dark:text-violet-300", neutral: "text-muted-foreground" };
+  const styles = {
+    green: "border-emerald-600/25 bg-emerald-500/10 text-emerald-700 dark:border-emerald-400/25 dark:text-emerald-300",
+    amber: "border-amber-600/25 bg-amber-500/10 text-amber-800 dark:border-amber-400/25 dark:text-amber-300",
+    red: "border-red-600/25 bg-red-500/10 text-red-700 dark:border-red-400/25 dark:text-red-300",
+    blue: "border-sky-600/25 bg-sky-500/10 text-sky-700 dark:border-sky-400/25 dark:text-sky-300",
+    violet: "border-violet-600/25 bg-violet-500/10 text-violet-700 dark:border-violet-400/25 dark:text-violet-300",
+    neutral: "border-border bg-secondary/70 text-muted-foreground",
+  };
   const rotulo = typeof children === "string" ? children.replace(/_/g, " ") : children;
   return (
-    <span className={cn("inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[.07em]", styles[tone], className)}>
+    <span className={cn("inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-bold uppercase tracking-[.07em]", styles[tone], className)}>
       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
       <span className="truncate">{rotulo}</span>
     </span>

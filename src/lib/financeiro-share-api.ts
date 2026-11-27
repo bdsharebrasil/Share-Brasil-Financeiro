@@ -1075,6 +1075,10 @@ export type MovimentoHoldingExtrato = {
 
   categoria: string | null;
 
+  fornecedor?: string | null;
+
+  fornecedorId?: string | null;
+
   fluxo: string;
 
   valorCentavos: number;
@@ -1507,6 +1511,18 @@ export function darBaixaMovimentoHolding(id: string, dados: { dataPagamento: str
     method: "POST",
 
     body: JSON.stringify({ data_pagamento: dados.dataPagamento, conta_bancaria_id: dados.contaBancariaId, forma_pagamento: dados.formaPagamento, comprovante_url: dados.comprovanteUrl }),
+
+  });
+
+}
+
+export function criarMovimentoHolding(dados: Record<string, unknown>) {
+
+  return financeiroRequest<Record<string, unknown>>("/api/financeiro/movimentos-holding", {
+
+    method: "POST",
+
+    body: JSON.stringify(dados),
 
   });
 

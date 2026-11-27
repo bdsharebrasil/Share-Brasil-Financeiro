@@ -1653,20 +1653,22 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
                 <ChevronLeft size={14} aria-hidden /> Todas as aeronaves
               </Button>
             )}
+            {paginaAberta && !modoFechamento && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 shrink-0 justify-start gap-1 border-0 px-3 sm:px-5"
+                onClick={() => setPaginaAberta(false)}
+              >
+                <ChevronLeft size={15} /> Voltar
+              </Button>
+            )}
           </div>
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && !modoFechamento && (
-        <div className="cotista-navegacao flex flex-col gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 shrink-0 justify-start gap-1 border-0 px-3 sm:px-5"
-            onClick={() => setPaginaAberta(false)}
-          >
-            <ChevronLeft size={15} /> Voltar
-          </Button>
+        <div className="cotista-navegacao">
           <div
             className="financeiro-tabs flex min-w-0 flex-1 justify-center gap-1 overflow-x-auto rounded-none border-0 border-transparent bg-transparent py-1 px-1"
             role="tablist"

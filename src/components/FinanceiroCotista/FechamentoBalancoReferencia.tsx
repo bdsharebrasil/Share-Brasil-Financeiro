@@ -65,6 +65,7 @@ type Props = {
   fornecedores: OpcaoFornecedorLancamento[];
   mesesSelecionados: string[];
   cotistaId?: string;
+  filtrosTabela?: ReactNode;
 };
 
 type Aba = "balanco" | "acerto" | "lancamentos" | "custo-hora" | "diario" | "curiosidades";
@@ -96,6 +97,7 @@ export function FechamentoBalancoReferencia({
   fornecedores,
   mesesSelecionados,
   cotistaId,
+  filtrosTabela,
 }: Props) {
   const [aba, setAba] = useState<Aba>("balanco");
   const [horasProjetadas, setHorasProjetadas] = useState(10);
@@ -730,6 +732,7 @@ export function FechamentoBalancoReferencia({
                     <option key={item}>{item}</option>
                   ))}
                 </select>
+                {filtrosTabela}
               </div>
               <div className="cotista-toolbar-right">
                 <span className="cotista-top-pagination">

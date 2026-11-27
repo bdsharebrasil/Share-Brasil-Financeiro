@@ -1833,30 +1833,11 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />
           ) : abaAtiva === "fechamento-balanco" ? (
             <div className={modoFechamento ? "space-y-2" : "space-y-4"}>
-              <div className="financeiro-panel cotista-fechamento-filtros grid grid-cols-1 items-center gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,17rem)_auto]">
-                <div className="min-w-0">
-                  <p className="text-sm font-bold">Fechamento por cotista</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    Balanço calculado pelos lançamentos da aeronave, meses e cotista selecionados.
-                  </p>
-                </div>
-                <SearchableCombobox
-                  items={cotistasAeronave.map((cotista) => ({
-                    id: cotista.id,
-                    label: cotista.nome,
-                    descricao: `${cotista.eh_holding ? "Holding" : "Cotista"} · ${cotista.percentual_sociedade}%`,
-                  }))}
-                  value={cotistaVisaoId}
-                  onChange={setCotistaVisaoId}
-                  placeholder="Selecione um cotista"
-                  searchPlaceholder="Buscar cotista..."
-                  emptyMessage="Nenhum cotista encontrado."
-                  icon={<User size={15} />}
-                  disabled={!cotistasAeronave.length}
-                  className={modoFechamento ? "h-8 lg:h-8 w-full rounded-md border-border bg-background text-foreground hover:bg-muted" : "w-full border-border bg-background text-foreground hover:bg-muted sm:max-w-sm"}
-                  popoverClassName="border-border bg-popover text-popover-foreground"
-                />
-                {controlesMesesCotista}
+              <div className="financeiro-panel cotista-fechamento-filtros">
+                <p className="text-sm font-bold">Fechamento por cotista</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Balanço calculado pelos lançamentos da aeronave, meses e cotista selecionados.
+                </p>
               </div>
               <FechamentoBalancoReferencia
                 dashboard={dashboard}
@@ -1866,6 +1847,27 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
                 fornecedores={fornecedoresEdicao}
                 mesesSelecionados={mesesAplicados}
                 cotistaId={cotistaVisaoId}
+                filtrosTabela={
+                  <>
+                    <SearchableCombobox
+                      items={cotistasAeronave.map((cotista) => ({
+                        id: cotista.id,
+                        label: cotista.nome,
+                        descricao: `${cotista.eh_holding ? "Holding" : "Cotista"} · ${cotista.percentual_sociedade}%`,
+                      }))}
+                      value={cotistaVisaoId}
+                      onChange={setCotistaVisaoId}
+                      placeholder="Selecione um cotista"
+                      searchPlaceholder="Buscar cotista..."
+                      emptyMessage="Nenhum cotista encontrado."
+                      icon={<User size={15} />}
+                      disabled={!cotistasAeronave.length}
+                      className="h-8 w-56 max-w-full rounded-md border-border bg-background text-foreground hover:bg-muted"
+                      popoverClassName="border-border bg-popover text-popover-foreground"
+                    />
+                    {controlesMesesCotista}
+                  </>
+                }
               />
             </div>
           ) : carregando && abaAtiva !== "lancamentos" ? (

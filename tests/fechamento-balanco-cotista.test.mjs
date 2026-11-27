@@ -25,12 +25,12 @@ test("aba Fechamento Balanço usa dados do dashboard e transmite cotista e compe
   assert.doesNotMatch(financeiro, /<FechamentoBalancoCotista\s*\/>/);
 });
 
-test("fechamento segue as cinco abas solicitadas com valores derivados do dashboard", () => {
+test("fechamento segue as seis abas solicitadas com valores derivados do dashboard", () => {
   const blocoAbas = /const ABAS:[\s\S]*?;\n/.exec(referencia)?.[0];
   assert.ok(blocoAbas, "lista principal de abas não encontrada");
   assert.deepEqual(
     [...blocoAbas.matchAll(/nome: "([^"]+)"/g)].map(([, nome]) => nome),
-    ["Balanço", "Lançamentos", "Custo por hora", "Diário de bordo", "Seu período em voo"],
+    ["Balanço", "Acerto de contas", "Lançamentos", "Custo por hora", "Diário de bordo", "Seu período em voo"],
   );
   assert.match(referencia, /montarBalanco\(d, cotistas, mesesSelecionados\)/);
   assert.match(referencia, /projetarCustos\(total, totalHoras, b\.meses\.length/);
@@ -84,7 +84,7 @@ test("Custo por hora mostra valores efetivos da aeronave e do cotista além da p
 test("diário lista voos operacionais da aeronave e identifica para quem foram", () => {
   assert.match(referencia, /const voos = voosOperacionais\s*\.slice\(\)/);
   assert.match(referencia, /b\?\.fonteVoos \|\| voosOperacionais\.length/);
-  assert.match(referencia, /voos\.map\(\(voo, index\) => <tr/);
+  assert.match(referencia, /voos\.map\(\(voo, index\) =>\s*\(?\s*<tr/);
   assert.match(referencia, /destinoVoo\(voo, cotistas\)/);
 });
 
@@ -92,8 +92,8 @@ test("lançamentos incluem despesas da aeronave e exibem uma coluna rateio por c
   assert.match(referencia, /d\?\.lancamentos \?\?/);
   assert.match(referencia, /numerosDocumentosDoLancamento\(lancamento\)/);
   assert.match(referencia, /<td className="fb-doc">\{numeroDocLancamento\(origem\) \|\| "—"\}<\/td>/);
-  assert.match(referencia, /cotistas\.map\(\(cotista, i\) => <CabecalhoRateioCotista/);
-  assert.match(referencia, /cotistas\.map\(\(cotista, i\) => <CelulaRateioCotista/);
+  assert.match(referencia, /cotistas\.map\(\(cotista, i\) =>\s*\(?\s*<CabecalhoRateioCotista/);
+  assert.match(referencia, /cotistas\.map\(\(cotista, i\) =>\s*\(?\s*<CelulaRateioCotista/);
   assert.match(referencia, /total rateado por cotista/);
 
   const cotista = { id: "cotista-1", cliente_id: null, socio_id: null, cotista_ids: [], nome: "Marina Costa", percentual_sociedade: 50 };
@@ -114,7 +114,7 @@ test("lançamentos incluem despesas da aeronave e exibem uma coluna rateio por c
 });
 
 test("tabela de lançamentos resolve fornecedor/pagador, normaliza tipo e não tem expansão", () => {
-  assert.match(referencia, /<th>TIPO RATEIO<\/th>/);
+  assert.match(referencia, /<th>Tipo Rateio<\/th>/);
   assert.match(referencia, /nomeFornecedorLancamento\(origem, fornecedores\)/);
   assert.match(referencia, /nomePagadoresDoLancamento\(origem, cotistas\)/);
   assert.match(referencia, /valorPagoLancamento\(origem\)/);
@@ -183,8 +183,8 @@ test("fechamento usa um único PDF consolidado, com seleção de cotistas e quat
   assert.match(atual, /<DialogTitle(?:\s[^>]*)?>Gerar relatório do fechamento/);
   assert.match(atual, /Selecionar todos os cotistas/);
   assert.match(atual, /Incluir \$\{item\.nome\} no PDF/);
-  assert.match(atual, /pdf\(<BalancoClientePdf/);
-  assert.match(legado, /pdf\(<BalancoClientePdf/);
+  assert.match(atual, /pdf\(\s*<BalancoClientePdf/);
+  assert.match(legado, /pdf\(\s*<BalancoClientePdf/);
   assert.doesNotMatch(atual, /window\.print\(\)/);
   assert.doesNotMatch(legado, /window\.print\(\)/);
   assert.doesNotMatch(atual, /RelatorioFechamentoPdf/);

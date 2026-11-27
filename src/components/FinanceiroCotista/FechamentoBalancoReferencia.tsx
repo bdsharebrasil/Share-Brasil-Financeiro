@@ -17,7 +17,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -305,7 +304,7 @@ export function FechamentoBalancoReferencia({
   const pesoTotalColunas =
     PESOS_COLUNAS_TABELA.reduce<number>((totalPeso, peso) => totalPeso + peso, 0) +
     cotistas.length * PESO_COLUNA_COTISTA;
-  const larguraMinimaTabela = Math.max(930, 730 + cotistas.length * 130);
+  const larguraMinimaTabela = Math.ceil(Math.max(1080, 900 + cotistas.length * 145) * Math.max(1, zoomTabela / 100));
 
   const abrirDialogPdf = () => {
     const selecionado = participante ? [participante.id] : b.participantes.map((item) => item.id);
@@ -390,7 +389,7 @@ export function FechamentoBalancoReferencia({
 
         <button
           type="button"
-          className="fb-button"
+          className="fb-button fb-export"
           onClick={abrirDialogPdf}
           disabled={!b.participantes.length}
         >
@@ -406,12 +405,20 @@ export function FechamentoBalancoReferencia({
           className="fb-section-stack"
         >
           <div className="fb-hero">
-            <div>
+            <div className="fb-hero-context">
               <small>
                 {participante ? `Cotista: ${participante.nome}` : "Consolidado da aeronave"} ·{" "}
                 {periodo}
               </small>
+              <span className="fb-hero-cost-label">
+                {participante ? "Custo atribuído ao cotista" : "Custo total da aeronave"}
+              </span>
               <div className="fb-big">{money(total.total)}</div>
+              {participante && (
+                <div className="fb-hero-aircraft">
+                  Custo total da aeronave: <strong>{money(b.total.total)}</strong>
+                </div>
+              )}
             </div>
 
             <div className="fb-hero-stats">
@@ -462,7 +469,7 @@ export function FechamentoBalancoReferencia({
             />
           </div>
 
-          <div className="fb-grid fb-g2">
+          <div className="fb-grid fb-g2 fb-analysis">
             <section className="fb-card">
               <div className="fb-card-head">
                 <h2>Gastos por categoria</h2>
@@ -474,7 +481,7 @@ export function FechamentoBalancoReferencia({
                     <thead>
                       <tr>
                         <th>Categoria</th>
-                        <th className="fb-num">Valor atribuído</th>
+                        <th className="fb-num">{participante ? "Valor atribuído" : "Valor total"}</th>
                         <th className="fb-num">%</th>
                         <th aria-label="Participação"></th>
                       </tr>
@@ -526,7 +533,6 @@ export function FechamentoBalancoReferencia({
                       tick={{ fontSize: 10.5, fill: "var(--fb-muted)" }}
                     />
                     <Tooltip formatter={(value) => money(Number(value))} contentStyle={tooltipEstilo} />
-                    <Legend wrapperStyle={{ fontSize: 11.5 }} />
                     <Bar
                       dataKey="fixos"
                       name="Fixos"

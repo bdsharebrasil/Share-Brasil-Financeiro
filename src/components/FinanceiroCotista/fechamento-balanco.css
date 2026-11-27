@@ -13,6 +13,8 @@
   --fb-wait: #7c5cd6;
   --fb-violet: #7c5cd6;
 
+  width: 100%;
+  min-width: 0;
   max-width: 1280px;
   margin: 0 auto;
   padding: 12px 0 36px;
@@ -75,7 +77,10 @@
 .fb-tabs {
   display: flex;
   gap: 4px;
+  flex: 1 1 0;
+  min-width: 0;
   overflow-x: auto;
+  scrollbar-width: thin;
   margin-bottom: -1px;
 }
 
@@ -189,7 +194,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.fb-hero-link {
+.fb .fb-hero-link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -204,7 +209,7 @@
   text-underline-offset: 2px;
 }
 
-.fb-hero-link:hover {
+.fb .fb-hero-link:hover {
   color: #ffffff;
 }
 
@@ -296,7 +301,10 @@
 /* Tabelas gerais */
 .fb-scroll {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
 }
 
 .fb-scroll-bounded {
@@ -347,7 +355,7 @@
 
 .fb .fb-bar {
   height: 7px;
-  min-width: 72px;
+  min-width: 48px;
   border-radius: 99px;
   background: var(--fb-soft);
   overflow: hidden;
@@ -362,7 +370,7 @@
 
 /* Gráficos */
 .fb-chart {
-  height: 245px;
+  height: 280px;
   width: 100%;
   min-width: 0;
 }
@@ -612,6 +620,7 @@
 }
 
 .fb .fb-ledger {
+  min-height: 0;
   max-height: 68vh;
   overflow: auto;
 }
@@ -635,7 +644,8 @@
 }
 
 .fb .fb-ledger-table tbody td {
-  padding: 7px 10px;
+  padding: calc(7px * var(--fb-zoom, 1)) calc(10px * var(--fb-zoom, 1));
+  overflow-wrap: anywhere;
   border-bottom: 1px solid color-mix(in srgb, var(--fb-border) 70%, transparent);
   border-right: 1px solid color-mix(in srgb, var(--fb-border) 35%, transparent);
 }
@@ -649,7 +659,7 @@
 }
 
 .fb .fb-doc {
-  font: 600 11.5px ui-monospace, SFMono-Regular, Consolas, monospace;
+  font: 600 calc(11.5px * var(--fb-zoom, 1)) ui-monospace, SFMono-Regular, Consolas, monospace;
   color: var(--fb-blue);
 }
 
@@ -662,7 +672,7 @@
 }
 
 .fb .fb-money {
-  font: 700 12.5px ui-monospace, SFMono-Regular, Consolas, monospace;
+  font: 700 calc(12.5px * var(--fb-zoom, 1)) ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
 .fb-date-stack {
@@ -684,7 +694,7 @@
 }
 
 .fb-date-stack b {
-  font: 600 11.5px ui-monospace, SFMono-Regular, Consolas, monospace;
+  font: 600 calc(11.5px * var(--fb-zoom, 1)) ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
 .fb-status {
@@ -699,7 +709,8 @@
   border: 1px solid color-mix(in srgb, var(--t) 25%, transparent);
   font-size: 10.5px;
   font-weight: 700;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .fb-status::before {
@@ -767,12 +778,12 @@
 }
 
 .fb-share-cell span {
-  font: 500 11px ui-monospace, SFMono-Regular, Consolas, monospace;
+  font: 500 calc(11px * var(--fb-zoom, 1)) ui-monospace, SFMono-Regular, Consolas, monospace;
   color: var(--fb-muted);
 }
 
 .fb-share-cell strong {
-  font: 700 12.5px ui-monospace, SFMono-Regular, Consolas, monospace;
+  font: 700 calc(12.5px * var(--fb-zoom, 1)) ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
 /* Simulador Custo/Hora */
@@ -844,6 +855,69 @@
   font-size: 13px;
 }
 
+/* Layout e controles exclusivos do demonstrativo. */
+.fb .fb-export {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.fb .fb-hero-context {
+  min-width: 0;
+}
+
+.fb .fb-hero-context small + small {
+  margin-top: 4px;
+}
+
+.fb .fb-hero-cost-label {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fb .fb-hero-aircraft {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.fb .fb-analysis > .fb-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.fb .fb-analysis .fb-scroll-bounded {
+  flex: 1;
+  max-height: 340px;
+}
+
+.fb .fb-analysis .fb-legend {
+  margin-top: auto;
+}
+
+.fb .fb-ledger-table th {
+  font-size: calc(10.5px * var(--fb-zoom, 1));
+  overflow-wrap: anywhere;
+}
+
+.fb .fb-ledger .fb-num {
+  white-space: nowrap;
+}
+
+.fb .fb-ledger .fb-status,
+.fb .fb-ledger .fb-tag {
+  max-width: 100%;
+  font-size: calc(10.5px * var(--fb-zoom, 1));
+  overflow-wrap: anywhere;
+}
+
+.fb .fb-ledger .fb-status::before {
+  flex: 0 0 6px;
+}
+
+.fb .acc-credit { color: var(--fb-ok) !important; }
+.fb .acc-debt { color: var(--fb-bad) !important; }
+
 @media (max-width: 1024px) {
   .fb-g4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -851,6 +925,12 @@
 }
 
 @media (max-width: 780px) {
+  .fb-tabs { flex-basis: 100%; }
+  .fb .fb-export { margin-left: auto; }
+  .fb .fb-ledger-tools select { flex: 1 1 190px; }
+  .fb-search { max-width: none; }
+  .fb-card { padding: 14px; }
+
   .fb-g3,
   .fb-g2 {
     grid-template-columns: 1fr;
@@ -892,7 +972,8 @@
     break-inside: avoid;
   }
   .fb-scroll,
-  .fb-scroll-bounded {
+  .fb-scroll-bounded,
+  .fb .fb-ledger {
     overflow: visible;
     max-height: none;
   }

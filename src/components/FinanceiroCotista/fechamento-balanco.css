@@ -104,17 +104,13 @@
 }
 
 .fb-tabs button[aria-selected="true"] {
-  border-bottom-color: var(--fb-blue);
-  color: var(--fb-blue);
-  font-weight: 650;
-}
-
-.fb-tabs #fb-tab-balanco {
   border-radius: 10px;
   overflow: hidden;
   border-style: inset;
   border-width: 1px;
   border-color: rgba(10, 94, 144, 1);
+  color: var(--fb-blue);
+  font-weight: 650;
 }
 
 .fb-tab-filtros {

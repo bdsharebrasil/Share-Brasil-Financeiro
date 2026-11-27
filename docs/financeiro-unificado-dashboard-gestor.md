@@ -28,15 +28,9 @@ Lacunas/nuances restantes: o fluxo/status físicos aceitam nomes históricos e v
 ## Inventário frontend pedido
 
 - `PaginaFinanceiroShare`: era exportada em `src/components/financeiro-share/FinanceiroShare.tsx`, com abas de resumo/caixa/contas/baixas/holding/salários/NF; componente removido após a troca. A antiga montagem acontecia em `LayoutInterno.tsx`.
-- `AbaCaixaEmpresa`: era montada pela página antiga e também por `MenuGestor.tsx`; ambos os pontos de montagem foram retirados. O arquivo foi mantido como candidato à remoção.
-- `AbaContasAPagar`, `AbaContasAReceber`: eram montadas na página antiga; arquivos mantidos, sem montagem na navegação nova.
-- `AbaResumoFinanceiro`: era montada na página antiga e recebia `aoMudarAba`; arquivo mantido, sem montagem na navegação nova.
+- `AbaCaixaEmpresa`, `AbaContasAPagar`, `AbaContasAReceber`, `AbaResumoFinanceiro`: removidos junto com seus componentes auxiliares exclusivos (`AbaSolicitacoesCompra`, `DetalheContaAPagar`, `useCaixaEmpresa`, `caixa-empresa.css`), sem consumidores restantes.
 - `aoNavegar("financeiro-share", ...)`: chamadas do dashboard antigo foram removidas. O tratamento legado em `LayoutInterno` redireciona o identificador ao dashboard, sem reter outra página financeira.
-- `aoMudarAba`: a navegação por abas da página antiga foi retirada; o único `aoMudarAba` remanescente é a prop interna de `AbaResumoFinanceiro.tsx`, agora sem consumidor.
-
-## Componentes candidatos à remoção (não removidos)
-
-`AbaCaixaEmpresa.tsx`, `AbaContasAPagar.tsx`, `AbaContasAReceber.tsx` e `AbaResumoFinanceiro.tsx`. Foram preservados conforme solicitado. Antes de removê-los em outra fase, verificar eventuais integrações fora de `src` e os cenários de baixa/edição que ainda possam ser reutilizados.
+- `aoMudarAba`: a navegação por abas da página antiga foi retirada; a prop interna de `AbaResumoFinanceiro.tsx` foi removida junto com o arquivo.
 
 ## Validação
 

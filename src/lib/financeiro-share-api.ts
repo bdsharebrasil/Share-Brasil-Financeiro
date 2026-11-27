@@ -1376,26 +1376,6 @@ export async function buscarContasBancariasHolding() {
 
 }
 
-export async function buscarEnviosCompraShare() {
-
-  const resposta = await financeiroRequest<{ envios?: SolicitacaoPagamento[] }>("/api/financeiro/envios-pagamento?tipo=share");
-
-  return resposta.envios ?? [];
-
-}
-
-export function aprovarEnvioCompra(id: string) {
-
-  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/envios-pagamento/${encodeURIComponent(id)}/aprovar`, { method: "POST" });
-
-}
-
-export function converterEnvioCompra(id: string) {
-
-  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/envios-pagamento/${encodeURIComponent(id)}/converter`, { method: "POST" });
-
-}
-
 function normalizarOpcoesLancamento(payload: Partial<OpcoesLancamento> | null | undefined): OpcoesLancamento {
 
   return {

@@ -104,7 +104,7 @@ export function AgendamentoShell({
                 className={
                   "inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-xs font-semibold transition sm:text-[13px] " +
                   (ativo
-                    ? "bg-white text-[#0B2244] shadow-sm dark:bg-[#182742] dark:text-white dark:ring-1 dark:ring-sky-400/40"
+                    ? "border border-[rgba(144,145,163,0.86)] bg-[rgba(41,92,179,0.87)] text-white shadow-sm dark:ring-1 dark:ring-sky-400/40"
                     : "bg-[#D8E2F2] text-[#142D52] hover:bg-white/95 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15")
                 }
               >

@@ -88,6 +88,7 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
   const { voos: voosAoVivo, carregando: carregandoAoVivo, erro: erroAoVivo, atualizadoEm: atualizadoAoVivo } = useVoosEmOperacao();
   const [aba, setAba] = useState<AbaAgendamento>("cronograma");
   const [filtroAgenda, setFiltroAgenda] = useState<FiltroAgenda>("todos");
+  const [clienteHistorico, setClienteHistorico] = useState<string | null>(null);
   const [painel, setPainel] = useState<PainelAgendamentoResponse | null>(null);
   const [opcoes, setOpcoes] = useState<OpcoesAgendamentoResponse>({ clientes: [], socios: [], aeronaves: [], vinculos: [] });
   const [aerodromos, setAerodromos] = useState<AerodromoOption[]>([]);
@@ -191,6 +192,7 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
   const titulares = useMemo(() => itensTitulares(opcoes), [opcoes]);
 
   const selecionarAba = (proxima: AbaAgendamento) => {
+    setClienteHistorico(null);
     setMensagensConfirmacaoId(null);
     setAba(proxima);
     setSelecionada(null);
@@ -559,6 +561,7 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
   };
   const selecionarAreaShell = (area: AreaAgendamento) => selecionarArea(({ agenda: "cronograma", escala: "escala", historico: "historico", horas: "horas-voadas", "ao-vivo": "voos-hoje" } as const)[area]);
   const voltarTelaAnterior = () => {
+    if (!selecionada && clienteHistorico) setClienteHistorico(null);
     setSelecionada(null);
     setMensagensConfirmacaoId(null);
   };
@@ -591,7 +594,7 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
   const operacaoSelecionada = selecionada ? agendamentos.find(item => item.id === (selecionada.solicitacao_origem_id || selecionada.id)) || selecionada : null;
   return (
     <div className="min-w-0">
-      <AgendamentoShell area={areaAtual} title={selecionada ? "Voo " + (selecionada.numero_voo || "sem número") : undefined} detalhe={Boolean(selecionada)} aoSelecionar={selecionarAreaShell} aoVoltar={voltarTelaAnterior} aoFechar={() => { if (aoFechar) aoFechar(); else selecionarArea("cronograma"); }}>
+      <AgendamentoShell area={areaAtual} title={selecionada ? "Voo " + (selecionada.numero_voo || "sem número") : undefined} detalhe={Boolean(selecionada || (areaAtual === "historico" && clienteHistorico))} aoSelecionar={selecionarAreaShell} aoVoltar={voltarTelaAnterior} aoFechar={() => { if (aoFechar) aoFechar(); else selecionarArea("cronograma"); }}>
         {erro && <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">{erro}<button type="button" className="underline" onClick={() => void carregar()}>Tentar novamente</button></div>}
         {selecionada && operacaoSelecionada ? (
           <FichaAgendaOperacional key={selecionada.id} item={selecionada} operacao={operacaoSelecionada} aeronave={painel?.aeronaves.find(a => a.id === selecionada.aeronave_id)} itens={agendaCompleta} voosAoVivo={voosAoVivo} erroAoVivo={erroAoVivo}
@@ -599,7 +602,7 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
         ) : areaAtual === "agenda" ? (
           <ListaAgenda itens={agendaCompleta} filtro={filtroAgenda} aoFiltro={setFiltroAgenda} aoAbrir={abrirSolicitacao} aoNovo={() => abrirNovoAgendamento()} carregando={carregando} />
         ) : areaAtual === "historico" ? (
-          <HistoricoAgenda itens={agendaCompleta} clientes={opcoes.clientes} socios={opcoes.socios} aoAbrir={abrirSolicitacao} carregando={carregando} />
+          <HistoricoAgenda clienteSelecionado={clienteHistorico} aoSelecionarCliente={setClienteHistorico} itens={agendaCompleta} clientes={opcoes.clientes} socios={opcoes.socios} aoAbrir={abrirSolicitacao} carregando={carregando} />
         ) : areaAtual === "ao-vivo" ? (
           <AoVivoAgenda voos={voosAoVivo} carregando={carregandoAoVivo} erro={erroAoVivo} atualizado={atualizadoAoVivo} itens={agendaCompleta} aoAbrir={abrirSolicitacao} />
         ) : areaAtual === "horas" ? (

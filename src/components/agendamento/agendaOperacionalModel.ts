@@ -1,4 +1,4 @@
-import type { SolicitacaoVooInterna } from "@/lib/colaborador-api";
+import type { PlanoVooSalvo, SolicitacaoVooInterna } from "@/lib/colaborador-api";
 import { operacaoNaData } from "../../lib/agendamentos-hoje";
 
 export type FiltroAgenda = "todos" | "dia" | "confirmados" | "pendentes";
@@ -54,4 +54,11 @@ export function agruparHistoricoAgenda(itens: SolicitacaoVooInterna[], clientes:
     grupos.set(chave, grupo);
   }
   return [...grupos.entries()].sort((a,b) => a[1].nome.localeCompare(b[1].nome, "pt-BR"));
+}
+
+export function planoAgenda(planos: PlanoVooSalvo[], item: SolicitacaoVooInterna) {
+  return planos.filter(p => p.payload?.contexto?.solicitacao?.id === item.id &&
+    p.adep?.toUpperCase() === item.origem?.toUpperCase() && p.ades?.toUpperCase() === item.destino?.toUpperCase() &&
+    (!p.data_voo || p.data_voo.slice(0,10) === item.data_agendada.slice(0,10)))
+    .sort((a,b) => b.created_at.localeCompare(a.created_at))[0];
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import MapLibre, { Layer, Marker, NavigationControl, Source } from "react-map-gl/maplibre";
 import type { MapRef } from "react-map-gl/maplibre";
-import type { ExpressionSpecification, StyleSpecification } from "maplibre-gl";
+import type { ExpressionSpecification } from "maplibre-gl";
 import type { FeatureCollection, LineString } from "geojson";
 import { Plane } from "lucide-react";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -10,6 +10,7 @@ import { segmentosTrilha, horarioRastreio, vooComSinalNoAr } from "@/lib/rastrei
 import { coordenadaRastreioValida, pontosParaEnquadrar, trechosPlanejados } from "@/lib/rastreio-mapa";
 import type { VooEmOperacao, PontoRastreio } from "@/lib/colaborador-api";
 import { buscarCartas, type ChartResponse } from "@/lib/flightplan-api";
+import { AvisoCartaAgenda, SeletorMapaAgenda, estiloMapaAgenda, type ModoMapaAgenda } from "@/components/agendamento/MapaAgendaCamadas";
 
 interface MapaVooProps {
   voo: VooEmOperacao;
@@ -17,34 +18,10 @@ interface MapaVooProps {
   historico?: boolean;
   compacto?: boolean;
   altura?: number;
+  modoMapa?: ModoMapaAgenda;
 }
 
 type Coord = { lat: number; lon: number };
-
-// Satélite real e rótulos sobrepostos, no estilo de monitoramento aeronáutico.
-const ESTILO_SATELITE: StyleSpecification = {
-  version: 8,
-  sources: {
-    imagem: {
-      type: "raster",
-      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: "Imagens © Esri",
-    },
-    rotulos: {
-      type: "raster",
-      tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: "Rótulos © Esri",
-    },
-  },
-  layers: [
-    { id: "satelite", type: "raster", source: "imagem" },
-    { id: "nomes", type: "raster", source: "rotulos" },
-  ],
-};
 
 const COR_POR_ALTITUDE: ExpressionSpecification = [
   "interpolate", ["linear"], ["get", "alt"],
@@ -55,9 +32,13 @@ const COR_POR_ALTITUDE: ExpressionSpecification = [
 const par = (c: Coord): [number, number] => [c.lon, c.lat];
 
 export default function VooEmOperacaoMapa({
-  voo, pernaId, historico = !vooComSinalNoAr(voo), compacto = false, altura,
+  voo, pernaId, historico = !vooComSinalNoAr(voo), compacto = false, altura, modoMapa,
 }: MapaVooProps) {
   const mapaRef = useRef<MapRef>(null);
+  const [modoLocal,setModoLocal] = useState<ModoMapaAgenda>("satelite");
+  const modo = modoMapa ?? modoLocal;
+  const estilo = useMemo(() => estiloMapaAgenda(modo), [modo]);
+  const [erroModo,setErroModo] = useState<ModoMapaAgenda | null>(null);
   const [mapaCarregado, setMapaCarregado] = useState(false);
   const [cartasAeronáuticas, setCartasAeronáuticas] = useState<ChartResponse[]>([]);
   const assinaturaEnquadrada = useRef<string>("");
@@ -183,12 +164,13 @@ export default function VooEmOperacaoMapa({
     <div
       className={`${compacto ? "h-[250px]" : "h-[340px]"} relative w-full overflow-hidden rounded-xl bg-slate-900`}
       style={altura ? { height: altura } : undefined}
-      aria-label={posicaoAoVivo ? "Posição real e percurso ADS-B da aeronave" : "Mapa satélite da rota planejada e sinais captados"}
+      aria-label={posicaoAoVivo ? "Posição real e percurso ADS-B da aeronave" : "Mapa da rota planejada e sinais captados"}
     >
       <MapLibre
         ref={mapaRef}
         initialViewState={initialViewState}
-        mapStyle={ESTILO_SATELITE}
+        mapStyle={estilo}
+        onError={e => { if (["carta","base","imagem"].includes(String((e as { sourceId?: string }).sourceId))) setErroModo(modo); }}
         attributionControl={{ compact: true }}
         style={{ width: "100%", height: "100%" }}
         onLoad={() => setMapaCarregado(true)}
@@ -253,8 +235,10 @@ export default function VooEmOperacaoMapa({
         )}
       </MapLibre>
 
-      {cartasAeronáuticas.length > 0 && (
-        <div className="absolute left-3 top-3 z-[2] flex max-w-[70%] gap-1 rounded-lg border border-white/20 bg-slate-950/85 p-1 shadow-lg">
+      {modoMapa == null && <div className="absolute left-3 top-3 z-[3]"><SeletorMapaAgenda modo={modo} aoMudar={m => {setErroModo(null);setModoLocal(m);}}/></div>}
+      <AvisoCartaAgenda modo={modo} erro={erroModo === modo}/>
+      {cartasAeronáuticas.length > 0 && modoMapa == null && (
+        <div className="absolute left-3 top-12 z-[2] flex max-w-[70%] gap-1 rounded-lg border border-white/20 bg-slate-950/85 p-1 shadow-lg">
           {[...cartasAeronáuticas].slice(0, 4).map((carta, indice) => (
             <a
               key={carta.url || indice}

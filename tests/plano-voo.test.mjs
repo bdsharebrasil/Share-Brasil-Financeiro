@@ -10,7 +10,7 @@ async function modulo(path, substituir = {}) {
   return 'data:text/javascript;base64,' + Buffer.from(outputText).toString('base64');
 }
 const format = await modulo('src/lib/format.ts');
-const { codigoAerodromoValido, ordenarPernas, pernaInicial, formularioDaPerna, localizarAgendamento, horarioFpl, lerRascunho, guardarRascunho } = await import(await modulo('src/lib/plano-voo.ts', {'"./format"': JSON.stringify(format)}));
+const { codigoAerodromoValido, ordenarPernas, pernaInicial, pernaDoAgendamento, formularioDaPerna, localizarAgendamento, horarioFpl, lerRascunho, guardarRascunho } = await import(await modulo('src/lib/plano-voo.ts', {'"./format"': JSON.stringify(format)}));
 const { distanciaNM, proaVerdadeira, arcoCirculoMaximo, interpretarCoordenadas } = await import(await modulo('src/lib/navegacao.ts'));
 const { provedorContingencia, aeronauticoDisponivel } = await import(await modulo('src/components/plano/provedor.ts', { 'import.meta.env': '{}' }));
 
@@ -88,4 +88,18 @@ test('campos da perna substituem os da solicitação, sem inventar horário nem 
   assert.equal(nova.equipamento, base.equipamento); assert.equal(nova.piloto, base.piloto);
   const comHorario = formularioDaPerna(base, trecho('b', 2, { horario_dep: '2026-11-18T23:30:00-03:00' }));
   assert.equal(comHorario.dataVoo, '2026-11-19'); assert.equal(comHorario.eobt, '02:30');
+});
+
+test('abertura pela agenda mantém o trecho e data selecionados, sem trocar por outra perna', () => {
+  const voo = { origem:"SBGR",destino:"SN9T",data_agendada:"2026-11-18" };
+  const outra = trecho("outra",2,{origem:"SN9T",destino:"SBCY",horario_ac:"2026-11-18T15:00Z"});
+  const certa = trecho("certa",1);
+  assert.equal(pernaDoAgendamento([outra,certa],voo)?.id,"certa");
+  assert.equal(pernaDoAgendamento([outra],voo),undefined);
+  assert.equal(pernaDoAgendamento([certa,trecho("repetida",3)],voo),undefined);
+  assert.equal(pernaDoAgendamento([certa,trecho("repetida",3)],{...voo,perna_atual_id:"repetida"})?.id,"repetida");
+});
+test('preload aguarda hidratação e usa ID exato', async () => {
+  const pagina = await readFile(new URL('../src/pages/PlanoDeVoo.tsx',import.meta.url),'utf8');
+  assert.match(pagina,/if \(pronto && agendamentoInicialId\) void buscarVoo\(agendamentoInicialId, true\)/);
 });

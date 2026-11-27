@@ -1616,7 +1616,7 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
     <div className={`financeiro-shell financeiro-profissional -mt-2 min-w-0 max-w-full ${modoFechamento ? "financeiro-fechamento-compacto space-y-2" : "space-y-3"}`}>
       <style>{DESPESAS_ESTILOS}</style>
       {aeronaveSelecionada && (
-        <div className="cotista-contexto flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="cotista-contexto flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-end">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               {modoFechamento ? "Fechamento Balanço" : "Financeiro Cotista"}
@@ -1657,12 +1657,12 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && !modoFechamento && (
-        <div className="cotista-navegacao flex items-center gap-2">
+        <div className="cotista-navegacao flex flex-col gap-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="h-9 shrink-0 gap-1 border-0 px-3 sm:px-5"
+            className="h-9 shrink-0 justify-start gap-1 border-0 px-3 sm:px-5"
             onClick={() => setPaginaAberta(false)}
           >
             <ChevronLeft size={15} /> Voltar

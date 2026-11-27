@@ -154,7 +154,7 @@
   color: #ffffff;
   border: 1px solid color-mix(in srgb, var(--fb-navy) 82%, white);
   border-radius: 12px;
-  padding: 11px 24px;
+  padding: 5px 24px;
   box-shadow: 0 6px 20px rgba(15, 61, 110, 0.1);
 }
 
@@ -201,6 +201,10 @@
   font-size: 16px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.fb-hero-stat-saldo strong {
+  font-size: 11px;
 }
 
 .fb .fb-hero-link {

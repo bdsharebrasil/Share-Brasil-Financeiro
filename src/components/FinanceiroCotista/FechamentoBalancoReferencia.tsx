@@ -402,7 +402,7 @@ export function FechamentoBalancoReferencia({
                 <span>Participação no custo</span>
                 <strong>{proporcaoDoCusto == null ? "—" : fmt(proporcaoDoCusto, 1) + "%"}</strong>
               </div>
-              <div className="fb-hero-stat">
+              <div className="fb-hero-stat fb-hero-stat-saldo">
                 <span>Saldo líquido acumulado</span>
                 <strong>{saldo == null ? "—" : money(saldo)}</strong>
                 <button type="button" className="fb-hero-link" onClick={() => setAba("acerto")}>

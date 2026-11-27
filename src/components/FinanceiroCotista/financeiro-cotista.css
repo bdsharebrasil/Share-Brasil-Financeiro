@@ -9,6 +9,9 @@ html .financeiro-profissional .cotista-contexto {
   margin: 0 0 16px; padding: 0 0 16px; gap: 16px;
   border-color: var(--fin-border);
 }
+html .financeiro-profissional .cotista-meses > .cotista-btn {
+  padding-inline: 4px; margin-inline: -6px;
+}
 html .financeiro-profissional .cotista-navegacao {
   display: flex; align-items: center; gap: 16px; margin: 2px 0; padding: 0;
 }

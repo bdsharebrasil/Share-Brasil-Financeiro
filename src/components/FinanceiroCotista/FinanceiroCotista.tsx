@@ -1578,7 +1578,7 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
   const aeronaveAtual = aeronaves.find((a) => a.id === aeronaveSelecionada);
 
   const controlesMesesCotista = (
-    <div className={`cotista-meses flex flex-wrap items-center ${modoFechamento ? "gap-1.5" : "gap-2"}`}>
+    <div className={`cotista-meses flex flex-wrap items-center px-0 -mx-[9px] ${modoFechamento ? "gap-1.5" : "gap-2"}`}>
       <SeletorMesesCotista
         mesesSelecionados={mesesAplicados}
         aoAlternar={alternarMesSelecionado}
@@ -1588,13 +1588,13 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
         type="button"
         variant="outline"
         size="sm"
-        className={modoFechamento ? "h-8 px-2" : "h-10 px-3"}
+        className={modoFechamento ? "h-8 px-[9px]" : "h-10 px-[9px]"}
         aria-label="Mês anterior"
         onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, -1))}
       >
         ‹
       </Button>
-      <span className={modoFechamento ? "min-w-28 text-center text-[11px] text-muted-foreground" : "min-w-32 text-center text-xs text-muted-foreground"} aria-live="polite">
+      <span className={modoFechamento ? "min-w-28 text-center text-[11px] text-muted-foreground" : "min-w-32 -mx-[10px] px-[1px] text-center text-[10px] text-[rgba(197,202,202,1)]"} aria-live="polite">
         {mesesAplicados.length === 1
           ? rotuloMesCotista(mesReferencia)
           : `${mesesAplicados.length} meses selecionados`}
@@ -1603,7 +1603,7 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
         type="button"
         variant="outline"
         size="sm"
-        className={modoFechamento ? "h-8 px-2" : "h-10 px-3"}
+        className={modoFechamento ? "h-8 px-[9px]" : "h-10 px-[9px]"}
         aria-label="Próximo mês"
         onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, 1))}
       >
@@ -1856,7 +1856,7 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
                       emptyMessage="Nenhum cotista encontrado."
                       icon={<User size={15} />}
                       disabled={!cotistasAeronave.length}
-                      className="h-8 w-56 max-w-full rounded-md border-border bg-background text-foreground hover:bg-muted"
+                      className="h-8 w-56 max-w-full mx-[14px] px-[5px] rounded-md border-border bg-background text-foreground hover:bg-muted"
                       popoverClassName="border-border bg-popover text-popover-foreground"
                     />
                     {controlesMesesCotista}

@@ -12,11 +12,10 @@ import {
   type Coordenada,
 } from "@/lib/navegacao";
 import { formatarNumero, formatarProa, minutosParaHoraMinuto } from "@/lib/format";
-import { aeronauticoDisponivel, provedorContingencia, type EstiloMapa } from "./provedor";
+import { provedorContingencia, type EstiloMapa } from "./provedor";
 import type { PontoRota } from "@/lib/tipos";
 import { CardExpand } from "@/components/ui/card-expand/Component";
 import { Checkbox } from "@/components/ui/checkbox";
-import { buscarCartas, type ChartResponse } from "@/lib/flightplan-api";
 
 type CamadaMeteorologica = "temperatura" | "nuvens" | "vento" | "chuva" | "pressao" | "visibilidade";
 
@@ -30,10 +29,11 @@ const CAMADAS_METEOROLOGICAS: { id: CamadaMeteorologica; rotulo: string }[] = [
 ];
 
 const ESTILOS: { id: EstiloMapa; rotulo: string }[] = [
-  { id: "padrao", rotulo: "Mapa" },
+  { id: "padrao", rotulo: "Terrestre" },
   { id: "terreno", rotulo: "Terreno" },
   { id: "satelite", rotulo: "Satélite" },
-  { id: "aeronautico", rotulo: "Aeronáutico" },
+  { id: "aeronautico", rotulo: "Alta (ENRC-H)" },
+  { id: "baixa", rotulo: "Baixa (ENRC-L)" },
 ];
 
 interface Props {
@@ -73,12 +73,11 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
   const [reguaAtiva, setReguaAtiva] = useState(false);
   const [meteoAtiva, setMeteoAtiva] = useState(false);
   const [camadasMeteorologicas, setCamadasMeteorologicas] = useState<Set<CamadaMeteorologica>>(new Set(["chuva"]));
-  const [cartas, setCartas] = useState<ChartResponse[]>([]);
-  const [painelAeronautico, setPainelAeronautico] = useState(false);
   const [urlRadar, setUrlRadar] = useState<string | null>(null);
   const [medidas, setMedidas] = useState<Coordenada[]>([]);
   const [revisaoEstilo, setRevisaoEstilo] = useState(0);
   const [erroBase, setErroBase] = useState(false);
+  const [erroCarta, setErroCarta] = useState(false);
   const [erroRadar, setErroRadar] = useState(false);
   const estiloPronto = useRef(false);
   const enquadramento = useRef("");
@@ -143,6 +142,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
     });
     instancia.on("error", (evento: { sourceId?: string; error?: { message?: string; status?: number } }) => {
       if (evento.sourceId === "radar") { setErroRadar(true); return; }
+      if (evento.sourceId === "carta") { setErroCarta(true); return; }
       if (evento.sourceId && evento.sourceId !== "base" && !/maptiler/i.test(evento.error?.message ?? "")) return;
       setErroBase(true);
     });
@@ -165,27 +165,13 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
 
   // Troca de estilo / provedor
   useEffect(() => {
-    if (!icaos.length) { setCartas([]); return; }
-    let ativo = true;
-    void Promise.all(icaos.slice(0, 3).map((icao) => buscarCartas(icao).catch(() => ({ charts: [] }))))
-      .then((respostas) => {
-        if (!ativo) return;
-        const unicas = new Map<string, ChartResponse>();
-        respostas.forEach((resposta) => (resposta.charts || []).forEach((carta) => {
-          if (carta.url) unicas.set(carta.url, carta);
-        }));
-        setCartas([...unicas.values()]);
-      });
-    return () => { ativo = false; };
-  }, [icaos.join("|")]);
-
-  useEffect(() => {
     if (!mapa.current) return;
     const chave = `${provedor.id}:${estilo}`;
     if (estiloAplicado.current === chave) return;
     estiloAplicado.current = chave;
     estiloPronto.current = false;
     setErroBase(false);
+    setErroCarta(false);
     mapa.current.setStyle(provedor.estilo(estilo), { diff: false });
   }, [estilo, provedor]);
 
@@ -346,10 +332,6 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
     };
   }, [reguaAtiva, modoPonto, aoAdicionarPonto]);
 
-  const cartaAeronautica = useMemo(() => {
-    return cartas.find((carta) => /WAC|WORLD|MUNDIAL|REA|ACFT/.test(`${carta.tipo || ""} ${carta.title || ""}`.toUpperCase())) || cartas[0] || null;
-  }, [cartas]);
-
   const medicao =
     medidas.length === 2
       ? (() => {
@@ -371,7 +353,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
 
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-3">
         <div className="pointer-events-auto flex flex-wrap gap-1 rounded-lg bg-card/90 p-1 backdrop-blur">
-          {ESTILOS.filter(item => item.id !== "aeronautico" || aeronauticoDisponivel).map((item) => (
+          {ESTILOS.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -386,11 +368,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
               {item.rotulo}
             </button>
           ))}
-          {!aeronauticoDisponivel && (
-            cartaAeronautica?.url
-              ? <button type="button" onClick={() => setPainelAeronautico((ativo) => !ativo)} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${painelAeronautico ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}>Cartas aeronáuticas</button>
-              : <a href="https://geoaisweb.decea.mil.br/" target="_blank" rel="noopener noreferrer" className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-accent" title="Abrir cartas aeronáuticas no GeoAISWEB">Cartas AISWEB ↗</a>
-          )}
+
         </div>
 
         <div className="pointer-events-auto flex gap-1 rounded-lg bg-card/90 p-1 backdrop-blur">
@@ -492,6 +470,9 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
         </div>
       )}
 
+      {erroCarta && (
+        <p role="status" className="absolute left-3 top-24 max-w-[20rem] rounded-md bg-card/95 px-3 py-2 text-xs text-foreground">A fonte oficial {estilo === "baixa" ? "ENRC-L" : "ENRC-H"} está indisponível. Consulte a vigência no <a className="underline" href="https://geoaisweb.decea.mil.br/" target="_blank" rel="noopener noreferrer">GeoAISWEB</a>.</p>
+      )}
       {erroBase && !erroMapa && (
         <p role="status" className="absolute left-3 top-24 max-w-[18rem] rounded-md bg-card/95 px-3 py-2 text-xs text-foreground">
           Não foi possível carregar esta base do mapa. Selecione outra visualização.
@@ -512,14 +493,6 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
             loading="lazy"
             className="h-52 w-full border-0"
           />
-        </div>
-      )}
-
-      {painelAeronautico && cartaAeronautica?.url && (
-        <div className="absolute bottom-3 left-3 right-3 z-[5] max-w-xl rounded-lg border border-border bg-card p-3 shadow-lg sm:right-auto">
-          <p className="text-xs font-bold text-foreground">Carta aeronáutica · AISWEB/DECEA</p>
-          <p className="mt-1 truncate text-[11px] text-muted-foreground">{cartaAeronautica.title || cartaAeronautica.tipo || "Carta publicada"}</p>
-          <a href={cartaAeronautica.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground">Abrir carta oficial</a>
         </div>
       )}
 

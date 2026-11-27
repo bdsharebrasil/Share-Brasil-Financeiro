@@ -1628,7 +1628,7 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
               <ChevronLeft size={15} /> Voltar
             </Button>
           )}
-          <div className="min-w-0 mr-auto -mt-[39px] text-center text-[8px]">
+          <div className="min-w-0 mr-auto -mt-[18px] text-center text-[8px]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               {modoFechamento ? "Fechamento Balanço" : "Financeiro Cotista"}
             </p>
@@ -1644,11 +1644,6 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
             </div>
           </div>
           <div className="cotista-contexto-acoes flex flex-wrap items-center gap-2">
-            {modoFechamento && aoVoltarDashboard && (
-              <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2.5" onClick={aoVoltarDashboard}>
-                <ChevronLeft size={14} aria-hidden /> Dashboard financeiro
-              </Button>
-            )}
             {(modoFechamento || !paginaAberta) && (
               <Button
                 type="button"

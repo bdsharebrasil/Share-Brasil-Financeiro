@@ -9,6 +9,9 @@ html .financeiro-profissional .cotista-contexto {
   margin: 0 0 16px; padding: 0 0 16px; gap: 16px;
   border-color: var(--fin-border);
 }
+html .financeiro-profissional .cotista-meses > .cotista-btn {
+  padding-inline: 4px; margin-inline: -6px;
+}
 html .financeiro-profissional .cotista-navegacao {
   display: flex; align-items: center; gap: 16px; margin: 2px 0; padding: 0;
 }
@@ -38,7 +41,6 @@ html .financeiro-profissional .financeiro-panel-header {
   display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
   gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--fin-border);
 }
-html .financeiro-profissional .cotista-fechamento-filtros { padding: 16px 20px; gap: 16px; }
 html .financeiro-profissional :is(.financeiro-eyebrow, .financeiro-header-label) {
   color: var(--fin-muted); font-size: 11px; line-height: 1.5; letter-spacing: .08em; font-weight: 600;
 }
@@ -205,7 +207,6 @@ html .financeiro-profissional .cotista-portal > div:first-child { padding: 20px;
   html .financeiro-profissional .despesa-pagination { gap: 16px; }
   html .financeiro-profissional .despesa-pagination-info { flex-wrap: wrap; }
   html .financeiro-profissional .expanded-support-grid { grid-template-columns: minmax(0, 1fr); }
-  html .financeiro-profissional .cotista-fechamento-filtros { padding: 16px; }
 
   html .despesas-theme.despesa-dialog { padding: 20px; }
 }

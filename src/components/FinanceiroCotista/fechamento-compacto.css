@@ -17,7 +17,7 @@
     line-height: 1.35;
   }
   html .financeiro-profissional.financeiro-fechamento-compacto .cotista-contexto {
-    margin: 0 0 8px;
+    margin: 29px 0 8px;
     padding: 0 0 8px;
     gap: 8px;
   }
@@ -38,25 +38,6 @@
     padding-inline: 9px;
     font-size: 11px;
   }
-  html .financeiro-profissional.financeiro-fechamento-compacto .cotista-fechamento-filtros {
-    padding: 8px 10px;
-    gap: 10px;
-    border-radius: 6px;
-  }
-  .financeiro-fechamento-compacto .cotista-fechamento-filtros p:first-child {
-    font-size: 12px;
-    line-height: 1.2;
-  }
-  .financeiro-fechamento-compacto .cotista-fechamento-filtros p + p {
-    margin-top: 2px;
-    font-size: 10px;
-    line-height: 1.25;
-  }
-  .financeiro-fechamento-compacto .cotista-fechamento-filtros button[role="combobox"] {
-    height: 32px;
-    min-height: 32px;
-    font-size: 12px;
-  }
   .financeiro-fechamento-compacto .cotista-meses {
     gap: 6px;
   }
@@ -75,25 +56,11 @@
     min-width: 104px;
     font-size: 11px;
   }
-  @media (max-width: 1050px) {
-    html .financeiro-profissional.financeiro-fechamento-compacto .cotista-fechamento-filtros {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .financeiro-fechamento-compacto .cotista-fechamento-filtros > :last-child {
-      grid-column: 1 / -1;
-    }
-  }
   @media (max-width: 640px) {
     .app-main-scroll main:has(.balanco-cotista-workspace) { padding: 8px 8px 16px; }
     html .financeiro-profissional.financeiro-fechamento-compacto .cotista-contexto {
       align-items: flex-start;
     }
     .financeiro-fechamento-compacto .cotista-contexto-acoes { width: 100%; }
-    html .financeiro-profissional.financeiro-fechamento-compacto .cotista-fechamento-filtros {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .financeiro-fechamento-compacto .cotista-fechamento-filtros > :last-child {
-      grid-column: auto;
-    }
   }
 }

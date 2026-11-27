@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, FileText, ImagePlus, Loader2, Plus, X } from "lucide-react";
+import {
+  Calendar,
+  CheckCircle2,
+  FileText,
+  ImagePlus,
+  Layers,
+  Loader2,
+  Plus,
+  Receipt,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -84,7 +94,18 @@ type Props = {
   lancamentoInicial?: LancamentoEdicao;
 };
 
-const FORMAS_BAIXA = ["PIX", "Transferência", "Boleto", "Dinheiro", "Cartão"];
+const FORMAS_BAIXA = ["PIX", "TRANSFERÊNCIA", "BOLETO", "DINHEIRO", "CARTÃO"];
+
+/** Remove underscores e padroniza textos exibidos na UI em MAIÚSCULAS */
+function formatarTextoUi(valor?: string | null): string {
+  if (!valor) return "";
+  return String(valor).replace(/_/g, " ").replace(/\s+/g, " ").trim().toUpperCase();
+}
+
+/** Padroniza digitação em tempo real (maiúsculas e sem underscores, preservando espaços) */
+function sanitizarDigitacao(valor: string): string {
+  return valor.replace(/_/g, " ").toUpperCase();
+}
 
 /** Converte ISO (YYYY-MM-DD...) ou BR (DD/MM/YYYY) para YYYY-MM-DD exigido pelo <input type="date"> */
 function normalizarDataInput(valor?: string | null): string {
@@ -99,6 +120,14 @@ function normalizarDataInput(valor?: string | null): string {
   }
   return "";
 }
+
+const LABEL_CLASS =
+  "text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground";
+const INPUT_CLASS =
+  "h-10 rounded-xl border-input bg-background text-xs font-semibold uppercase tracking-wide text-foreground placeholder:text-muted-foreground/70 focus-visible:border-[#233329] focus-visible:ring-[#233329]/20 dark:focus-visible:border-[#C8E636] dark:focus-visible:ring-[#C8E636]/20";
+const SELECT_TRIGGER_CLASS =
+  "h-10 rounded-xl border-input bg-background text-xs font-semibold uppercase tracking-wide text-foreground focus:ring-[#233329]/20 dark:focus:ring-[#C8E636]/20";
+const SELECT_ITEM_CLASS = "text-xs font-semibold uppercase tracking-wide";
 
 export function NovoLancamentoShareDialog({
   aberto,
@@ -198,7 +227,7 @@ export function NovoLancamentoShareDialog({
             : "saida";
 
     setFluxo(fluxoResolvido);
-    setDescricao(lancamentoInicial.descricao ?? "");
+    setDescricao(formatarTextoUi(lancamentoInicial.descricao));
     setCategoriaId(lancamentoInicial.categoriaId ?? "");
     setValor(
       lancamentoInicial.valorCentavos != null
@@ -221,9 +250,9 @@ export function NovoLancamentoShareDialog({
     );
     setPeriodicidade(lancamentoInicial.periodicidade ?? "ÚNICO");
     setFornecedorId(lancamentoInicial.fornecedorId ?? "");
-    setFornecedor(lancamentoInicial.fornecedor ?? "");
-    setNumeroDoc(lancamentoInicial.numeroDoc ?? "");
-    setObservacoes(lancamentoInicial.observacoes ?? "");
+    setFornecedor(formatarTextoUi(lancamentoInicial.fornecedor));
+    setNumeroDoc(formatarTextoUi(lancamentoInicial.numeroDoc));
+    setObservacoes(formatarTextoUi(lancamentoInicial.observacoes));
     setCategoriaClienteId(lancamentoInicial.categoriaClienteId ?? "");
     setDataPagamento(
       normalizarDataInput(lancamentoInicial.dataPagamento ?? lancamentoInicial.data_pagamento),
@@ -231,7 +260,7 @@ export function NovoLancamentoShareDialog({
     setContaBancariaId(lancamentoInicial.contaBancariaId || "nenhuma");
     setFormaPagamento(lancamentoInicial.formaPagamento || "nenhuma");
     setComprovanteUrl(lancamentoInicial.comprovanteUrl ?? "");
-    setPagoPor(lancamentoInicial.pagoPor ?? "");
+    setPagoPor(formatarTextoUi(lancamentoInicial.pagoPor));
     setImagens([]);
   }, [aberto, lancamentoInicial, limpar, fluxoInicial, somenteDespesa, somenteEntrada]);
 
@@ -240,11 +269,15 @@ export function NovoLancamentoShareDialog({
     const tiposDoFluxo = fluxo === "saida" ? ["DESPESA", "SAIDA"] : ["RECEITA", "ENTRADA"];
     const categoriasVisiveis = categorias.filter((categoria) => {
       const tipo = String(categoria.tipo ?? "").trim().toUpperCase();
-      return !tipo || tiposDoFluxo.includes(tipo) || (editando && categoria.id === lancamentoInicial?.categoriaId);
+      return (
+        !tipo ||
+        tiposDoFluxo.includes(tipo) ||
+        (editando && categoria.id === lancamentoInicial?.categoriaId)
+      );
     });
 
     categoriasVisiveis.forEach((categoria) => {
-      const grupo = categoria.grupo?.trim() || "OUTRAS";
+      const grupo = formatarTextoUi(categoria.grupo) || "OUTRAS";
       mapa.set(grupo, [...(mapa.get(grupo) ?? []), categoria]);
     });
     return [...mapa.entries()];
@@ -255,40 +288,42 @@ export function NovoLancamentoShareDialog({
     const fornecedorSelecionado = fornecedores.find((item) => item.id === fornecedorId);
     const valorNumerico = Number(valor.replace(/\./g, "").replace(",", "."));
 
-    if (!descricao.trim()) return toast.error("Informe a descrição do lançamento.");
-    if (!categoria) return toast.error("Selecione a categoria do caixa Share.");
+    if (!descricao.trim()) return toast.error("INFORME A DESCRIÇÃO DO LANÇAMENTO.");
+    if (!categoria) return toast.error("SELECIONE A CATEGORIA DO CAIXA SHARE.");
     const tiposDoFluxo = fluxo === "saida" ? ["DESPESA", "SAIDA"] : ["RECEITA", "ENTRADA"];
     const tipoCategoria = String(categoria.tipo ?? "").trim().toUpperCase();
     if (tipoCategoria && !tiposDoFluxo.includes(tipoCategoria)) {
-      return toast.error("Selecione uma categoria compatível com o tipo de lançamento.");
+      return toast.error("SELECIONE UMA CATEGORIA COMPATÍVEL COM O TIPO DE LANÇAMENTO.");
     }
     if (!Number.isFinite(valorNumerico) || valorNumerico <= 0) {
-      return toast.error("Informe um valor válido.");
+      return toast.error("INFORME UM VALOR VÁLIDO.");
     }
 
     setSalvando(true);
     try {
       const emissaoFinal = dataEmissao || null;
       const vencimentoFinal = dataVencimento || null;
+      const fornecedorFinal =
+        formatarTextoUi(fornecedorSelecionado?.nome ?? fornecedor) || null;
 
       const payload = {
-        descricao: descricao.trim(),
+        descricao: formatarTextoUi(descricao),
         fluxo: fluxo === "entrada" ? "ENTRADA" : "SAIDA",
         tipo_caixa: "SHARE",
         categoria_id: categoria.id,
-        categoria_nome: categoria.nome,
-        grupo_categoria: categoria.grupo?.trim() || null,
+        categoria_nome: formatarTextoUi(categoria.nome),
+        grupo_categoria: formatarTextoUi(categoria.grupo) || null,
         valor_total: valorNumerico,
         data: emissaoFinal,
         data_emissao: emissaoFinal,
         prazo: vencimentoFinal,
         data_vencimento: vencimentoFinal,
         fornecedor_id: fornecedorId || null,
-        fornecedor: (fornecedorSelecionado?.nome ?? fornecedor).trim() || null,
-        fornecedor_nome: (fornecedorSelecionado?.nome ?? fornecedor).trim() || null,
-        numero_doc: numeroDoc.trim() || null,
+        fornecedor: fornecedorFinal,
+        fornecedor_nome: fornecedorFinal,
+        numero_doc: formatarTextoUi(numeroDoc) || null,
         periodicidade,
-        observacoes: observacoes.trim() || null,
+        observacoes: formatarTextoUi(observacoes) || null,
         categoria_cliente_id: categoriaClienteId || null,
       };
 
@@ -302,7 +337,7 @@ export function NovoLancamentoShareDialog({
                   conta_bancaria_id: contaBancariaId === "nenhuma" ? null : contaBancariaId,
                   forma_pagamento: formaPagamento === "nenhuma" ? null : formaPagamento,
                   comprovante_url: comprovanteUrl.trim() || null,
-                  pago_por: pagoPor.trim() || null,
+                  pago_por: formatarTextoUi(pagoPor) || null,
                 }
               : {}),
           })
@@ -321,23 +356,29 @@ export function NovoLancamentoShareDialog({
             tipo: imagem.type || "image/*",
           });
         } catch {
-          errosUpload.push(imagem.name);
+          errosUpload.push(formatarTextoUi(imagem.name));
         }
       }
 
       if (errosUpload.length) {
         toast.error(
-          `Lançamento salvo, mas não foi possível anexar: ${errosUpload.join(", ")}. Edite o lançamento para tentar novamente.`,
+          `LANÇAMENTO SALVO, MAS NÃO FOI POSSÍVEL ANEXAR: ${errosUpload.join(", ")}. EDITE O LANÇAMENTO PARA TENTAR NOVAMENTE.`,
         );
       } else {
-        toast.success(editando ? "Lançamento atualizado." : "Lançamento do caixa Share registrado.");
+        toast.success(
+          editando ? "LANÇAMENTO ATUALIZADO." : "LANÇAMENTO DO CAIXA SHARE REGISTRADO.",
+        );
       }
 
       aoCriar(lancamento);
       limpar();
       aoFechar();
     } catch (erro) {
-      toast.error(erro instanceof Error ? erro.message : "Não foi possível salvar o lançamento.");
+      toast.error(
+        erro instanceof Error
+          ? formatarTextoUi(erro.message)
+          : "NÃO FOI POSSÍVEL SALVAR O LANÇAMENTO.",
+      );
     } finally {
       setSalvando(false);
     }
@@ -352,37 +393,56 @@ export function NovoLancamentoShareDialog({
         if (!estado) aoFechar();
       }}
     >
-      <DialogContent className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-2xl overflow-y-auto rounded-2xl border-border bg-card p-4 shadow-2xl sm:w-full sm:p-6">
-        <DialogHeader className="border-b border-border/70 pb-3">
-          <p className="text-[10px] font-bold uppercase tracking-[.16em] text-primary">
-            Financeiro Share · Caixa próprio
-          </p>
-          <DialogTitle className="text-xl font-bold tracking-[-.03em]">
-            {editando ? "Editar lançamento" : somenteDespesa ? "Nova conta a pagar" : "Novo lançamento"}
+      <DialogContent className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-2xl overflow-y-auto rounded-[24px] border-border bg-background p-0 text-foreground uppercase shadow-2xl sm:w-full [&>button]:right-5 [&>button]:top-5 [&>button]:rounded-full [&>button]:bg-white/10 [&>button]:p-1.5 [&>button]:text-white/85 [&>button]:hover:bg-white/20 [&>button]:hover:text-white">
+        {/* CABEÇALHO ESTRUTURAL EM VERDE-MUSGO (COMPATÍVEL COM LIGHT E DARK) */}
+        <DialogHeader className="border-b border-border/60 bg-[#233329] px-5 pb-5 pt-5 text-left dark:bg-[#17221B] sm:px-6">
+          <div className="mb-1.5 inline-flex w-fit items-center gap-1.5 rounded-full bg-[#2D4034] px-3 py-1 dark:bg-[#223328]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#C8E636]" />
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#C8E636]">
+              FINANCEIRO SHARE · CAIXA PRÓPRIO
+            </p>
+          </div>
+          <DialogTitle className="text-xl font-bold uppercase tracking-[-0.02em] text-white">
+            {editando
+              ? "EDITAR LANÇAMENTO"
+              : somenteDespesa
+                ? "NOVA CONTA A PAGAR"
+                : "NOVO LANÇAMENTO"}
           </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Despesas e entradas internas da Share Brasil. Lançamentos rateados de cotistas não entram aqui.
+          <DialogDescription className="text-[11px] font-medium uppercase tracking-wide text-[#C4CFC8]">
+            DESPESAS E ENTRADAS INTERNAS DA SHARE BRASIL. LANÇAMENTOS RATEADOS DE COTISTAS NÃO ENTRAM AQUI.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2 space-y-5">
-          {/* BLOCO 1: Descrição, Valor e Categoria */}
-          <section className="space-y-4">
+        <div className="space-y-4 bg-muted/30 px-4 py-4 dark:bg-background sm:px-6 sm:py-5">
+          {/* BLOCO 1: IDENTIFICAÇÃO, VALOR E CLASSIFICAÇÃO */}
+          <section className="space-y-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex items-center gap-2 border-b border-border/70 pb-2.5">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#233329] text-[#C8E636] dark:bg-[#C8E636]/15 dark:text-[#C8E636]">
+                <Receipt size={13} />
+              </span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">
+                IDENTIFICAÇÃO E CLASSIFICAÇÃO
+              </span>
+            </div>
+
             <div className="space-y-1.5">
-              <Label htmlFor="nl-descricao">Descrição *</Label>
+              <Label htmlFor="nl-descricao" className={LABEL_CLASS}>
+                DESCRIÇÃO *
+              </Label>
               <Input
                 id="nl-descricao"
-                className="h-10"
+                className={INPUT_CLASS}
                 value={descricao}
-                onChange={(evento) => setDescricao(evento.target.value)}
-                placeholder="Ex.: Aluguel da sede — setembro"
+                onChange={(evento) => setDescricao(sanitizarDigitacao(evento.target.value))}
+                placeholder="EX.: ALUGUEL DA SEDE — SETEMBRO"
               />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               {mostrarSeletorFluxo && (
                 <div className="space-y-1.5">
-                  <Label>Tipo de fluxo</Label>
+                  <Label className={LABEL_CLASS}>TIPO DE FLUXO</Label>
                   <Select
                     value={fluxo}
                     onValueChange={(proximoFluxo) => {
@@ -390,63 +450,80 @@ export function NovoLancamentoShareDialog({
                       setCategoriaId("");
                     }}
                   >
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className={SELECT_TRIGGER_CLASS}>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="saida">Saída (despesa)</SelectItem>
-                      <SelectItem value="entrada">Entrada (receita)</SelectItem>
+                    <SelectContent className="uppercase">
+                      <SelectItem value="saida" className={SELECT_ITEM_CLASS}>
+                        SAÍDA (DESPESA)
+                      </SelectItem>
+                      <SelectItem value="entrada" className={SELECT_ITEM_CLASS}>
+                        ENTRADA (RECEITA)
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <Label htmlFor="nl-valor">Valor (R$) *</Label>
-                <Input
-                  id="nl-valor"
-                  className="h-10 font-mono text-base font-semibold"
-                  inputMode="decimal"
-                  value={valor}
-                  onChange={(evento) => setValor(evento.target.value)}
-                  placeholder="0,00"
-                />
+                <Label htmlFor="nl-valor" className={LABEL_CLASS}>
+                  VALOR (R$) *
+                </Label>
+                <div className="relative flex items-center">
+                  <span className="pointer-events-none absolute left-3 text-xs font-bold text-muted-foreground">
+                    R$
+                  </span>
+                  <Input
+                    id="nl-valor"
+                    className={`${INPUT_CLASS} pl-9 font-mono text-base font-bold tabular-nums`}
+                    inputMode="decimal"
+                    value={valor}
+                    onChange={(evento) => setValor(evento.target.value)}
+                    placeholder="0,00"
+                  />
+                </div>
               </div>
 
               {!mostrarSeletorFluxo && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="nl-doc-inline">Documento / NF</Label>
+                  <Label htmlFor="nl-doc-inline" className={LABEL_CLASS}>
+                    DOCUMENTO / NF
+                  </Label>
                   <Input
                     id="nl-doc-inline"
-                    className="h-10"
+                    className={INPUT_CLASS}
                     value={numeroDoc}
-                    onChange={(evento) => setNumeroDoc(evento.target.value)}
-                    placeholder="Ex.: NF-1042"
+                    onChange={(evento) => setNumeroDoc(sanitizarDigitacao(evento.target.value))}
+                    placeholder="EX.: NF-1042"
                   />
                 </div>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label>Categoria do caixa (por grupo) *</Label>
+              <Label className={LABEL_CLASS}>CATEGORIA DO CAIXA (POR GRUPO) *</Label>
               <Select value={categoriaId} onValueChange={setCategoriaId}>
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Selecione a categoria" />
+                <SelectTrigger className={SELECT_TRIGGER_CLASS}>
+                  <SelectValue placeholder="SELECIONE A CATEGORIA" />
                 </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
+                <SelectContent className="max-h-[300px] uppercase">
                   {gruposCategoria.length === 0 && (
-                    <div className="px-3 py-2 text-xs text-muted-foreground">
-                      Nenhuma categoria configurada para este tipo de lançamento.
+                    <div className="px-3 py-2 text-xs font-semibold uppercase text-muted-foreground">
+                      NENHUMA CATEGORIA CONFIGURADA PARA ESTE TIPO DE LANÇAMENTO.
                     </div>
                   )}
                   {gruposCategoria.map(([grupo, itens]) => (
                     <div key={grupo}>
-                      <p className="px-2 py-1.5 text-[9px] font-bold uppercase tracking-[.14em] text-muted-foreground">
-                        {grupo}
+                      <p className="bg-muted/70 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                        {formatarTextoUi(grupo)}
                       </p>
                       {itens.map((categoria) => (
-                        <SelectItem key={categoria.id} value={categoria.id}>
-                          {categoria.nome}
+                        <SelectItem
+                          key={categoria.id}
+                          value={categoria.id}
+                          className={SELECT_ITEM_CLASS}
+                        >
+                          {formatarTextoUi(categoria.nome)}
                         </SelectItem>
                       ))}
                     </div>
@@ -456,171 +533,243 @@ export function NovoLancamentoShareDialog({
             </div>
           </section>
 
-          {/* BLOCO 2: Datas (Emissão e Vencimento) */}
-          <section className="rounded-xl border border-border bg-muted/25 p-3.5">
-            <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-foreground">
-              <Calendar size={14} className="text-primary" />
-              <span>Datas do lançamento</span>
+          {/* BLOCO 2: DATAS E RECORRÊNCIA */}
+          <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2 border-b border-border/70 pb-2.5">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#233329] text-[#C8E636] dark:bg-[#C8E636]/15 dark:text-[#C8E636]">
+                <Calendar size={13} />
+              </span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">
+                DATAS E PERIODICIDADE
+              </span>
             </div>
+
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-1.5">
-                <Label htmlFor="nl-data-emissao">Data de emissão</Label>
+                <Label htmlFor="nl-data-emissao" className={LABEL_CLASS}>
+                  DATA DE EMISSÃO
+                </Label>
                 <Input
                   id="nl-data-emissao"
                   type="date"
-                  className="h-10 bg-background [color-scheme:light] dark:[color-scheme:dark]"
+                  className={`${INPUT_CLASS} tabular-nums [color-scheme:light] dark:[color-scheme:dark]`}
                   value={dataEmissao}
                   onChange={(evento) => setDataEmissao(evento.target.value)}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="nl-data-vencimento">Vencimento</Label>
+                <Label htmlFor="nl-data-vencimento" className={LABEL_CLASS}>
+                  VENCIMENTO
+                </Label>
                 <Input
                   id="nl-data-vencimento"
                   type="date"
-                  className="h-10 bg-background [color-scheme:light] dark:[color-scheme:dark]"
+                  className={`${INPUT_CLASS} tabular-nums [color-scheme:light] dark:[color-scheme:dark]`}
                   value={dataVencimento}
                   onChange={(evento) => setDataVencimento(evento.target.value)}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label>Periodicidade</Label>
-                <Select value={periodicidade} onValueChange={(valor) => setPeriodicidade(valor as Periodicidade)}>
-                  <SelectTrigger className="h-10 bg-background"><SelectValue placeholder="Selecione a periodicidade" /></SelectTrigger>
-                  <SelectContent>
-                    {opcoesPeriodicidade.map((opcao) => <SelectItem key={opcao.id} value={opcao.id}>{opcao.label}</SelectItem>)}
+                <Label className={LABEL_CLASS}>PERIODICIDADE</Label>
+                <Select
+                  value={periodicidade}
+                  onValueChange={(valorSelecionado) =>
+                    setPeriodicidade(valorSelecionado as Periodicidade)
+                  }
+                >
+                  <SelectTrigger className={SELECT_TRIGGER_CLASS}>
+                    <SelectValue placeholder="SELECIONE A PERIODICIDADE" />
+                  </SelectTrigger>
+                  <SelectContent className="uppercase">
+                    {opcoesPeriodicidade.map((opcao) => (
+                      <SelectItem
+                        key={opcao.id}
+                        value={opcao.id}
+                        className={SELECT_ITEM_CLASS}
+                      >
+                        {formatarTextoUi(opcao.label)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </section>
 
-          {/* BLOCO 3: Dados da Baixa (apenas se já estiver pago/recebido) */}
+          {/* BLOCO 3: DADOS DA BAIXA (QUANDO JÁ PAGO/RECEBIDO) */}
           {temBaixaEditavel && (
             <section
-              className="grid gap-4 rounded-xl border border-primary/25 bg-primary/[.03] p-4 sm:grid-cols-2"
-              aria-label="Dados da baixa"
+              className="grid gap-4 rounded-2xl border border-[#233329]/25 bg-[#233329]/[0.04] p-4 dark:border-[#C8E636]/25 dark:bg-[#C8E636]/[0.05] sm:grid-cols-2"
+              aria-label="DADOS DA BAIXA"
             >
-              <div className="sm:col-span-2">
-                <h3 className="text-sm font-semibold">Dados da baixa</h3>
-                <p className="text-xs text-muted-foreground">
-                  Edite os dados do pagamento já registrado neste lançamento.
-                </p>
+              <div className="flex items-start gap-2.5 border-b border-border/70 pb-2.5 sm:col-span-2">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#233329] text-[#C8E636] dark:bg-[#C8E636]/15 dark:text-[#C8E636]">
+                  <CheckCircle2 size={13} />
+                </span>
+                <div>
+                  <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">
+                    DADOS DA BAIXA
+                  </h3>
+                  <p className="text-[10px] font-medium uppercase text-muted-foreground">
+                    EDITE OS DADOS DO PAGAMENTO JÁ REGISTRADO NESTE LANÇAMENTO.
+                  </p>
+                </div>
               </div>
+
               <div className="space-y-1.5">
-                <Label htmlFor="nl-data-pagamento">Data do pagamento</Label>
+                <Label htmlFor="nl-data-pagamento" className={LABEL_CLASS}>
+                  DATA DO PAGAMENTO
+                </Label>
                 <Input
                   id="nl-data-pagamento"
                   type="date"
-                  className="h-10 bg-background [color-scheme:light] dark:[color-scheme:dark]"
+                  className={`${INPUT_CLASS} tabular-nums [color-scheme:light] dark:[color-scheme:dark]`}
                   value={dataPagamento}
                   onChange={(evento) => setDataPagamento(evento.target.value)}
                 />
               </div>
+
               <div className="space-y-1.5">
-                <Label>Conta bancária</Label>
+                <Label className={LABEL_CLASS}>CONTA BANCÁRIA</Label>
                 <Select value={contaBancariaId} onValueChange={setContaBancariaId}>
-                  <SelectTrigger className="h-10 bg-background">
-                    <SelectValue placeholder="Selecione a conta" />
+                  <SelectTrigger className={SELECT_TRIGGER_CLASS}>
+                    <SelectValue placeholder="SELECIONE A CONTA" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="nenhuma">Não informada</SelectItem>
+                  <SelectContent className="uppercase">
+                    <SelectItem value="nenhuma" className={SELECT_ITEM_CLASS}>
+                      NÃO INFORMADA
+                    </SelectItem>
                     {contaBancariaId !== "nenhuma" &&
                       !contasBancarias.some((conta) => conta.id === contaBancariaId) && (
-                        <SelectItem value={contaBancariaId}>
-                          {lancamentoInicial?.contaBancariaRotulo || contaBancariaId}
+                        <SelectItem value={contaBancariaId} className={SELECT_ITEM_CLASS}>
+                          {formatarTextoUi(
+                            lancamentoInicial?.contaBancariaRotulo || contaBancariaId,
+                          )}
                         </SelectItem>
                       )}
                     {contasBancarias.map((conta) => (
-                      <SelectItem key={conta.id} value={conta.id}>
-                        {conta.banco}
-                        {conta.numero_conta ? ` • ${conta.numero_conta}` : ""}
+                      <SelectItem
+                        key={conta.id}
+                        value={conta.id}
+                        className={SELECT_ITEM_CLASS}
+                      >
+                        {formatarTextoUi(conta.banco)}
+                        {conta.numero_conta ? ` · ${formatarTextoUi(conta.numero_conta)}` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-1.5">
-                <Label>Forma de pagamento</Label>
+                <Label className={LABEL_CLASS}>FORMA DE PAGAMENTO</Label>
                 <Select value={formaPagamento} onValueChange={setFormaPagamento}>
-                  <SelectTrigger className="h-10 bg-background">
-                    <SelectValue placeholder="Selecione a forma" />
+                  <SelectTrigger className={SELECT_TRIGGER_CLASS}>
+                    <SelectValue placeholder="SELECIONE A FORMA" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="nenhuma">Não informada</SelectItem>
-                    {formaPagamento !== "nenhuma" && !FORMAS_BAIXA.includes(formaPagamento) && (
-                      <SelectItem value={formaPagamento}>{formaPagamento}</SelectItem>
-                    )}
+                  <SelectContent className="uppercase">
+                    <SelectItem value="nenhuma" className={SELECT_ITEM_CLASS}>
+                      NÃO INFORMADA
+                    </SelectItem>
+                    {formaPagamento !== "nenhuma" &&
+                      !FORMAS_BAIXA.some(
+                        (forma) => formatarTextoUi(forma) === formatarTextoUi(formaPagamento),
+                      ) && (
+                        <SelectItem value={formaPagamento} className={SELECT_ITEM_CLASS}>
+                          {formatarTextoUi(formaPagamento)}
+                        </SelectItem>
+                      )}
                     {FORMAS_BAIXA.map((forma) => (
-                      <SelectItem key={forma} value={forma}>
-                        {forma}
+                      <SelectItem key={forma} value={forma} className={SELECT_ITEM_CLASS}>
+                        {formatarTextoUi(forma)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-1.5">
-                <Label htmlFor="nl-pago-por">Pago por</Label>
+                <Label htmlFor="nl-pago-por" className={LABEL_CLASS}>
+                  PAGO POR
+                </Label>
                 <Input
                   id="nl-pago-por"
-                  className="h-10 bg-background"
+                  className={INPUT_CLASS}
                   value={pagoPor}
-                  onChange={(evento) => setPagoPor(evento.target.value)}
-                  placeholder="Responsável pelo pagamento"
+                  onChange={(evento) => setPagoPor(sanitizarDigitacao(evento.target.value))}
+                  placeholder="RESPONSÁVEL PELO PAGAMENTO"
                 />
               </div>
+
               <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="nl-comprovante">Link do comprovante</Label>
+                <Label htmlFor="nl-comprovante" className={LABEL_CLASS}>
+                  LINK DO COMPROVANTE
+                </Label>
                 <Input
                   id="nl-comprovante"
                   type="url"
-                  className="h-10 bg-background"
+                  className="h-10 rounded-xl border-input bg-background text-xs font-medium text-foreground placeholder:uppercase placeholder:text-muted-foreground/70"
                   value={comprovanteUrl}
                   onChange={(evento) => setComprovanteUrl(evento.target.value)}
-                  placeholder="https://..."
+                  placeholder="HTTPS://..."
                 />
               </div>
             </section>
           )}
 
-          {/* BLOCO 4: Fornecedor, Categoria do Cliente, Anexos e Observações */}
-          <section className="space-y-4">
+          {/* BLOCO 4: VÍNCULOS, COMPROVANTES E OBSERVAÇÕES */}
+          <section className="space-y-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex items-center gap-2 border-b border-border/70 pb-2.5">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#233329] text-[#C8E636] dark:bg-[#C8E636]/15 dark:text-[#C8E636]">
+                <Layers size={13} />
+              </span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">
+                VÍNCULOS E DOCUMENTAÇÃO
+              </span>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Fornecedor</Label>
-                <SearchableCombobox
-                  items={fornecedores.map((item) => ({
-                    id: item.id,
-                    label: `${item.nome}${item.cidade ? ` · ${item.cidade}` : ""}`,
-                  }))}
-                  value={fornecedorId}
-                  onChange={(id, label) => {
-                    setFornecedorId(id);
-                    setFornecedor(label.split(" · ")[0]);
-                  }}
-                  placeholder="Selecione o fornecedor"
-                  searchPlaceholder="Buscar fornecedor..."
-                  emptyMessage="Nenhum fornecedor encontrado."
-                  clearable
-                />
+                <Label className={LABEL_CLASS}>FORNECEDOR</Label>
+                <div className="uppercase [&_button]:h-10 [&_button]:rounded-xl [&_button]:border-input [&_button]:bg-background [&_button]:text-xs [&_button]:font-semibold [&_button]:uppercase [&_button]:text-foreground [&_input]:uppercase">
+                  <SearchableCombobox
+                    items={fornecedores.map((item) => ({
+                      id: item.id,
+                      label: `${formatarTextoUi(item.nome)}${
+                        item.cidade ? ` · ${formatarTextoUi(item.cidade)}` : ""
+                      }`,
+                    }))}
+                    value={fornecedorId}
+                    onChange={(id, label) => {
+                      setFornecedorId(id);
+                      setFornecedor(formatarTextoUi(label.split(" · ")[0]));
+                    }}
+                    placeholder="SELECIONE O FORNECEDOR"
+                    searchPlaceholder="BUSCAR FORNECEDOR..."
+                    emptyMessage="NENHUM FORNECEDOR ENCONTRADO."
+                    clearable
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label>Categoria do cliente (opcional)</Label>
+                <Label className={LABEL_CLASS}>CATEGORIA DO CLIENTE (OPCIONAL)</Label>
                 <Select
                   value={categoriaClienteId || "nenhuma"}
                   onValueChange={(value) => setCategoriaClienteId(value === "nenhuma" ? "" : value)}
                 >
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Sem categoria de cliente" />
+                  <SelectTrigger className={SELECT_TRIGGER_CLASS}>
+                    <SelectValue placeholder="SEM CATEGORIA DE CLIENTE" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    <SelectItem value="nenhuma">Sem categoria de cliente</SelectItem>
+                  <SelectContent className="max-h-[300px] uppercase">
+                    <SelectItem value="nenhuma" className={SELECT_ITEM_CLASS}>
+                      SEM CATEGORIA DE CLIENTE
+                    </SelectItem>
                     {categoriasCliente.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.nome}
+                      <SelectItem key={item.id} value={item.id} className={SELECT_ITEM_CLASS}>
+                        {formatarTextoUi(item.nome)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -629,20 +778,23 @@ export function NovoLancamentoShareDialog({
 
               {mostrarSeletorFluxo && (
                 <div className="space-y-1.5 sm:col-span-2">
-                  <Label htmlFor="nl-doc-full">Documento / NF</Label>
+                  <Label htmlFor="nl-doc-full" className={LABEL_CLASS}>
+                    DOCUMENTO / NF
+                  </Label>
                   <Input
                     id="nl-doc-full"
-                    className="h-10"
+                    className={INPUT_CLASS}
                     value={numeroDoc}
-                    onChange={(evento) => setNumeroDoc(evento.target.value)}
-                    placeholder="Número do documento ou nota fiscal"
+                    onChange={(evento) => setNumeroDoc(sanitizarDigitacao(evento.target.value))}
+                    placeholder="NÚMERO DO DOCUMENTO OU NOTA FISCAL"
                   />
                 </div>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>Imagens e comprovantes</Label>
+            <div className="space-y-2 rounded-xl border border-dashed border-border bg-muted/35 p-3">
+              <Label className={LABEL_CLASS}>IMAGENS E COMPROVANTES</Label>
+
               {lancamentoInicial?.anexos?.length ? (
                 <div className="flex flex-wrap gap-2">
                   {lancamentoInicial.anexos.map((anexo, index) => (
@@ -651,10 +803,10 @@ export function NovoLancamentoShareDialog({
                       href={anexo.url.startsWith("/") ? `${API_BASE}${anexo.url}` : anexo.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-[11px] font-semibold uppercase text-foreground hover:bg-muted"
                     >
-                      <FileText size={13} className="text-primary" />
-                      <span className="max-w-[200px] truncate">{anexo.nome}</span>
+                      <FileText size={13} className="text-[#233329] dark:text-[#C8E636]" />
+                      <span className="max-w-[200px] truncate">{formatarTextoUi(anexo.nome)}</span>
                     </a>
                   ))}
                 </div>
@@ -663,15 +815,17 @@ export function NovoLancamentoShareDialog({
               {imagens.map((arquivo, index) => (
                 <div
                   key={`${arquivo.name}-${arquivo.lastModified}-${index}`}
-                  className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-1.5 text-xs"
+                  className="flex items-center justify-between rounded-xl border border-border bg-card px-3 py-1.5 text-xs uppercase"
                 >
-                  <span className="truncate font-medium">{arquivo.name}</span>
+                  <span className="truncate font-semibold text-foreground">
+                    {formatarTextoUi(arquivo.name)}
+                  </span>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
-                    aria-label={`Remover ${arquivo.name}`}
+                    className="h-7 w-7 rounded-full hover:bg-destructive/15 hover:text-destructive"
+                    aria-label={`REMOVER ${formatarTextoUi(arquivo.name)}`}
                     onClick={() => setImagens((atuais) => atuais.filter((_, i) => i !== index))}
                   >
                     <X size={14} />
@@ -679,7 +833,7 @@ export function NovoLancamentoShareDialog({
                 </div>
               ))}
 
-              <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
                 <input
                   key={inputImagemKey}
                   type="file"
@@ -693,7 +847,7 @@ export function NovoLancamentoShareDialog({
                       (arquivo) =>
                         !arquivo.type.startsWith("image/") || arquivo.size > 20 * 1024 * 1024,
                     );
-                    if (invalidos.length) toast.error("Selecione imagens de até 20 MB cada.");
+                    if (invalidos.length) toast.error("SELECIONE IMAGENS DE ATÉ 20 MB CADA.");
                     setImagens((atuais) => [
                       ...atuais,
                       ...novos.filter(
@@ -708,44 +862,53 @@ export function NovoLancamentoShareDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-9 gap-2"
+                  className="h-9 gap-2 rounded-full border-border bg-card px-4 text-[11px] font-bold uppercase tracking-wider text-foreground hover:bg-[#233329] hover:text-white dark:hover:bg-[#C8E636] dark:hover:text-[#1A241E]"
                   onClick={() => document.getElementById("imagens-lancamento")?.click()}
                 >
-                  <ImagePlus size={15} />
-                  {imagens.length ? "Adicionar mais imagens" : "Anexar imagem"}
+                  <ImagePlus size={14} />
+                  {imagens.length ? "ADICIONAR MAIS IMAGENS" : "ANEXAR IMAGEM"}
                 </Button>
-                <span className="text-[11px] text-muted-foreground">
-                  JPG, PNG ou WebP · até 20 MB por arquivo
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  JPG, PNG OU WEBP · ATÉ 20 MB POR ARQUIVO
                 </span>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="nl-obs">Observações</Label>
+              <Label htmlFor="nl-obs" className={LABEL_CLASS}>
+                OBSERVAÇÕES
+              </Label>
               <Textarea
                 id="nl-obs"
                 rows={2}
+                className="rounded-xl border-input bg-background text-xs font-semibold uppercase tracking-wide text-foreground placeholder:text-muted-foreground/70 focus-visible:border-[#233329] focus-visible:ring-[#233329]/20 dark:focus-visible:border-[#C8E636] dark:focus-visible:ring-[#C8E636]/20"
                 value={observacoes}
-                onChange={(evento) => setObservacoes(evento.target.value)}
-                placeholder="Anotações internas opcionais..."
+                onChange={(evento) => setObservacoes(sanitizarDigitacao(evento.target.value))}
+                placeholder="ANOTAÇÕES INTERNAS OPCIONAIS..."
               />
             </div>
           </section>
         </div>
 
-        <DialogFooter className="sticky bottom-[-1rem] -mx-4 mt-4 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:bottom-[-1.5rem] sm:-mx-6 sm:px-6">
+        {/* RODAPÉ FIXO ADAPTÁVEL AO TEMA */}
+        <DialogFooter className="sticky bottom-0 z-10 gap-2 border-t border-border bg-card/95 px-5 py-3.5 backdrop-blur sm:px-6">
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             onClick={aoFechar}
             disabled={salvando}
-            className="min-h-10"
+            className="min-h-10 rounded-full border-border bg-background px-5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-muted"
           >
-            Cancelar
+            CANCELAR
           </Button>
-          <Button type="button" onClick={salvar} disabled={salvando} className="min-h-10 gap-2">
+          <Button
+            type="button"
+            onClick={salvar}
+            disabled={salvando}
+            className="min-h-10 gap-2 rounded-full bg-[#C8E636] px-6 text-xs font-bold uppercase tracking-wider text-[#1A241E] shadow-sm hover:bg-[#B9D828]"
+          >
             {salvando ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
-            {editando ? "Salvar alterações" : "Salvar lançamento"}
+            {editando ? "SALVAR ALTERAÇÕES" : "SALVAR LANÇAMENTO"}
           </Button>
         </DialogFooter>
       </DialogContent>

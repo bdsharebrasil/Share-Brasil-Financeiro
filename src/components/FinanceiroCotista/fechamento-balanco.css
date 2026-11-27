@@ -145,7 +145,7 @@
   color: #ffffff;
   border: 1px solid color-mix(in srgb, var(--fb-navy) 82%, white);
   border-radius: 12px;
-  padding: 20px 24px;
+  padding: 11px 24px;
   box-shadow: 0 6px 20px rgba(15, 61, 110, 0.1);
 }
 
@@ -863,6 +863,7 @@
 
 .fb .fb-hero-context {
   min-width: 0;
+  font-size: 12.5px;
 }
 
 .fb .fb-hero-context small + small {

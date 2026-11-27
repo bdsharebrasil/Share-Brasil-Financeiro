@@ -410,10 +410,6 @@ export function FechamentoBalancoReferencia({
                 {participante ? `Cotista: ${participante.nome}` : "Consolidado da aeronave"} ·{" "}
                 {periodo}
               </small>
-              <span className="fb-hero-cost-label">
-                {participante ? "Custo atribuído ao cotista" : "Custo total da aeronave"}
-              </span>
-              <div className="fb-big">{money(total.total)}</div>
               {participante && (
                 <div className="fb-hero-aircraft">
                   Custo total da aeronave: <strong>{money(b.total.total)}</strong>

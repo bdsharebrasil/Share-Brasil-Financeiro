@@ -80,7 +80,7 @@ const ABAS: { id: Aba; nome: string }[] = [
 ];
 
 const MESES_PROJECAO = Array.from({ length: 45 }, (_, index) => index + 1);
-const LARGURAS_COLUNAS_LANCAMENTOS = [96, 110, 240, 170, 140, 120, 130, 120, 150];
+const LARGURAS_COLUNAS_LANCAMENTOS = [96, 110, 240, 170, 140, 130, 120, 150];
 const LARGURA_COLUNA_COTISTA = 150;
 const CORES = {
   fixos: "#2f6db5",
@@ -764,7 +764,6 @@ export function FechamentoBalancoReferencia({
                     <th scope="col">Descrição</th>
                     <th scope="col">Favorecido</th>
                     <th scope="col">Categoria</th>
-                    <th scope="col">Status</th>
                     <th scope="col">Tipo Rateio</th>
                     <th scope="col" className="text-right">Valor pago</th>
                     <th scope="col">Pago por</th>
@@ -827,13 +826,6 @@ export function FechamentoBalancoReferencia({
                           title={origem.categoria || undefined}
                         >
                           {origem.categoria || "Sem categoria"}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`fb-status fb-status-${tomStatus(origem.status)}`}>
-                          {String(origem.status || "Não informado")
-                            .replace(/_/g, " ")
-                            .toLocaleUpperCase("pt-BR")}
                         </span>
                       </td>
                       <td>
@@ -1413,15 +1405,6 @@ function numeroDocLancamento(lancamento: LancamentoDoBalanco) {
 function compararDocumentos(a: string | null, z: string | null) {
   if (!a || !z) return a ? -1 : z ? 1 : 0;
   return a.localeCompare(z, "pt-BR", { numeric: true });
-}
-
-function tomStatus(status: string | null | undefined) {
-  const s = String(status ?? "").trim().toUpperCase();
-  if (["PAGO", "PAGO_DIRETAMENTE", "REEMBOLSADO", "RECEBIDO"].includes(s)) return "ok";
-  if (s === "EM_ABERTO") return "pend";
-  if (s === "EM_ATRASO") return "late";
-  if (s === "AGUARDANDO_REEMBOLSO") return "wait";
-  return "neutral";
 }
 
 type VooBalanco = NonNullable<DashboardBalanco["balanco_operacional"]>["voos"][number];

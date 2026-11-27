@@ -324,6 +324,10 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
 
     contaBancariaId: row.contaBancariaId ?? row.conta_bancaria_id ?? null,
 
+    tipoCaixa: row.tipoCaixa ?? row.tipo_caixa ?? (row.movimentos_id ? "HOLDING" : null),
+
+    movimentoHoldingId: row.movimentoHoldingId ?? row.movimentos_id ?? null,
+
     comprovantePagamentoUrl: row.comprovantePagamentoUrl ?? row.comprovante_pagamento_url ?? null,
 
     dataRecebimento: row.dataRecebimento ?? row.data_recebimento ?? null,
@@ -1439,17 +1443,45 @@ export type MovimentoHoldingPendente = {
 
   pago_centavos: number;
 
+  fluxo?: string | null;
+
+  fornecedor_id?: string | null;
+
+  conta_bancaria_id?: string | null;
+
+  conta_tipo_caixa?: string | null;
+
+  conta_bancaria_nome?: string | null;
+
+  data_pagamento?: string | null;
+
+  comprovante_url?: string | null;
+
+  pago_diretamente?: number | boolean | null;
+
+  criado_em?: string | null;
+
+  atualizado_em?: string | null;
+
 };
 
 export async function buscarSolicitacoesPagamento() {
 
-  return financeiroRequest<{ envios: SolicitacaoPagamento[]; reembolsos: ReembolsoColaborador[] }>("/api/financeiro/solicitacoes-pagamento");
+  return financeiroRequest<{ envios: SolicitacaoPagamento[]; holdings: MovimentoHoldingPendente[]; reembolsos: ReembolsoColaborador[] }>("/api/financeiro/solicitacoes-pagamento");
 
 }
 
 export async function buscarMovimentosHoldingPendentes() {
 
   const resposta = await financeiroRequest<{ movimentos?: MovimentoHoldingPendente[] }>("/api/financeiro/movimentos-holding/pendentes");
+
+  return resposta.movimentos ?? [];
+
+}
+
+export async function buscarMovimentosHolding() {
+
+  const resposta = await financeiroRequest<{ movimentos?: MovimentoHoldingPendente[] }>("/api/financeiro/movimentos-holding");
 
   return resposta.movimentos ?? [];
 

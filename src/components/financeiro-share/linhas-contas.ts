@@ -1,4 +1,5 @@
 import type { ContaAPagar, ContaAReceber, Lancamento } from "./tipos";
+import type { MovimentoHoldingPendente } from "@/lib/financeiro-share-api";
 
 export type FluxoLinha =
   | "ESTORNO"
@@ -83,8 +84,8 @@ export function linhasDeContasAPagar(contas: ContaAPagar[]): LinhaConta[] {
   }));
 }
 
-export function linhasDeLancamentosHolding(lancamentos: Lancamento[]): LinhaConta[] {
-  return lancamentos.map((l) => {
+export function linhasDeLancamentosHolding(lancamentos: Lancamento[], movimentos: MovimentoHoldingPendente[] = []): LinhaConta[] {
+  const linhasLancamentos: LinhaConta[] = lancamentos.map((l): LinhaConta => {
     const status = String(l.status ?? "EM_ABERTO").trim().toUpperCase().replace(/[\s-]+/g, "_");
     const entrada = l.fluxo === "ENTRADA";
     const raw = {
@@ -99,9 +100,9 @@ export function linhasDeLancamentosHolding(lancamentos: Lancamento[]): LinhaCont
     return {
       id: l.id,
       documento: l.documento || l.numeroDoc || null,
-      fluxo: entrada ? "ENTRADA" : "SAIDA",
+      fluxo: (entrada ? "ENTRADA" : "SAIDA") as FluxoLinha,
       natureza: entrada ? "RECEITA" : "DESPESA",
-      caixa: "HOLDING",
+      caixa: "HOLDING" as const,
       descricao: l.descricao || "—",
       categoria: l.categoria || "—",
       favorecido: l.cotistaNome || l.cotista || l.fornecedor || "—",
@@ -115,6 +116,56 @@ export function linhasDeLancamentosHolding(lancamentos: Lancamento[]): LinhaCont
       situacao: situacaoDaConta(status, l.prazo || null),
       statusOriginal: status,
       valor: l.valorCentavos / 100,
+      raw,
+    };
+  });
+  const idsExistentes = new Set(lancamentos.map((lancamento) => lancamento.id));
+  return [...linhasLancamentos, ...linhasDeMovimentosHolding(movimentos.filter((movimento) => !idsExistentes.has(movimento.id)))];
+}
+
+export function linhasDeMovimentosHolding(movimentos: MovimentoHoldingPendente[], caixa: "HOLDING" | "SHARE" = "HOLDING"): LinhaConta[] {
+  return movimentos.map((movimento) => {
+    const fluxo = String(movimento.fluxo ?? "SAIDA").trim().toUpperCase() === "ENTRADA" ? "ENTRADA" : "SAIDA";
+    const status = String(movimento.status ?? "EM_ABERTO").trim().toUpperCase().replace(/[\s-]+/g, "_");
+    const raw = {
+      ...movimento,
+      id: movimento.id,
+      lancamentoId: movimento.id,
+      movimentoHoldingId: movimento.id,
+      holdingId: movimento.holding_id,
+      tipoCaixa: "HOLDING",
+      fluxo,
+      fonteLancamento: false,
+      valor: Number(movimento.valor_centavos ?? 0) / 100,
+      dataEmissao: movimento.data_emissao,
+      dataVencimento: movimento.data_vencimento,
+      categoriaNome: movimento.categoria_nome,
+      fornecedor: movimento.fornecedor_nome,
+      fornecedorId: movimento.fornecedor_id ?? null,
+      contaBancariaId: movimento.conta_bancaria_id ?? null,
+      bancoPagamento: movimento.conta_bancaria_nome ?? null,
+      comprovantePagamentoUrl: movimento.comprovante_url ?? null,
+      status,
+    } as unknown as ContaAPagar;
+    return {
+      id: `holding:${movimento.id}`,
+      documento: null,
+      fluxo,
+      natureza: fluxo === "ENTRADA" ? "RECEITA" : "DESPESA",
+      caixa,
+      descricao: movimento.descricao || "—",
+      categoria: movimento.categoria_nome || "—",
+      favorecido: movimento.holding_nome || movimento.socio_nome || movimento.fornecedor_nome || "—",
+      favorecidoPessoa: movimento.socio_nome || null,
+      fornecedor: movimento.fornecedor_nome || null,
+      contaBancaria: movimento.conta_bancaria_nome || movimento.conta_bancaria_id || "—",
+      aeronaveId: movimento.aeronave_id || null,
+      aeronave: movimento.aeronave || null,
+      dataLancamento: movimento.data_emissao || movimento.criado_em || "",
+      dataVencimento: movimento.data_vencimento || null,
+      situacao: situacaoDaConta(status, movimento.data_vencimento || null),
+      statusOriginal: status,
+      valor: Number(movimento.valor_centavos || 0) / 100,
       raw,
     };
   });

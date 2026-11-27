@@ -89,6 +89,9 @@ export interface ContaAPagar {
   bancoPagamento: string | null;
   contaBancariaId?: string | null;
   fluxo?: string | null;
+  tipoCaixa?: CaixaLancamento | string | null;
+  holdingId?: string | null;
+  movimentoHoldingId?: string | null;
   fonteLancamento?: boolean;
   comprovantePagamentoUrl: string | null;
   documento: string | null;

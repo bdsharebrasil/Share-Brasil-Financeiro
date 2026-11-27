@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import {
   buscarContasBancariasHolding,
   buscarSolicitacoesPagamento,
+  darBaixaMovimentoHolding,
   darBaixaContaAPagar,
   darBaixaPagamentoShare,
   carregarDocumentoFinanceiro,
@@ -16,6 +17,7 @@ import {
   type ContaBancaria,
   type ReembolsoColaborador,
   type SolicitacaoPagamento,
+  type MovimentoHoldingPendente,
 } from "@/lib/financeiro-share-api";
 import { buscarAeronavesShare } from "@/lib/colaborador-api";
 import { ModalContaAPagar } from "./ModalContaAPagar";
@@ -28,7 +30,7 @@ const POR_PAGINA = 12;
 const LARGURAS_COLUNAS = [132, 124, 112, 210, 260, 118, 124, 128];
 const LARGURA_MINIMA_COLUNA = 60;
 
-type AbaSolicitacao = "cotista" | "colaborador";
+type AbaSolicitacao = "cotista" | "colaborador" | "holding";
 type FiltroLista = { id: string; label: string; quantidade?: number };
 type AcaoLinha = { rotulo: ReactNode; aoClicar: () => void; desabilitada?: boolean; titulo?: string };
 type LinhaExibida = {
@@ -212,21 +214,41 @@ function contaDaSolicitacao(item: SolicitacaoPagamento, id: string): ContaAPagar
   };
 }
 
-type ItemBaixa = { tipo: "cotista"; item: SolicitacaoPagamento } | { tipo: "colaborador"; item: ReembolsoColaborador };
+function contaDoMovimentoHolding(item: MovimentoHoldingPendente): ContaAPagar {
+  return {
+    id: item.id, dataEmissao: item.data_emissao ?? null, dataVencimento: item.data_vencimento ?? "",
+    valor: Number(item.valor_centavos ?? 0) / 100, categoriaId: null, categoriaNome: item.categoria_nome ?? null,
+    descricao: item.descricao, criadoPor: null, aeronaveId: item.aeronave_id ?? null,
+    fornecedor: item.fornecedor_nome ?? null, fornecedorId: item.fornecedor_id ?? null, cotistaId: null,
+    cotistaNome: item.holding_nome ?? item.socio_nome ?? null, boletoUrl: null, nfUrl: null,
+    dataPagamento: null, bancoPagamento: null, contaBancariaId: null, comprovantePagamentoUrl: item.comprovante_url ?? null,
+    documento: null, documentoUrl: null, lancamentoId: item.id, tipoCaixa: "HOLDING", holdingId: item.holding_id,
+    movimentoHoldingId: item.id, fonteLancamento: false, status: item.status as StatusContaFinanceira,
+    criadoEm: item.criado_em ?? "", atualizadoEm: item.atualizado_em ?? item.criado_em ?? "",
+  };
+}
+
+type ItemBaixa = { tipo: "cotista"; item: SolicitacaoPagamento } | { tipo: "colaborador"; item: ReembolsoColaborador } | { tipo: "holding"; item: MovimentoHoldingPendente };
 
 function podeDarBaixaCliente(item: SolicitacaoPagamento): boolean {
-  return !(["PAGO", "CANCELADO"].includes(item.status.toUpperCase()))
-    && !(["PAGO", "CANCELADO"].includes((item.conta_a_pagar_status ?? "").toUpperCase()));
+  return !( ["PAGO", "CANCELADO"].includes(item.status.toUpperCase()))
+    && !( ["PAGO", "CANCELADO"].includes((item.conta_a_pagar_status ?? "").toUpperCase()));
+}
+
+function podeDarBaixaHolding(item: MovimentoHoldingPendente): boolean {
+  return !["PAGO", "CANCELADO", "RECEBIDO"].includes(String(item.status).toUpperCase());
 }
 
 export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade }: { contasBancarias: ContaBancaria[]; aoAlterarQuantidade?: (quantidade: number) => void }) {
   const [documentoAberto, setDocumentoAberto] = useState<DocumentoAberto | null>(null);
   const [envios, setEnvios] = useState<SolicitacaoPagamento[]>([]);
   const [reembolsos, setReembolsos] = useState<ReembolsoColaborador[]>([]);
+  const [holdings, setHoldings] = useState<MovimentoHoldingPendente[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [aba, setAba] = useState<AbaSolicitacao>("cotista");
-  const [alvo, setAlvo] = useState<ReembolsoColaborador | null>(null);
+  const [alvo, setAlvo] = useState<ReembolsoColaborador | MovimentoHoldingPendente | null>(null);
+  const [baixaHolding, setBaixaHolding] = useState<MovimentoHoldingPendente | null>(null);
   const [contaBaixa, setContaBaixa] = useState<ContaAPagar | null>(null);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [menuAberto, setMenuAberto] = useState<string | null>(null);
@@ -260,11 +282,14 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
       ]);
       const enviosPendentes = dados.envios.filter((item) => naoPago(item.status));
       const reembolsosPendentes = dados.reembolsos.filter((item) => naoPago(item.status));
+      const holdingsPendentes = (dados.holdings ?? []).filter((item) => naoPago(item.status));
       setEnvios(enviosPendentes);
       setReembolsos(reembolsosPendentes);
+      setHoldings(holdingsPendentes);
       aoAlterarQuantidade?.([
         ...enviosPendentes.filter(pendentePagamento),
         ...reembolsosPendentes.filter(pendentePagamento),
+        ...holdingsPendentes,
       ].length);
       setMatriculasAeronaves(
         Object.fromEntries(
@@ -328,31 +353,45 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
 
   useEffect(() => {
     let ativo = true;
-    if (!alvo || String(alvo.tipoCaixa).toUpperCase() !== "HOLDING") {
-      setContasParaPagamento(contasBancarias);
+    const contasShare = contasBancarias.filter((conta) => String(conta.tipo_caixa ?? "SHARE").toUpperCase() === "SHARE");
+    if (!alvo || !("holding_id" in alvo) && String(alvo.tipoCaixa).toUpperCase() !== "HOLDING") {
+      setContasParaPagamento(contasShare);
       return () => { ativo = false; };
     }
     void buscarContasBancariasHolding()
       .then((contas) => {
-        if (ativo) setContasParaPagamento(contas.filter((conta) => !alvo.holdingId || conta.holding_id === alvo.holdingId));
+        if (!ativo) return;
+        const holdingId = "holding_id" in alvo ? alvo.holding_id : alvo.holdingId;
+        const contasHolding = contas.filter((conta) => !holdingId || conta.holding_id === holdingId);
+        const movimentoDireto = "holding_id" in alvo;
+        setContasParaPagamento(movimentoDireto ? [...contasShare, ...contasHolding] : contasHolding);
       })
       .catch(() => { if (ativo) setContasParaPagamento([]); });
     return () => { ativo = false; };
   }, [alvo, contasBancarias]);
 
   function abrirBaixa(item: ReembolsoColaborador) {
+    setBaixaHolding(null);
     setAlvo(item);
     setContaBaixa(contaDoReembolso(item));
   }
 
+  function abrirBaixaHolding(item: MovimentoHoldingPendente) {
+    setBaixaHolding(item);
+    setAlvo(item);
+    setContaBaixa(contaDoMovimentoHolding(item));
+  }
+
   function abrirBaixaCliente(item: SolicitacaoPagamento) {
+    setBaixaHolding(null);
     setAlvo(null);
-    setContasParaPagamento(contasBancarias);
+    setContasParaPagamento(contasBancarias.filter((conta) => String(conta.tipo_caixa ?? "SHARE").toUpperCase() === "SHARE"));
     setContaBaixa(contaDaSolicitacao(item, item.conta_a_pagar_id || item.lancamento_id || item.id));
   }
 
   function fecharBaixa() {
     setAlvo(null);
+    setBaixaHolding(null);
     setContaBaixa(null);
     setFilaBaixa([]);
     setTotalFila(0);
@@ -360,6 +399,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
 
   function abrirBaixaItem(entrada: ItemBaixa) {
     if (entrada.tipo === "colaborador") abrirBaixa(entrada.item);
+    else if (entrada.tipo === "holding") abrirBaixaHolding(entrada.item);
     else abrirBaixaCliente(entrada.item);
   }
 
@@ -386,7 +426,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
 
   function alterarFiltro(valor: string) {
     if (aba === "cotista") setFiltroEnvio(valor);
-    else setFiltroReembolso(valor);
+    else if (aba === "colaborador") setFiltroReembolso(valor);
     setPagina(1);
   }
 
@@ -417,6 +457,11 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
     return atendeFiltro && (!busca || textoBusca(item.id, item.documento, item.descricao, item.fornecedor, item.numeroVoo, item.cotistaNome, item.solicitanteNome, item.aeronaveId, rotuloAeronave(item.aeronaveId, item.matricula_registro ?? item.aeronave_matricula)).includes(busca.toLocaleLowerCase("pt-BR")));
   }), [reembolsos, filtroReembolso, busca, hoje, rotuloAeronave]);
 
+  const holdingsFiltrados = useMemo(() => holdings.filter((item) => {
+    const atendeFiltro = atendeFiltroCaixaCliente(filtroEnvio, item.status);
+    return atendeFiltro && (!busca || textoBusca(item.id, item.descricao, item.holding_nome, item.socio_nome, item.categoria_nome, item.fornecedor_nome, item.aeronave, item.status).includes(busca.toLocaleLowerCase("pt-BR")));
+  }), [holdings, filtroEnvio, busca]);
+
   const opcoesEnvio: FiltroLista[] = useMemo(() => FILTROS_CAIXA_CLIENTE.map((filtro) => ({
     ...filtro,
     quantidade: envios.filter((item) => atendeFiltroCaixaCliente(filtro.id, item.status)).length,
@@ -428,17 +473,18 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
     { id: "VENCIDOS", label: "Vencidos", quantidade: reembolsosVencidos.length },
   ];
 
-  const filtrosAtuais = aba === "cotista" ? opcoesEnvio : opcoesReembolso;
-  const filtroAtual = aba === "cotista" ? filtroEnvio : filtroReembolso;
-  const placeholderBusca = aba === "cotista" ? "Buscar lançamento, cliente ou fornecedor" : "Buscar documento, descrição, fornecedor, voo ou cotista";
+  const filtrosAtuais = aba === "colaborador" ? opcoesReembolso : opcoesEnvio;
+  const filtroAtual = aba === "colaborador" ? filtroReembolso : filtroEnvio;
+  const placeholderBusca = aba === "cotista" ? "Buscar lançamento, cliente ou fornecedor" : aba === "holding" ? "Buscar lançamento, holding, cotista ou fornecedor" : "Buscar documento, descrição, fornecedor, voo ou cotista";
   const temFiltro = busca !== "" || filtroAtual !== "TODOS";
-  const totalItens = aba === "cotista" ? enviosFiltrados.length : reembolsosFiltrados.length;
+  const totalItens = aba === "cotista" ? enviosFiltrados.length : aba === "holding" ? holdingsFiltrados.length : reembolsosFiltrados.length;
   const totalPaginas = Math.max(1, Math.ceil(totalItens / POR_PAGINA));
   const paginaAtual = Math.min(pagina, totalPaginas);
   const inicio = (paginaAtual - 1) * POR_PAGINA;
 
   const enviosVisiveis = enviosFiltrados.slice(inicio, inicio + POR_PAGINA);
   const reembolsosVisiveis = reembolsosFiltrados.slice(inicio, inicio + POR_PAGINA);
+  const holdingsVisiveis = holdingsFiltrados.slice(inicio, inicio + POR_PAGINA);
 
   const linhasEnvio: LinhaExibida[] = enviosVisiveis.map((item) => {
     const chave = `envio:${item.id}`;
@@ -491,11 +537,26 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
     };
   });
 
-  const linhas = aba === "cotista" ? linhasEnvio : linhasReembolso;
+  const linhasHolding: LinhaExibida[] = holdingsVisiveis.map((item) => {
+    const chave = `holding:${item.id}`;
+    const expandida = expandido === chave;
+    const aeronave = rotuloAeronave(item.aeronave_id, item.aeronave);
+    return {
+      chave, expandida, documento: "—", aeronave: aeronave ?? "—", cliente: item.holding_nome ?? "Holding não identificada",
+      selecionavel: podeDarBaixaHolding(item), dataEmissao: dataLegivel(item.data_emissao), vencimento: dataLegivel(item.data_vencimento),
+      principal: item.holding_nome ?? "Holding", secundaria: item.descricao ?? "", valor: `−${formatarMoeda(Number(item.valor_centavos ?? 0) / 100)}`,
+      status: item.status, acoes: podeDarBaixaHolding(item) ? [{ rotulo: "Dar baixa", aoClicar: () => abrirBaixaHolding(item) }] : [],
+      detalhe: expandida ? <div className="nf-detail"><section><h3>Origem</h3><p>Holding · {item.holding_nome ?? "Não identificada"}{item.socio_nome ? ` · ${item.socio_nome}` : ""}</p></section><section><h3>Mais informações</h3><dl>{item.categoria_nome && <div><dt>Categoria</dt><dd>{item.categoria_nome}</dd></div>}{item.fornecedor_nome && <div><dt>Fornecedor</dt><dd>{item.fornecedor_nome}</dd></div>}{item.aeronave && <div><dt>Aeronave</dt><dd>{item.aeronave}</dd></div>}</dl></section></div> : null,
+    };
+  });
+
+  const linhas = aba === "cotista" ? linhasEnvio : aba === "holding" ? linhasHolding : linhasReembolso;
 
   const itensParaBaixa: ItemBaixa[] = aba === "cotista"
     ? enviosFiltrados.filter((item) => selecionados.has(`envio:${item.id}`) && podeDarBaixaCliente(item)).map((item) => ({ tipo: "cotista" as const, item }))
-    : reembolsosFiltrados.filter((item) => selecionados.has(`reembolso:${item.id}`)).map((item) => ({ tipo: "colaborador" as const, item }));
+    : aba === "holding"
+      ? holdingsFiltrados.filter((item) => selecionados.has(`holding:${item.id}`) && podeDarBaixaHolding(item)).map((item) => ({ tipo: "holding" as const, item }))
+      : reembolsosFiltrados.filter((item) => selecionados.has(`reembolso:${item.id}`)).map((item) => ({ tipo: "colaborador" as const, item }));
   const chavesSelecionaveisPagina = linhas.filter((linha) => linha.selecionavel).map((linha) => linha.chave);
   const todasPaginaSelecionadas = chavesSelecionaveisPagina.length > 0 && chavesSelecionaveisPagina.every((chave) => selecionados.has(chave));
 
@@ -540,7 +601,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
       <section className="nf-panel" aria-label="Solicitações de pagamento">
         <div className="nf-panel-top">
           <div className="nf-segment" aria-label="Tipo de solicitação">
-            {([["cotista", "Caixa cliente", envios.length], ["colaborador", "Reembolso colaborador", reembolsos.length]] as const).map(([valor, rotulo, quantidade]) => <button key={valor} aria-pressed={aba === valor} className={aba === valor ? "active" : ""} onClick={() => trocarAba(valor)}>{rotulo}<span>{quantidade}</span></button>)}
+            {([["cotista", "Caixa cliente", envios.length], ["colaborador", "Reembolso colaborador", reembolsos.length], ["holding", "Holding", holdings.length]] as const).map(([valor, rotulo, quantidade]) => <button key={valor} aria-pressed={aba === valor} className={aba === valor ? "active" : ""} onClick={() => trocarAba(valor)}>{rotulo}<span>{quantidade}</span></button>)}
           </div>
         </div>
         <div className="nf-toolbar">
@@ -549,7 +610,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
         </div>
         <div className="nf-list-heading" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div>
-            <h2>{aba === "cotista" ? "Caixa cliente" : "Reembolsos de colaboradores"}</h2>
+            <h2>{aba === "cotista" ? "Caixa cliente" : aba === "holding" ? "Solicitações da Holding" : "Reembolsos de colaboradores"}</h2>
             <p>{carregando ? "Carregando…" : `${totalItens} ${aba === "cotista" ? (totalItens === 1 ? "lançamento" : "lançamentos") : (totalItens === 1 ? "título" : "títulos")} encontrados`}{temFiltro && <button className="nf-text-btn" onClick={limparFiltros}>Limpar filtros</button>}</p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -559,7 +620,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
         </div>
         {carregando ? <div className="nf-empty" role="status"><RefreshCw className="nf-spin" /><h3>Carregando solicitações</h3><p>Organizando as informações de pagamento.</p></div>
           : erro ? <div className="nf-empty" role="alert"><TriangleAlert /><h3>Não foi possível carregar</h3><p>{erro}</p><button className="nf-btn" onClick={() => void carregar()}>Tentar novamente</button></div>
-          : totalItens === 0 ? <div className="nf-empty"><Search /><h3>{temFiltro ? "Nenhum resultado encontrado" : "Nada por aqui"}</h3><p>{temFiltro ? "Ajuste a busca ou o filtro para encontrar o registro." : aba === "cotista" ? "Não há despesas reembolsáveis no caixa cliente." : "Não há reembolsos pendentes de colaboradores."}</p>{temFiltro && <button className="nf-btn" onClick={limparFiltros}>Limpar filtros</button>}</div>
+          : totalItens === 0 ? <div className="nf-empty"><Search /><h3>{temFiltro ? "Nenhum resultado encontrado" : "Nada por aqui"}</h3><p>{temFiltro ? "Ajuste a busca ou o filtro para encontrar o registro." : aba === "cotista" ? "Não há despesas reembolsáveis no caixa cliente." : aba === "holding" ? "Não há pagamentos pendentes da Holding." : "Não há reembolsos pendentes de colaboradores."}</p>{temFiltro && <button className="nf-btn" onClick={limparFiltros}>Limpar filtros</button>}</div>
           : <>
             <div ref={tabelaRef} onPointerDown={iniciarArraste} className="erp-tabela-container nf-table-wrap" role="region" aria-label={aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"} tabIndex={0}>
               <table className="erp-tabela" style={{ zoom: zoom / 100 }}>
@@ -623,7 +684,8 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
         onFechar={fecharBaixa}
         contasBancarias={contasParaPagamento}
         onConfirmar={async (dados) => {
-          if (contaBaixa.fonteLancamento) await darBaixaPagamentoShare(contaBaixa.lancamentoId || contaBaixa.id, dados);
+          if (baixaHolding) await darBaixaMovimentoHolding(baixaHolding.id, { dataPagamento: dados.dataPagamento, contaBancariaId: dados.contaBancariaId, formaPagamento: dados.formaPagamento, comprovanteUrl: dados.comprovantePagamentoUrl });
+          else if (contaBaixa.fonteLancamento) await darBaixaPagamentoShare(contaBaixa.lancamentoId || contaBaixa.id, dados);
           else await darBaixaContaAPagar(contaBaixa.id, dados);
           toast.success("Baixa registrada.");
           const [proximo, ...restante] = filaBaixa;

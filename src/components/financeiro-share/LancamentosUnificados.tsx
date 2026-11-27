@@ -41,6 +41,7 @@ import { IconeAnexo } from "./IconeAnexo";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
   buscarCaixaEmpresa,
+  buscarMovimentosHolding,
   buscarOpcoesFinanceiroShare,
   carregarDocumentoFinanceiro,
   darBaixaContaAPagar,
@@ -51,6 +52,7 @@ import {
   formatarMoeda,
   type CategoriaCaixaShare,
   type ContaBancaria,
+  type MovimentoHoldingPendente,
 } from "@/lib/financeiro-share-api";
 import { useContasAPagar } from "@/hooks/useContasAPagar";
 import { useContasAReceber } from "@/hooks/useContasAReceber";
@@ -59,6 +61,7 @@ import {
   linhasDeContasAPagar,
   linhasDeContasAReceber,
   linhasDeLancamentosHolding,
+  linhasDeMovimentosHolding,
   type FluxoLinha,
   type LinhaConta,
   type SituacaoLinha,
@@ -78,14 +81,14 @@ export type DetalhesLancamento = {
 type AnexoLancamento = { nome: string; href: string; numero?: string | null };
 
 type Props = {
-  fluxo: FluxoLinha;
+  fluxo: FluxoLinha | "TODOS";
   caixa?: "HOLDING";
   filtroInicial?: { situacao?: SituacaoLinha; inicio?: string; fim?: string };
   obterDetalhes?: (linha: LinhaConta) => DetalhesLancamento;
 };
 
 type ChaveColuna =
-  | "documento" | "aeronave" | "descricao" | "favorecido"
+  | "documento" | "aeronave" | "descricao" | "fluxo" | "favorecido"
   | "fornecedor" | "contaBancaria" | "data" | "situacao" | "valor";
 type Coluna = { chave: ChaveColuna; rotulo: string; largura?: number };
 type FiltroSituacao = "TODAS" | "EM_ABERTO" | "PAGO" | "EM_ATRASO" | "RECEBIDO" | "AGUARDANDO_REEMBOLSO" | "REEMBOLSADO" | "CANCELADO";
@@ -355,6 +358,8 @@ function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
       const tituloDesc = linha.categoria ? `${linha.descricao} (${linha.categoria})` : linha.descricao;
       return <td key={chave} title={tituloDesc}><span className="erp-descricao">{linha.descricao}</span></td>;
     }
+    case "fluxo":
+      return <td key={chave}><span className={`erp-status erp-status-${linha.fluxo === "ENTRADA" ? "sucesso" : "atrasado"}`}>{linha.fluxo === "ENTRADA" ? "ENTRADA" : "SAÍDA"}</span></td>;
     case "favorecido":
       return <td key={chave} title={linha.favorecido || undefined}>{linha.favorecido || "—"}</td>;
     case "fornecedor":
@@ -373,23 +378,36 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
   const receber = useContasAReceber();
   const ehEntrada = fluxo === "ENTRADA";
   const ehHolding = caixa === "HOLDING";
-  const fluxosFiltro: FluxoLinha[] = ehEntrada ? ["ENTRADA", "ENTRADA REEMBOLSO"] : ["SAIDA", "SAIDA REEMBOLSO"];
-  const titulo = `${ehEntrada ? "Registrar Entrada" : "Registrar Saída"}${ehHolding ? " · Holding" : ""}`;
+  const fluxosFiltro: FluxoLinha[] = fluxo === "TODOS" ? ["ENTRADA", "SAIDA"] : ehEntrada ? ["ENTRADA", "ENTRADA REEMBOLSO"] : ["SAIDA", "SAIDA REEMBOLSO"];
+  const titulo = ehHolding ? "Lançamentos · Holding" : `${ehEntrada ? "Registrar Entrada" : "Registrar Saída"}`;
   const [lancamentosHolding, setLancamentosHolding] = useState<Lancamento[]>([]);
+  const [movimentosHolding, setMovimentosHolding] = useState<MovimentoHoldingPendente[]>([]);
+  const [movimentosHoldingShare, setMovimentosHoldingShare] = useState<MovimentoHoldingPendente[]>([]);
   const [carregandoHolding, setCarregandoHolding] = useState(ehHolding);
   const [erroHolding, setErroHolding] = useState<string | null>(null);
   const recarregarHolding = useCallback(async () => {
     setCarregandoHolding(true);
     setErroHolding(null);
     try {
-      setLancamentosHolding(await buscarCaixaEmpresa({ caixa: "HOLDING", fluxo: ehEntrada ? "ENTRADA" : "SAIDA" }));
+      const [lancamentos, movimentos] = await Promise.all([
+        buscarCaixaEmpresa({ caixa: "HOLDING" }),
+        buscarMovimentosHolding(),
+      ]);
+      setLancamentosHolding(lancamentos);
+      setMovimentosHolding(movimentos);
     } catch (causa) {
       setErroHolding(causa instanceof Error ? causa.message : "Não foi possível carregar os lançamentos da holding.");
     } finally {
       setCarregandoHolding(false);
     }
-  }, [ehEntrada]);
+  }, []);
   useEffect(() => { if (ehHolding) void recarregarHolding(); }, [ehHolding, recarregarHolding]);
+  useEffect(() => {
+    if (ehHolding) return;
+    let ativo = true;
+    void buscarMovimentosHolding().then((movimentos) => { if (ativo) setMovimentosHoldingShare(movimentos); }).catch(() => undefined);
+    return () => { ativo = false; };
+  }, [ehHolding]);
   const carregando = ehHolding ? carregandoHolding : ehEntrada ? receber.carregando : pagar.carregando;
   const erro = ehHolding ? erroHolding : ehEntrada ? receber.erro : pagar.erro;
   const recarregar = ehHolding ? recarregarHolding : ehEntrada ? receber.recarregar : pagar.recarregar;
@@ -407,13 +425,18 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
 
   const [matriculasAeronaves, setMatriculasAeronaves] = useState<Record<string, string>>({});
   const lancamentos = useMemo(() => {
-    const linhas = ehHolding ? linhasDeLancamentosHolding(lancamentosHolding)
-      : ehEntrada ? linhasDeContasAReceber(receber.contas) : linhasDeContasAPagar(pagar.contas);
+    const linhas = ehHolding ? linhasDeLancamentosHolding(lancamentosHolding, movimentosHolding)
+      : ehEntrada ? linhasDeContasAReceber(receber.contas) : [
+        ...linhasDeContasAPagar(pagar.contas),
+        ...linhasDeMovimentosHolding(movimentosHoldingShare.filter((movimento) =>
+          String(movimento.status).toUpperCase() === "PAGO" && String(movimento.conta_tipo_caixa).toUpperCase() === "SHARE"
+          && !pagar.contas.some((conta) => conta.movimentoHoldingId === movimento.id)), "SHARE"),
+      ];
     return linhas.map((linha) => ({
       ...linha,
       aeronave: linha.aeronave || (linha.aeronaveId ? matriculasAeronaves[linha.aeronaveId] : null) || null,
     }));
-  }, [ehHolding, ehEntrada, lancamentosHolding, receber.contas, pagar.contas, matriculasAeronaves]);
+  }, [ehHolding, ehEntrada, lancamentosHolding, movimentosHolding, movimentosHoldingShare, receber.contas, pagar.contas, matriculasAeronaves]);
 
   const [busca, setBusca] = useState("");
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -598,13 +621,16 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
     { chave: "documento", rotulo: "DOC", largura: 106 },
     { chave: "aeronave", rotulo: "Aeronave", largura: 94 },
     { chave: "descricao", rotulo: "Descrição", largura: 220 },
+    ...(ehHolding ? [{ chave: "fluxo" as const, rotulo: "Fluxo", largura: 92 }] : []),
     ...(ehEntrada
       ? [{ chave: "favorecido" as const, rotulo: "Favorecido", largura: 170 }]
-      : [{ chave: "fornecedor" as const, rotulo: "Fornecedor", largura: 165 }]),
+      : ehHolding
+        ? [{ chave: "favorecido" as const, rotulo: "Favorecido / fornecedor", largura: 170 }]
+        : [{ chave: "fornecedor" as const, rotulo: "Fornecedor", largura: 165 }]),
     { chave: "contaBancaria", rotulo: "Conta", largura: 118 },
     { chave: "situacao", rotulo: "Status", largura: 112 },
     { chave: "valor", rotulo: "Valor", largura: 114 },
-  ], [ehEntrada]);
+  ], [ehEntrada, ehHolding]);
 
   const colunasExibidas = useMemo<Coluna[]>(() => {
     const porChave = new Map<ChaveColuna, Coluna>(colunas.map((coluna) => [coluna.chave, coluna]));

@@ -1,6 +1,7 @@
 import "./fechamento-balanco.css";
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowRight, FileDown, Minus, Plus, RotateCcw, Search } from "lucide-react";
+import "./lancamentos-cotista-table.css";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowRight, FileDown, Search } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,6 @@ import { BalancoClientePdf } from "./BalancoClientePdf";
 import { calcularAcertoContasCotistas } from "@/lib/acerto-contas-cotistas";
 import { AcertoContasCotistasResumo } from "./AcertoContasCotistasResumo";
 import { CuriosidadesVooCotista } from "./CuriosidadesVooCotista";
-import { CabecalhoRateioCotista, CelulaRateioCotista } from "./RateioCotistaTableCells";
 
 type Props = {
   dashboard: DashboardCotista | null;
@@ -79,10 +79,8 @@ const ABAS: { id: Aba; nome: string }[] = [
 ];
 
 const MESES_PROJECAO = Array.from({ length: 45 }, (_, index) => index + 1);
-const ZOOMS_TABELA = [80, 90, 100, 110, 120] as const;
-const ZOOM_PADRAO_TABELA = 90;
-const PESOS_COLUNAS_TABELA = [8, 6, 20, 9, 9, 7, 8, 8, 8] as const;
-const PESO_COLUNA_COTISTA = 10;
+const LARGURAS_COLUNAS_LANCAMENTOS = [96, 110, 240, 170, 140, 120, 130, 120, 150];
+const LARGURA_COLUNA_COTISTA = 150;
 const CORES = {
   fixos: "#2f6db5",
   variaveis: "#52794a",
@@ -104,31 +102,6 @@ export function FechamentoBalancoReferencia({
   const [fatorFixo, setFatorFixo] = useState(1);
   const [categoria, setCategoria] = useState("Todas");
   const [busca, setBusca] = useState("");
-  const [zoomTabela, setZoomTabela] = useState<number>(() => {
-    if (typeof window === "undefined") return ZOOM_PADRAO_TABELA;
-    try {
-      const salvo = Number(window.localStorage.getItem("share:fechamento:zoom-tabela"));
-      return ZOOMS_TABELA.some((valor) => valor === salvo) ? salvo : ZOOM_PADRAO_TABELA;
-    } catch {
-      return ZOOM_PADRAO_TABELA;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem("share:fechamento:zoom-tabela", String(zoomTabela));
-    } catch {
-      /* Armazenamento desabilitado */
-    }
-  }, [zoomTabela]);
-
-  const alterarZoomTabela = (passo: -1 | 1) => {
-    setZoomTabela((atual) => {
-      const indice = ZOOMS_TABELA.findIndex((valor) => valor === atual);
-      return ZOOMS_TABELA[Math.max(0, Math.min(ZOOMS_TABELA.length - 1, indice + passo))];
-    });
-  };
-
   const [dialogPdfAberto, setDialogPdfAberto] = useState(false);
   const [cotistasPdfSelecionados, setCotistasPdfSelecionados] = useState<string[]>([]);
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -301,10 +274,9 @@ export function FechamentoBalancoReferencia({
   const custoNaoClassificado = total.naoClassificados;
   const seriesCusto = meses.map((mes) => ({ ...mes, nome: mes.nome }));
 
-  const pesoTotalColunas =
-    PESOS_COLUNAS_TABELA.reduce<number>((totalPeso, peso) => totalPeso + peso, 0) +
-    cotistas.length * PESO_COLUNA_COTISTA;
-  const larguraMinimaTabela = Math.ceil(Math.max(1080, 900 + cotistas.length * 145) * Math.max(1, zoomTabela / 100));
+  const larguraTabelaLancamentos =
+    LARGURAS_COLUNAS_LANCAMENTOS.reduce((soma, largura) => soma + largura, 0) +
+    cotistas.length * LARGURA_COLUNA_COTISTA;
 
   const abrirDialogPdf = () => {
     const selecionado = participante ? [participante.id] : b.participantes.map((item) => item.id);
@@ -718,141 +690,141 @@ export function FechamentoBalancoReferencia({
 
       {aba === "lancamentos" && (
         <section id="fb-panel-lancamentos" role="tabpanel" aria-labelledby="fb-tab-lancamentos">
-          <section className="fb-card fb-ledger-card">
-            <header className="fb-ledger-head">
-              <div>
-                <span className="fb-kicker">Lançamentos do fechamento</span>
+          <section className="cotista-ledger-shell" aria-label="Lançamentos do fechamento">
+            <header className="cotista-ledger-header">
+              <div className="cotista-ledger-title">
                 <h2>Despesas consideradas no período</h2>
               </div>
-              <div className="fb-ledger-total">
-                <span>Total listado</span>
-                <strong>{formatarCentavos(totalListado)}</strong>
+              <div className="cotista-ledger-kpis">
+                <div className="cotista-kpi-item">
+                  <span>Lançamentos</span>
+                  <strong>{lancamentosFiltrados.length}</strong>
+                </div>
+                <div className="cotista-kpi-item">
+                  <span>Total listado</span>
+                  <strong>{formatarCentavos(totalListado)}</strong>
+                </div>
               </div>
             </header>
 
-            <div className="fb-ledger-tools">
-              <select
-                value={categoria}
-                onChange={(event) => setCategoria(event.target.value)}
-                aria-label="Filtrar por categoria"
-              >
-                <option>Todas</option>
-                {categorias.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-
-              <label className="fb-search">
-                <Search size={15} aria-hidden="true" />
-                <input
-                  type="search"
-                  placeholder="Buscar fornecedor ou descrição..."
-                  value={busca}
-                  onChange={(event) => setBusca(event.target.value)}
-                  aria-label="Buscar lançamentos"
-                />
-              </label>
-
-              <span className="fb-ledger-count">{lancamentosFiltrados.length} lançamentos</span>
-
-              <div
-                className="fb-zoom-control"
-                role="group"
-                aria-label="Ajustar tamanho da tabela de lançamentos"
-              >
-                <button
-                  type="button"
-                  onClick={() => alterarZoomTabela(-1)}
-                  disabled={zoomTabela === ZOOMS_TABELA[0]}
-                  aria-label="Diminuir tabela"
-                  title="Diminuir tabela"
+            <div className="cotista-toolbar" role="group" aria-label="Controles dos lançamentos do fechamento">
+              <div className="cotista-toolbar-left">
+                <div className="cotista-search-box">
+                  <Search size={14} aria-hidden="true" />
+                  <input
+                    type="search"
+                    placeholder="Buscar fornecedor ou descrição..."
+                    value={busca}
+                    onChange={(event) => setBusca(event.target.value)}
+                    aria-label="Buscar lançamentos"
+                  />
+                </div>
+                <select
+                  className="cotista-btn"
+                  value={categoria}
+                  onChange={(event) => setCategoria(event.target.value)}
+                  aria-label="Filtrar por categoria"
                 >
-                  <Minus size={13} />
-                </button>
-                <output aria-live="polite" aria-label="Tamanho da tabela">
-                  {zoomTabela}%
-                </output>
-                <button
-                  type="button"
-                  onClick={() => alterarZoomTabela(1)}
-                  disabled={zoomTabela === ZOOMS_TABELA[ZOOMS_TABELA.length - 1]}
-                  aria-label="Aumentar tabela"
-                  title="Aumentar tabela"
-                >
-                  <Plus size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setZoomTabela(ZOOM_PADRAO_TABELA)}
-                  disabled={zoomTabela === ZOOM_PADRAO_TABELA}
-                  aria-label="Restaurar tamanho padrão da tabela"
-                  title="Restaurar tamanho padrão"
-                >
-                  <RotateCcw size={12} />
-                </button>
+                  <option>Todas</option>
+                  {categorias.map((item) => (
+                    <option key={item}>{item}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="cotista-toolbar-right">
+                <span className="cotista-top-pagination">
+                  <strong className="text-slate-200">{lancamentosFiltrados.length}</strong> lançamentos
+                </span>
               </div>
             </div>
 
             <div
-              className="fb-scroll fb-ledger"
-              style={
-                {
-                  "--fb-zoom": zoomTabela / 100,
-                  "--fb-table-min-width": `${larguraMinimaTabela}px`,
-                } as CSSProperties
-              }
+              className="cotista-table-viewport"
+              role="region"
+              aria-label="Tabela de lançamentos do fechamento"
+              tabIndex={0}
             >
-              <table className="fb-ledger-table">
+              <table className="cotista-grid-table" style={{ width: larguraTabelaLancamentos }}>
                 <colgroup>
-                  {PESOS_COLUNAS_TABELA.map((peso, indice) => (
-                    <col key={indice} style={{ width: `${(peso * 100) / pesoTotalColunas}%` }} />
+                  {LARGURAS_COLUNAS_LANCAMENTOS.map((largura, indice) => (
+                    <col key={indice} style={{ width: largura }} />
                   ))}
                   {cotistas.map((cotista) => (
-                    <col
-                      key={cotista.id}
-                      style={{ width: `${(PESO_COLUNA_COTISTA * 100) / pesoTotalColunas}%` }}
-                    />
+                    <col key={cotista.id} style={{ width: LARGURA_COLUNA_COTISTA }} />
                   ))}
                 </colgroup>
                 <thead>
                   <tr>
-                    <th>Data</th>
-                    <th>Doc</th>
-                    <th>Descrição</th>
-                    <th>Favorecido</th>
-                    <th>Categoria</th>
-                    <th>Status</th>
-                    <th>Tipo Rateio</th>
-                    <th className="fb-num">Valor pago</th>
-                    <th>Pago por</th>
-                    {cotistas.map((cotista, i) => (
-                      <CabecalhoRateioCotista key={cotista.id} cotista={cotista} indice={i} />
+                    <th scope="col" className="cotista-sticky-left">Data</th>
+                    <th scope="col">Doc</th>
+                    <th scope="col">Descrição</th>
+                    <th scope="col">Favorecido</th>
+                    <th scope="col">Categoria</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Tipo Rateio</th>
+                    <th scope="col" className="text-right">Valor pago</th>
+                    <th scope="col">Pago por</th>
+                    {cotistas.map((cotista, indice) => (
+                      <th
+                        key={cotista.id}
+                        scope="col"
+                        className={`is-cotista-col ${indice === 0 ? "is-cotista-first" : ""}`}
+                      >
+                        <span className="cotista-th-title">
+                          <span>{cotista.nome}</span>
+                          <small>Rateio · % / valor</small>
+                        </span>
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {lancamentosFiltrados.map((origem) => (
-                    <tr key={origem.id}>
-                      <td>
-                        <div className="fb-date-stack">
-                          <span>
-                            <small>Em.</small>
-                            <b>{formatarDataSemAno(origem.dataEmissao || origem.data)}</b>
+                    <tr key={origem.id} className="cotista-row">
+                      <td className="cotista-sticky-left">
+                        <div className="flex flex-col gap-0.5 font-mono text-[11.5px] text-slate-200">
+                          <span className="whitespace-nowrap">
+                            <small className="mr-1 text-[9.5px] uppercase text-slate-400">Em.</small>
+                            {formatarDataSemAno(origem.dataEmissao || origem.data)}
                           </span>
-                          <span>
-                            <small>Venc.</small>
-                            <b>{formatarDataSemAno(origem.prazo)}</b>
+                          <span className="whitespace-nowrap">
+                            <small className="mr-1 text-[9.5px] uppercase text-slate-400">Venc.</small>
+                            {formatarDataSemAno(origem.prazo)}
                           </span>
                         </div>
                       </td>
-                      <td className="fb-doc">{numeroDocLancamento(origem) || "—"}</td>
                       <td>
-                        <span className="fb-desc-content" title={origem.descricao || undefined}>
+                        <span
+                          className="cotista-cell-ellipsis font-mono text-[11.5px] text-slate-300"
+                          title={numeroDocLancamento(origem) || undefined}
+                        >
+                          {numeroDocLancamento(origem) || "—"}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className="cotista-cell-ellipsis font-medium text-slate-100"
+                          title={origem.descricao || undefined}
+                        >
                           {origem.descricao || "—"}
                         </span>
                       </td>
-                      <td>{nomeFornecedorLancamento(origem, fornecedores) || "Não informado"}</td>
-                      <td>{origem.categoria || "Sem categoria"}</td>
+                      <td>
+                        <span
+                          className="cotista-cell-ellipsis text-slate-300"
+                          title={nomeFornecedorLancamento(origem, fornecedores) || undefined}
+                        >
+                          {nomeFornecedorLancamento(origem, fornecedores) || "Não informado"}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className="cotista-cell-ellipsis text-slate-300"
+                          title={origem.categoria || undefined}
+                        >
+                          {origem.categoria || "Sem categoria"}
+                        </span>
+                      </td>
                       <td>
                         <span className={`fb-status fb-status-${tomStatus(origem.status)}`}>
                           {String(origem.status || "Não informado")
@@ -861,47 +833,83 @@ export function FechamentoBalancoReferencia({
                         </span>
                       </td>
                       <td>
-                        <span className="fb-tag">{tipoRateioLancamento(origem)}</span>
+                        <span className="cotista-cell-ellipsis text-[11.5px] text-slate-300">
+                          {tipoRateioLancamento(origem)}
+                        </span>
                       </td>
-                      <td className="fb-num fb-money">
-                        {formatarCentavos(valorPagoLancamento(origem))}
+                      <td>
+                        <span className="cotista-cell-money text-slate-100">
+                          {formatarCentavos(valorPagoLancamento(origem))}
+                        </span>
                       </td>
-                      <td>{nomePagadoresDoLancamento(origem, cotistas)}</td>
-                      {cotistas.map((cotista, i) => (
-                        <CelulaRateioCotista
-                          key={cotista.id}
-                          lancamento={origem}
-                          cotista={cotista}
-                          cotistas={cotistas}
-                          indice={i}
-                        />
-                      ))}
+                      <td>
+                        <span
+                          className="cotista-cell-ellipsis text-slate-200"
+                          title={nomePagadoresDoLancamento(origem, cotistas) || undefined}
+                        >
+                          {nomePagadoresDoLancamento(origem, cotistas)}
+                        </span>
+                      </td>
+                      {cotistas.map((cotista, indice) => {
+                        const rateio = rateioDoCotista(origem, cotista, cotistas);
+                        return (
+                          <td
+                            key={cotista.id}
+                            className={`is-cotista-col ${indice === 0 ? "is-cotista-first" : ""}`}
+                          >
+                            {rateio ? (
+                              <div className="cotista-rateio-box">
+                                <span className="cotista-rateio-meta">
+                                  {rateio.percentual == null ? "—" : `${fmt(rateio.percentual)}%`}
+                                </span>
+                                <span className="cotista-rateio-amount">
+                                  {money(rateio.valorCentavos)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="cotista-rateio-meta">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr>
-                    <td colSpan={9}>
-                      {lancamentosFiltrados.length} lançamentos · total rateado por cotista
-                    </td>
-                    {cotistas.map((cotista, i) => (
-                      <td className={`fb-num fb-tone-${i % 2}`} key={cotista.id}>
-                        {formatarCentavos(
-                          lancamentosFiltrados.reduce(
-                            (soma, item) =>
-                              soma + (rateioDoCotista(item, cotista, cotistas)?.valorCentavos ?? 0),
-                            0,
-                          ),
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                </tfoot>
               </table>
             </div>
             {!lancamentosFiltrados.length && (
-              <Vazio>Nenhum lançamento encontrado com esses filtros.</Vazio>
+              <div className="px-4 py-12 text-center text-slate-400">
+                Nenhum lançamento encontrado com esses filtros.
+              </div>
             )}
+
+            <footer className="cotista-summary-footer">
+              <div className="flex flex-wrap items-center gap-3 text-slate-300">
+                <span>
+                  Total listado (<strong>{lancamentosFiltrados.length}</strong> itens):{" "}
+                  <strong className="font-mono text-white">{formatarCentavos(totalListado)}</strong>
+                </span>
+                <span className="text-slate-600">|</span>
+                <span className="text-[11px] uppercase tracking-wider text-slate-400">
+                  Rateio por Cotista:
+                </span>
+              </div>
+              <div className="cotista-summary-cotistas">
+                {cotistas.map((cotista) => {
+                  const totalRateado = lancamentosFiltrados.reduce(
+                    (soma, item) =>
+                      soma + (rateioDoCotista(item, cotista, cotistas)?.valorCentavos ?? 0),
+                    0,
+                  );
+                  return (
+                    <div key={cotista.id} className="cotista-summary-chip">
+                      <span className="font-medium text-slate-200">{cotista.nome}</span>
+                      <strong>{formatarCentavos(totalRateado)}</strong>
+                    </div>
+                  );
+                })}
+              </div>
+            </footer>
           </section>
         </section>
       )}

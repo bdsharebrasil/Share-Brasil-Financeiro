@@ -128,7 +128,7 @@ export default function LayoutInterno() {
 
   const renderConteudo = () => {
     if (menuAtivo === "perfil") return <Perfil tema={tema} onAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} />;
-    if (ambiente === "operacoes" && menuAtivo === "agendamentos") return <Agendamentos aoAbrirPlano={(id) => { setPlanoAgendamentoId(id); setMenuAtivo("plano-de-voo"); }} />;
+    if (ambiente === "operacoes" && menuAtivo === "agendamentos") return <Agendamentos aoFechar={() => setMenuAtivo("overview")} aoAbrirPlano={(id) => { setPlanoAgendamentoId(id); setMenuAtivo("plano-de-voo"); }} />;
     if (ambiente === "operacoes" && menuAtivo === "plano-de-voo") return <PlanoDeVoo agendamentoInicialId={planoAgendamentoId} />;
     if (ambiente === "operacoes" && menuAtivo === "diario-de-bordo") return <DiarioBordo aoVoltar={() => setMenuAtivo("overview")} aoAbrirAerodromos={() => setMenuAtivo("aerodromos")} />;
     if (ambiente === "operacoes" && menuAtivo === "aerodromos") return <Aerodromos aoVoltar={() => setMenuAtivo("diario-de-bordo")} />;

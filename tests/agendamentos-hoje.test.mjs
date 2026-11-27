@@ -28,9 +28,13 @@ test('a tela inicial não renderiza filtros repetidos e mantém aprovação some
   const pagina = await readFile(new URL('../src/pages/Agendamentos.tsx', import.meta.url), 'utf8');
   const detalhes = await readFile(new URL('../src/components/agendamento/AgendamentoDetalhes.tsx', import.meta.url), 'utf8');
   const cronograma = await readFile(new URL('../src/components/agendamento/AgendamentoCronograma.tsx', import.meta.url), 'utf8');
-  assert.match(pagina, /cronograma: "Voos de hoje"/);
-  assert.match(pagina, /mostrarFiltros=\{false\}/);
-  assert.match(pagina, /operacaoNaData\(item, hoje\)/);
+  const lista = await readFile(new URL("../src/components/agendamento/ListaAgendaOperacional.tsx", import.meta.url), "utf8");
+  const modelo = await readFile(new URL("../src/components/agendamento/agendaOperacionalModel.ts", import.meta.url), "utf8");
+  assert.match(pagina, /<AgendamentoShell/);
+  assert.match(pagina, /<ListaAgenda itens=\{agendaCompleta\}/);
+  assert.doesNotMatch(pagina, /<CalendarioAgendamento|<Cronograma/);
+  assert.match(lista, /filtrarAgenda\(itens, filtro, hojeBrasilia\(\)\)/);
+  assert.match(modelo, /operacaoNaData\(item, hoje\)/);
   assert.match(detalhes, /const podeConfirmar = statusPendente && !selecionada\.numero_voo/);
   assert.match(detalhes, /\{podeConfirmar \? \(/);
   assert.match(detalhes, /Resumo da operação/);

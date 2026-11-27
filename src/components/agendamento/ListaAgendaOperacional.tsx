@@ -9,7 +9,7 @@ import { botaoAgenda, cardAgenda, pillAgenda } from "./AgendamentoShell";
 const MapaAoVivo = lazy(() => import("@/components/dashboard/operacoes/VooEmOperacaoMapa"));
 
 const classes = {
-  verde: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30",
+  verde: "bg-[rgba(104,238,93,0.63)] text-[#1F2723] border-[rgba(126,211,33,0.72)] dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30",
   azul: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30",
   amarelo: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
   neutro: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700/30 dark:text-slate-300 dark:border-slate-700",
@@ -33,17 +33,16 @@ export function LinhaAgenda({ item, aoAbrir, planos = [] }: { item: SolicitacaoV
   const minPlano = Number(plano?.payload?.minutos_voo);
   const minutos = inicio != null && pouso != null && pouso >= inicio ? (pouso-inicio)/60000 : Number.isFinite(minPlano) && minPlano > 0 ? minPlano : null;
   const chegada = pouso ?? (inicio != null && minutos != null ? inicio+minutos*60000 : null);
-  const data = new Date(item.data_agendada.slice(0,10)+"T12:00:00Z");
-  const dia = Number.isFinite(data.getTime()) ? new Intl.DateTimeFormat("pt-BR",{weekday:"short",day:"2-digit",month:"long",year:"numeric",timeZone:"UTC"}).format(data) : dataAgenda(item.data_agendada);
-  return <button type="button" onClick={() => aoAbrir(item)} className={cardAgenda + " group w-full px-4 py-3 text-left transition hover:border-[#1D6CE0]/50 hover:bg-sky-50/40 dark:hover:bg-[#182640]"}>
-    <span className="mb-2 flex flex-wrap items-center justify-between gap-2"><span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{dia}</span><span className="flex items-center gap-2"><StatusAgenda item={item}/><ChevronRight size={15} className="text-slate-400 transition group-hover:translate-x-0.5"/></span></span>
+  const dia = item.data_agendada.slice(8,10)+"-"+item.data_agendada.slice(5,7)+"-"+item.data_agendada.slice(2,4);
+  return <button type="button" onClick={() => aoAbrir(item)} className="group w-full rounded-[24px] border border-[rgba(92,93,93,0.66)] bg-white/95 px-4 py-3 text-left shadow-[0_4px_20px_-4px_rgba(11,34,68,0.06)] transition hover:border-[#1D6CE0]/50 hover:bg-sky-50/40 dark:border-slate-800 dark:bg-[#111C30] dark:hover:bg-[#182640]">
+    <span className="mb-2 flex flex-wrap items-center justify-between gap-2"><span className="text-[15px] font-bold uppercase tracking-wide text-[#272C35] dark:text-slate-400">{dia}</span><span className="flex items-center gap-2"><StatusAgenda item={item}/><ChevronRight size={15} className="text-slate-400 transition group-hover:translate-x-0.5"/></span></span>
     <span className="grid grid-cols-[auto_minmax(0,1fr)_minmax(48px,1.2fr)_minmax(0,1fr)] items-center gap-2 sm:gap-5">
       <span className="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 text-[#1D6CE0] dark:bg-sky-500/10 dark:text-sky-300"><Plane size={22} className="rotate-45"/></span>
-      <span><strong className="block text-base tabular-nums">{horaAgenda(partida)}</strong><span className="block text-xs font-semibold">{item.origem || "—"}</span><span className="block text-[10px] text-slate-500 dark:text-slate-400">{real && item.perna_atual_horario_dep ? "Partida real" : "Partida prevista"}</span></span>
+      <span><strong className="block text-base tabular-nums">{horaAgenda(partida)}</strong><span className="block text-[15px] font-semibold">{item.origem || "—"}</span><span className="block text-[10px] text-slate-500 dark:text-slate-400">{real && item.perna_atual_horario_dep ? "Partida real" : "Partida prevista"}</span></span>
       <span className="text-center"><span className="block text-[11px] font-semibold">{duracaoAgenda(minutos)}</span><span className="my-1 flex items-center gap-1 text-sky-600 dark:text-sky-300"><span className="h-1.5 w-1.5 shrink-0 rounded-full border border-current"/><span className="flex-1 border-t border-dashed border-slate-300 dark:border-slate-600"/><Plane size={14} className="rotate-45"/></span><span className="block text-[10px] text-slate-500 dark:text-slate-400">{pouso != null ? "Real" : "Estimado"}</span></span>
-      <span className="text-right"><strong className="block text-base tabular-nums">{chegada != null ? horaAgenda(new Date(chegada).toISOString()) : "—"}</strong><span className="block text-xs font-semibold">{item.destino || "—"}</span><span className="block text-[10px] text-slate-500 dark:text-slate-400">{pouso != null ? "Chegada real" : "Chegada prevista"}{chegada != null && inicio != null && new Date(chegada).toISOString().slice(0,10) !== new Date(inicio).toISOString().slice(0,10) ? " · "+dataAgenda(new Date(chegada).toISOString()) : ""}</span></span>
+      <span className="text-right"><strong className="block text-base tabular-nums">{chegada != null ? horaAgenda(new Date(chegada).toISOString()) : "—"}</strong><span className="block text-[15px] font-semibold">{item.destino || "—"}</span><span className="block text-[10px] text-slate-500 dark:text-slate-400">{pouso != null ? "Chegada real" : "Chegada prevista"}{chegada != null && inicio != null && new Date(chegada).toISOString().slice(0,10) !== new Date(inicio).toISOString().slice(0,10) ? " · "+dataAgenda(new Date(chegada).toISOString()) : ""}</span></span>
     </span>
-    <span className="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-2 text-[11px] font-medium text-slate-500 dark:border-slate-800 dark:text-slate-400"><span>{item.numero_voo || "Sem número"}</span><span>·</span><span>{item.matricula_registro || "Sem aeronave"}</span><span className="ml-auto">UTC/Zulu</span></span>
+    <span className="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-2 text-[11px] font-medium text-slate-500 dark:border-slate-800 dark:text-slate-400"><span className="text-[14px] text-[#2B3647] dark:text-slate-400">{item.numero_voo || "Sem número"}</span><span className="text-[#50585F] dark:text-slate-400">·</span><span className="text-[12px] text-[#171C22] dark:text-slate-400">{item.matricula_registro || "Sem aeronave"}</span><span className="ml-auto">UTC/Zulu</span></span>
   </button>;
 }
 

@@ -2197,17 +2197,9 @@ export function ContatosClientesShareBrasil({
 
   const clientListContent = (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-card p-4 shadow-[0_18px_55px_rgba(0,0,0,.18)] md:p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h2 className="text-2xl font-extrabold tracking-[-.04em] text-foreground dark:text-white">
-              COTISTAS
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground dark:text-slate-400">
-              Selecione um perfil para abrir todos os dados em uma página
-              exclusiva.
-            </p>
-          </div>
+      <section className="rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-card px-4 py-[9px] text-[7px] shadow-[0_18px_55px_rgba(0,0,0,.18)] md:px-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-start">
+          <div />
           <Button
             type="button"
             onClick={() => {
@@ -2218,32 +2210,6 @@ export function ContatosClientesShareBrasil({
           >
             <Plus size={14} /> Novo cotista
           </Button>
-        </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border dark:border-white/[.07] bg-white/[.025] p-4">
-            <p className="text-[11px] uppercase tracking-wider text-slate-500">
-              Total na carteira
-            </p>
-            <p className="mt-1 text-2xl font-extrabold text-foreground dark:text-white">
-              {clients.length}
-            </p>
-          </div>
-          <div className="rounded-xl border border-emerald-400/10 bg-emerald-400/[.04] p-4">
-            <p className="text-[11px] uppercase tracking-wider text-emerald-300/70">
-              Clientes ativos
-            </p>
-            <p className="mt-1 text-2xl font-extrabold text-emerald-300">
-              {clients.filter((x) => x.status !== "inativo").length}
-            </p>
-          </div>
-          <div className="rounded-xl border border-amber-400/10 bg-amber-400/[.04] p-4">
-            <p className="text-[11px] uppercase tracking-wider text-amber-300/70">
-              Clientes inativos
-            </p>
-            <p className="mt-1 text-2xl font-extrabold text-amber-300">
-              {clients.filter((x) => x.status === "inativo").length}
-            </p>
-          </div>
         </div>
       </section>
       {showNewCotista && (

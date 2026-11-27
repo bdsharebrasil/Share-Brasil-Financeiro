@@ -2,12 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar,
   CheckCircle2,
-  FileText,
   Layers,
   Loader2,
   Plus,
   Receipt,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -48,6 +46,8 @@ import {
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { API_BASE } from "@/lib/api";
 import { tipoAnexoLancamentoPermitido } from "@/lib/documentos-financeiros";
+import AnexosDinamicos from "@/components/ui/AnexosDinamicos";
+import AnexosDinamicosField, { anexoTipoLabel, type AnexoLinha, type AnexoTipoId } from "@/components/ui/AnexosDinamicosField";
 import type { Lancamento } from "@/components/financeiro-share/tipos";
 import { opcoesPeriodicidade } from "@/data/opcoes";
 import type { Periodicidade } from "@/types/financeiro";
@@ -100,6 +100,29 @@ type Props = {
 const FORMAS_BAIXA = ["PIX", "TRANSFERÊNCIA", "BOLETO", "DINHEIRO", "CARTÃO"];
 const LIMITE_ANEXO_LANCAMENTO = 20 * 1024 * 1024;
 const ACCEPT_ANEXO_LANCAMENTO = "application/pdf,image/jpeg,image/png,image/apng,image/gif,image/webp,image/avif,image/bmp,image/svg+xml,image/x-icon,.pdf,.jpg,.jpeg,.png,.apng,.gif,.webp,.avif,.bmp,.svg,.ico";
+const TIPOS_DOCUMENTAIS: AnexoTipoId[] = ["recibo", "nf", "boleto", "demonstrativo", "comanda", "outro"];
+const CAMPOS_DOCUMENTAIS: Record<AnexoTipoId, { numero: string; url: string }> = {
+  comprovante: { numero: "numero_doc", url: "url_doc" },
+  recibo: { numero: "numero_recibo", url: "url_recibo" },
+  nf: { numero: "numero_nf", url: "url_nf" },
+  boleto: { numero: "numero_boleto", url: "url_boleto" },
+  demonstrativo: { numero: "numero_demonstrativo", url: "url_demonstrativo" },
+  comanda: { numero: "numero_doc", url: "url_doc" },
+  outro: { numero: "numero_doc", url: "url_doc" },
+};
+
+function camposDosDocumentos(anexos: AnexoLinha[]) {
+  const campos: Record<string, unknown> = {};
+  for (const anexo of anexos) {
+    if (!anexo.file || !anexo.url) continue;
+    const destino = CAMPOS_DOCUMENTAIS[anexo.tipo] ?? CAMPOS_DOCUMENTAIS.outro;
+    if (campos[destino.url] === undefined) {
+      campos[destino.numero] = anexo.numero.trim() || null;
+      campos[destino.url] = anexo.url;
+    }
+  }
+  return campos;
+}
 
 /** Remove underscores e padroniza textos exibidos na UI em MAIÚSCULAS */
 function formatarTextoUi(valor?: string | null): string {
@@ -164,20 +187,16 @@ export function NovoLancamentoShareDialog({
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>("ÚNICO");
   const [fornecedor, setFornecedor] = useState("");
   const [fornecedorId, setFornecedorId] = useState("");
-  const [numeroDoc, setNumeroDoc] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [categoriaClienteId, setCategoriaClienteId] = useState("");
   const [dataPagamento, setDataPagamento] = useState("");
   const [registrarBaixaInicial, setRegistrarBaixaInicial] = useState(false);
   const [contaBancariaId, setContaBancariaId] = useState("nenhuma");
   const [formaPagamento, setFormaPagamento] = useState("nenhuma");
-  const [comprovanteUrl, setComprovanteUrl] = useState("");
   const [pagoPor, setPagoPor] = useState("");
   const [categoriasCliente, setCategoriasCliente] = useState<CategoriaDespesaOpcao[]>([]);
-  const [anexosSelecionados, setAnexosSelecionados] = useState<File[]>([]);
-  const [arquivoDocumento, setArquivoDocumento] = useState<File | null>(null);
+  const [anexosDocumentos, setAnexosDocumentos] = useState<AnexoLinha[]>([]);
   const [arquivoComprovante, setArquivoComprovante] = useState<File | null>(null);
-  const [inputAnexoKey, setInputAnexoKey] = useState(0);
 
   // Evita que re-renderizações do pai sobrescrevam campos editados pelo usuário
   const chaveInicializacaoRef = useRef<string | null>(null);
@@ -192,17 +211,14 @@ export function NovoLancamentoShareDialog({
     setPeriodicidade("ÚNICO");
     setFornecedor("");
     setFornecedorId("");
-    setNumeroDoc("");
     setObservacoes("");
     setCategoriaClienteId("");
     setDataPagamento("");
     setRegistrarBaixaInicial(false);
     setContaBancariaId("nenhuma");
     setFormaPagamento("nenhuma");
-    setComprovanteUrl("");
     setPagoPor("");
-    setAnexosSelecionados([]);
-    setArquivoDocumento(null);
+    setAnexosDocumentos([]);
     setArquivoComprovante(null);
   }, [fluxoInicial, somenteEntrada]);
 
@@ -262,7 +278,6 @@ export function NovoLancamentoShareDialog({
     setPeriodicidade(lancamentoInicial.periodicidade ?? "ÚNICO");
     setFornecedorId(lancamentoInicial.fornecedorId ?? "");
     setFornecedor(formatarTextoUi(lancamentoInicial.fornecedor));
-    setNumeroDoc(formatarTextoUi(lancamentoInicial.numeroDoc));
     setObservacoes(formatarTextoUi(lancamentoInicial.observacoes));
     setCategoriaClienteId(lancamentoInicial.categoriaClienteId ?? "");
     setDataPagamento(
@@ -270,10 +285,8 @@ export function NovoLancamentoShareDialog({
     );
     setContaBancariaId(lancamentoInicial.contaBancariaId || "nenhuma");
     setFormaPagamento(lancamentoInicial.formaPagamento || "nenhuma");
-    setComprovanteUrl(lancamentoInicial.comprovanteUrl ?? "");
     setPagoPor(formatarTextoUi(lancamentoInicial.pagoPor));
-    setAnexosSelecionados([]);
-    setArquivoDocumento(null);
+    setAnexosDocumentos([]);
     setArquivoComprovante(null);
   }, [aberto, lancamentoInicial, limpar, fluxoInicial, somenteDespesa, somenteEntrada]);
 
@@ -298,6 +311,9 @@ export function NovoLancamentoShareDialog({
 
   const salvar = async () => {
     const categoria = categorias.find((item) => item.id === categoriaId);
+    if (anexosDocumentos.some((anexo) => anexo.uploading || (anexo.file && !anexo.url))) {
+      return toast.error("AGUARDE O TÉRMINO DO UPLOAD DOS DOCUMENTOS ANTES DE SALVAR.");
+    }
     const fornecedorSelecionado = fornecedores.find((item) => item.id === fornecedorId);
     const valorNumerico = Number(valor.replace(/\./g, "").replace(",", "."));
 
@@ -340,7 +356,9 @@ export function NovoLancamentoShareDialog({
         fornecedor_id: fornecedorId || null,
         fornecedor: fornecedorFinal,
         fornecedor_nome: fornecedorFinal,
-        numero_doc: formatarTextoUi(numeroDoc) || null,
+        ...(anexosDocumentos.find((anexo) => anexo.file && anexo.url && ["outro", "comanda"].includes(anexo.tipo))?.numero.trim()
+          ? { numero_doc: anexosDocumentos.find((anexo) => anexo.file && anexo.url && ["outro", "comanda"].includes(anexo.tipo))?.numero.trim() }
+          : {}),
         periodicidade,
         observacoes: formatarTextoUi(observacoes) || null,
         categoria_cliente_id: categoriaClienteId || null,
@@ -355,7 +373,6 @@ export function NovoLancamentoShareDialog({
                   data_pagamento: dataPagamento || null,
                   conta_bancaria_id: contaBancariaId === "nenhuma" ? null : contaBancariaId,
                   forma_pagamento: formaPagamento === "nenhuma" ? null : formaPagamento,
-                  comprovante_url: comprovanteUrl.trim() || null,
                   pago_por: formatarTextoUi(pagoPor) || null,
                 }
               : {}),
@@ -363,19 +380,7 @@ export function NovoLancamentoShareDialog({
         : await (fluxo === "entrada" ? emitirReceita : criarDespesa)(payload);
 
       const errosUpload: string[] = [];
-      let urlDocumento: string | null = null;
       let urlComprovante: string | null = null;
-      if (arquivoDocumento) {
-        try {
-          const enviado = await enviarAnexoDocumentoSaida(arquivoDocumento, arquivoDocumento.name, {
-            origem: "lancamento",
-            documentoId: lancamento.id,
-          });
-          urlDocumento = enviado.url;
-        } catch {
-          errosUpload.push(`DOCUMENTO: ${formatarTextoUi(arquivoDocumento.name)}`);
-        }
-      }
       if (arquivoComprovante) {
         try {
           const enviado = await enviarAnexoDocumentoSaida(arquivoComprovante, arquivoComprovante.name, {
@@ -387,18 +392,35 @@ export function NovoLancamentoShareDialog({
           errosUpload.push(`COMPROVANTE: ${formatarTextoUi(arquivoComprovante.name)}`);
         }
       }
-      if (urlDocumento || urlComprovante) {
+
+      const documentosComArquivo = anexosDocumentos.filter((anexo) => anexo.file && anexo.url);
+      for (const anexo of documentosComArquivo) {
         try {
-          await editarLancamento(lancamento.id, {
-            ...(urlDocumento ? { url_doc: urlDocumento } : {}),
-            ...(urlComprovante ? { comprovante_url: urlComprovante } : {}),
+          await anexarDocumentoLancamento(lancamento.id, {
+            nome: `${anexoTipoLabel(anexo.tipo)}${anexo.numero.trim() ? ` · ${anexo.numero.trim()}` : ""}`,
+            url: anexo.url!,
+            tipo: anexo.tipo,
+            numero: anexo.numero.trim() || undefined,
           });
         } catch {
-          errosUpload.push("GRAVAÇÃO DO DOCUMENTO/COMPROVANTE");
+          errosUpload.push(`DOCUMENTO: ${anexoTipoLabel(anexo.tipo)}`);
         }
       }
 
-      const comprovanteFinal = urlComprovante || comprovanteUrl.trim() || undefined;
+      const camposDocumentos = camposDosDocumentos(anexosDocumentos);
+      const camposArquivos: Record<string, unknown> = {
+        ...camposDocumentos,
+        ...(urlComprovante ? { comprovante_url: urlComprovante } : {}),
+      };
+      if (Object.keys(camposArquivos).length) {
+        try {
+          await editarLancamento(lancamento.id, camposArquivos);
+        } catch {
+          errosUpload.push("GRAVAÇÃO DOS DOCUMENTOS/COMPROVANTE");
+        }
+      }
+
+      const comprovanteFinal = urlComprovante || lancamentoInicial?.comprovanteUrl || undefined;
       let erroBaixaInicial: string | null = null;
       if (!editando && registrarBaixaInicial) {
         try {
@@ -417,22 +439,6 @@ export function NovoLancamentoShareDialog({
           }
         } catch (erro) {
           erroBaixaInicial = erro instanceof Error ? erro.message : "Não foi possível confirmar a baixa.";
-        }
-      }
-
-      for (const anexo of anexosSelecionados) {
-        try {
-          const enviado = await enviarAnexoDocumentoSaida(anexo, anexo.name, {
-            origem: "lancamento",
-            documentoId: lancamento.id,
-          });
-          await anexarDocumentoLancamento(lancamento.id, {
-            nome: anexo.name,
-            url: enviado.url,
-            tipo: anexo.type || "application/octet-stream",
-          });
-        } catch {
-          errosUpload.push(formatarTextoUi(anexo.name));
         }
       }
 
@@ -789,16 +795,22 @@ export function NovoLancamentoShareDialog({
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="nl-comprovante" className={LABEL_CLASS}>
-                  COMPROVANTE DO {fluxo === "entrada" ? "RECEBIMENTO" : "PAGAMENTO"} (LINK)
-                </Label>
-                <Input
-                  id="nl-comprovante"
-                  type="url"
-                  className="h-10 rounded-xl border-input bg-background text-xs font-medium text-foreground placeholder:uppercase placeholder:text-muted-foreground/70"
-                  value={comprovanteUrl}
-                  onChange={(evento) => setComprovanteUrl(evento.target.value)}
-                  placeholder="HTTPS://..."
+                <AnexosDinamicos
+                  file={arquivoComprovante}
+                  onFileChange={(arquivo) => {
+                    if (arquivo && (!tipoAnexoLancamentoPermitido(arquivo) || arquivo.size > LIMITE_ANEXO_LANCAMENTO)) {
+                      toast.error("SELECIONE UM PDF OU UMA IMAGEM COMPATÍVEL DE ATÉ 20 MB.");
+                      return;
+                    }
+                    setArquivoComprovante(arquivo);
+                  }}
+                  accept={ACCEPT_ANEXO_LANCAMENTO}
+                  maxSizeMb={20}
+                  label={`Comprovante do ${fluxo === "entrada" ? "recebimento" : "pagamento"}`}
+                  description="PDF ou imagem · até 20 MB"
+                  existingUrl={lancamentoInicial?.comprovanteUrl ?? null}
+                  existingName={lancamentoInicial?.comprovanteUrl ? "Comprovante já anexado" : null}
+                  onView={(url) => window.open(url.startsWith("/") ? `${API_BASE}${url}` : url, "_blank", "noopener,noreferrer")}
                 />
               </div>
             </section>
@@ -863,157 +875,25 @@ export function NovoLancamentoShareDialog({
 
             </div>
 
-            <div className="grid gap-4 rounded-xl border border-border bg-muted/35 p-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="share-documento-arquivo" className={LABEL_CLASS}>DOCUMENTO DO LANÇAMENTO (PDF OU IMAGEM)</Label>
-                <input
-                  id="share-documento-arquivo"
-                  type="file"
-                  accept={ACCEPT_ANEXO_LANCAMENTO}
-                  className="sr-only"
-                  onChange={(evento) => {
-                    const arquivo = evento.currentTarget.files?.[0] ?? null;
-                    evento.currentTarget.value = "";
-                    if (!arquivo) return;
-                    if (!tipoAnexoLancamentoPermitido(arquivo) || arquivo.size > LIMITE_ANEXO_LANCAMENTO) {
-                      toast.error("SELECIONE PDF OU UMA IMAGEM COMPATÍVEL DE ATÉ 20 MB.");
-                      return;
-                    }
-                    setArquivoDocumento(arquivo);
-                  }}
-                />
-                <div className="flex min-w-0 items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" className="shrink-0 rounded-xl" onClick={() => document.getElementById("share-documento-arquivo")?.click()}>
-                    <FileText size={14} /> {arquivoDocumento ? "TROCAR ARQUIVO" : "SELECIONAR ARQUIVO"}
-                  </Button>
-                  <span className="min-w-0 truncate text-xs font-medium text-muted-foreground" title={arquivoDocumento?.name}>
-                    {arquivoDocumento ? formatarTextoUi(arquivoDocumento.name) : formatarTextoUi(lancamentoInicial?.documentoUrl ? "Documento já anexado" : "Nenhum arquivo selecionado")}
-                  </span>
-                  {arquivoDocumento && <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="REMOVER DOCUMENTO" onClick={() => setArquivoDocumento(null)}><X size={14} /></Button>}
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="nl-doc-full" className={LABEL_CLASS}>NÚMERO DO DOCUMENTO</Label>
-                <Input
-                  id="nl-doc-full"
-                  className={INPUT_CLASS}
-                  value={numeroDoc}
-                  onChange={(evento) => setNumeroDoc(sanitizarDigitacao(evento.target.value))}
-                  placeholder="NÚMERO DA NOTA, RECIBO OU DOCUMENTO"
-                />
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="share-comprovante-arquivo" className={LABEL_CLASS}>COMPROVANTE DO {fluxo === "entrada" ? "RECEBIMENTO" : "PAGAMENTO"} (ARQUIVO SEPARADO)</Label>
-                <input
-                  id="share-comprovante-arquivo"
-                  type="file"
-                  accept={ACCEPT_ANEXO_LANCAMENTO}
-                  className="sr-only"
-                  onChange={(evento) => {
-                    const arquivo = evento.currentTarget.files?.[0] ?? null;
-                    evento.currentTarget.value = "";
-                    if (!arquivo) return;
-                    if (!tipoAnexoLancamentoPermitido(arquivo) || arquivo.size > LIMITE_ANEXO_LANCAMENTO) {
-                      toast.error("SELECIONE PDF OU UMA IMAGEM COMPATÍVEL DE ATÉ 20 MB.");
-                      return;
-                    }
-                    setArquivoComprovante(arquivo);
-                  }}
-                />
-                <div className="flex min-w-0 items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" className="shrink-0 rounded-xl" onClick={() => document.getElementById("share-comprovante-arquivo")?.click()}>
-                    <FileText size={14} /> {arquivoComprovante ? "TROCAR COMPROVANTE" : "ANEXAR COMPROVANTE"}
-                  </Button>
-                  <span className="min-w-0 truncate text-xs font-medium text-muted-foreground" title={arquivoComprovante?.name}>
-                    {arquivoComprovante ? formatarTextoUi(arquivoComprovante.name) : lancamentoInicial?.comprovanteUrl ? "Comprovante já anexado" : "Nenhum comprovante selecionado"}
-                  </span>
-                  {arquivoComprovante && <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="REMOVER COMPROVANTE" onClick={() => setArquivoComprovante(null)}><X size={14} /></Button>}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2 rounded-xl border border-dashed border-border bg-muted/35 p-3">
-              <Label className={LABEL_CLASS}>ANEXOS COMPLEMENTARES (OPCIONAL)</Label>
-
-              {lancamentoInicial?.anexos?.length ? (
-                <div className="flex flex-wrap gap-2">
-                  {lancamentoInicial.anexos.map((anexo, index) => (
-                    <a
-                      key={anexo.id ?? `${anexo.url}-${index}`}
-                      href={anexo.url.startsWith("/") ? `${API_BASE}${anexo.url}` : anexo.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-[11px] font-semibold uppercase text-foreground hover:bg-muted"
-                    >
-                      <FileText size={13} className="text-primary" />
-                      <span className="max-w-[200px] truncate">{formatarTextoUi(anexo.nome)}</span>
-                    </a>
-                  ))}
-                </div>
-              ) : null}
-
-              {anexosSelecionados.map((arquivo, index) => (
-                <div
-                  key={`${arquivo.name}-${arquivo.lastModified}-${index}`}
-                  className="flex items-center justify-between rounded-xl border border-border bg-card px-3 py-1.5 text-xs uppercase"
-                >
-                  <span className="truncate font-semibold text-foreground">
-                    {formatarTextoUi(arquivo.name)}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 rounded-full hover:bg-destructive/15 hover:text-destructive"
-                    aria-label={`REMOVER ${formatarTextoUi(arquivo.name)}`}
-                    onClick={() => setAnexosSelecionados((atuais) => atuais.filter((_, i) => i !== index))}
-                  >
-                    <X size={14} />
-                  </Button>
-                </div>
-              ))}
-
-              <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
-                <input
-                  key={inputAnexoKey}
-                  type="file"
-                  accept={ACCEPT_ANEXO_LANCAMENTO}
-                  multiple
-                  className="sr-only"
-                  id="anexos-lancamento"
-                  onChange={(evento) => {
-                    const novos = Array.from(evento.target.files ?? []);
-                    const invalidos = novos.filter(
-                      (arquivo) =>
-                        !tipoAnexoLancamentoPermitido(arquivo) || arquivo.size > LIMITE_ANEXO_LANCAMENTO,
-                    );
-                    if (invalidos.length) toast.error("SELECIONE PDF OU IMAGENS JPG, PNG, GIF, WEBP, AVIF, BMP, SVG OU ICO DE ATÉ 20 MB CADA.");
-                    setAnexosSelecionados((atuais) => [
-                      ...atuais,
-                      ...novos.filter(
-                        (arquivo) =>
-                          tipoAnexoLancamentoPermitido(arquivo) && arquivo.size <= LIMITE_ANEXO_LANCAMENTO,
-                      ),
-                    ]);
-                    setInputAnexoKey((key) => key + 1);
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 gap-2 rounded-full border-border bg-card px-4 text-[11px] font-bold uppercase tracking-wider text-foreground hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => document.getElementById("anexos-lancamento")?.click()}
-                >
-                  <FileText size={14} />
-                  {anexosSelecionados.length ? "ADICIONAR MAIS ARQUIVOS" : "ANEXAR ARQUIVO"}
-                </Button>
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  PDF OU IMAGENS JPG, PNG, GIF, WEBP, AVIF, BMP, SVG OU ICO · ATÉ 20 MB POR ARQUIVO
-                </span>
-              </div>
+            <div className="space-y-2 rounded-xl border border-border bg-muted/35 p-3">
+              <AnexosDinamicosField
+                anexos={anexosDocumentos}
+                onChange={setAnexosDocumentos}
+                allowedTypes={TIPOS_DOCUMENTAIS}
+                heading="Documentos do lançamento"
+                accept={ACCEPT_ANEXO_LANCAMENTO}
+                maxSizeMb={20}
+                uploadFile={async (arquivo, id) => {
+                  if (!tipoAnexoLancamentoPermitido(arquivo) || arquivo.size > LIMITE_ANEXO_LANCAMENTO) {
+                    throw new Error("Selecione um PDF ou uma imagem compatível de até 20 MB.");
+                  }
+                  const enviado = await enviarAnexoDocumentoSaida(arquivo, arquivo.name, {
+                    origem: "lancamento",
+                    documentoId: id,
+                  });
+                  return enviado.url;
+                }}
+              />
             </div>
 
             <div className="space-y-1.5">

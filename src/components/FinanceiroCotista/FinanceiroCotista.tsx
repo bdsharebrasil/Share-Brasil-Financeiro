@@ -31,7 +31,6 @@ import {
   PieChart,
   Landmark,
   CalendarDays,
-  FileText,
   ChevronDown,
   ChevronUp,
   Pencil,
@@ -55,6 +54,8 @@ import { toast } from "sonner";
 import { avisarAtualizacaoFinanceiro } from "@/lib/baixa-conciliada-api";
 import { enviarAnexoDocumentoSaida } from "@/lib/nfSaidaApi";
 import { tipoAnexoLancamentoPermitido } from "@/lib/documentos-financeiros";
+import AnexosDinamicos from "@/components/ui/AnexosDinamicos";
+import AnexosDinamicosField, { type AnexoLinha, type AnexoTipoId } from "@/components/ui/AnexosDinamicosField";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { ESTILOS_FINANCEIRO } from "@/components/financeiro-share/LancamentosUnificados";
@@ -410,6 +411,27 @@ const DESPESAS_ESTILOS = `
 
 const ACEITOS_DOCUMENTOS_FINANCEIROS = "application/pdf,image/jpeg,image/png,image/apng,image/gif,image/webp,image/avif,image/bmp,image/svg+xml,image/x-icon,.pdf,.jpg,.jpeg,.png,.apng,.gif,.webp,.avif,.bmp,.svg,.ico";
 const LIMITE_DOCUMENTO_FINANCEIRO = 20 * 1024 * 1024;
+const TIPOS_DOCUMENTAIS_HOLDING: AnexoTipoId[] = ["recibo", "nf", "boleto", "demonstrativo", "outro"];
+const CAMPOS_DOCUMENTAIS_HOLDING: Record<AnexoTipoId, { numero: string; url: string }> = {
+  comprovante: { numero: "numero_doc", url: "url_doc" },
+  recibo: { numero: "numero_recibo", url: "url_recibo" },
+  nf: { numero: "numero_nf", url: "url_nf" },
+  boleto: { numero: "numero_boleto", url: "url_boleto" },
+  demonstrativo: { numero: "numero_demonstrativo", url: "url_demonstrativo" },
+  comanda: { numero: "numero_doc", url: "url_doc" },
+  outro: { numero: "numero_doc", url: "url_doc" },
+};
+
+function camposDosDocumentosHolding(anexos: AnexoLinha[]) {
+  const campos: Record<string, unknown> = {};
+  for (const anexo of anexos) {
+    if (!anexo.file || !anexo.url) continue;
+    const destino = CAMPOS_DOCUMENTAIS_HOLDING[anexo.tipo] ?? CAMPOS_DOCUMENTAIS_HOLDING.outro;
+    campos[destino.numero] = anexo.numero.trim() || null;
+    campos[destino.url] = anexo.url;
+  }
+  return campos;
+}
 
 function hoje() {
   const data = new Date();
@@ -506,8 +528,7 @@ export function NovoLancamentoCotistaDialog({
   const [categoriaId, setCategoriaId] = useState("");
   const [fornecedorId, setFornecedorId] = useState("");
   const [observacoes, setObservacoes] = useState("");
-  const [numeroDocumento, setNumeroDocumento] = useState("");
-  const [arquivoDocumento, setArquivoDocumento] = useState<File | null>(null);
+  const [anexosDocumentos, setAnexosDocumentos] = useState<AnexoLinha[]>([]);
   const [arquivoComprovante, setArquivoComprovante] = useState<File | null>(null);
   const [rateios, setRateios] = useState<RateioDraft[]>([]);
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>("ÚNICO");
@@ -551,8 +572,7 @@ export function NovoLancamentoCotistaDialog({
     setDescricao("");
     setValor("");
     setObservacoes("");
-    setNumeroDocumento("");
-    setArquivoDocumento(null);
+    setAnexosDocumentos([]);
     setArquivoComprovante(null);
     setPeriodicidade("ÚNICO");
     setFornecedorId("");
@@ -586,8 +606,7 @@ export function NovoLancamentoCotistaDialog({
     if (proximo === modo) return;
       setModo(proximo);
       setErroLocal(null);
-      setNumeroDocumento("");
-      setArquivoDocumento(null);
+      setAnexosDocumentos([]);
       setArquivoComprovante(null);
       if (proximo === "HOLDING") setCategoriaId(categoriasHolding[0]?.id || "");
       setFornecedorId("");
@@ -622,6 +641,11 @@ export function NovoLancamentoCotistaDialog({
     const valorCentavos = parseValorReais(valor);
 
     setErroLocal(null);
+    if (modo === "HOLDING" && anexosDocumentos.some((anexo) => anexo.uploading || (anexo.file && !anexo.url))) return setErroLocal("Aguarde o término do upload dos documentos antes de salvar.");
+    if (modo === "HOLDING") {
+      const destinos = anexosDocumentos.filter((anexo) => anexo.file && anexo.url).map((anexo) => CAMPOS_DOCUMENTAIS_HOLDING[anexo.tipo]?.url ?? "url_doc");
+      if (new Set(destinos).size !== destinos.length) return setErroLocal("Use um arquivo por tipo documental; cada categoria tem um campo próprio no lançamento da Holding.");
+    }
     if (!data) return setErroLocal("Informe a data do lançamento.");
     if (!descricao.trim()) return setErroLocal("Informe a descrição.");
     if (!Number.isInteger(valorCentavos) || valorCentavos <= 0)
@@ -672,7 +696,6 @@ export function NovoLancamentoCotistaDialog({
         periodicidade,
         valor_centavos: valorCentavos,
         observacoes: observacoes.trim() || undefined,
-        numero_doc: numeroDocumento.trim() || undefined,
         aeronave_id: aeronaveId || undefined,
 
         ...(modo === "CLIENTE" && {
@@ -720,19 +743,8 @@ export function NovoLancamentoCotistaDialog({
       if (!lancamentoId) throw new Error("O lançamento foi criado sem retornar um identificador para anexar os arquivos.");
 
       const falhasUpload: string[] = [];
-      let urlDocumento: string | null = null;
       let urlComprovante: string | null = null;
-      if (arquivoDocumento) {
-        try {
-          urlDocumento = (await enviarAnexoDocumentoSaida(arquivoDocumento, arquivoDocumento.name, {
-            origem: "lancamento",
-            documentoId: lancamentoId,
-          })).url;
-        } catch {
-          falhasUpload.push("documento");
-        }
-      }
-      if (arquivoComprovante) {
+      if (modo === "HOLDING" && arquivoComprovante) {
         try {
           urlComprovante = (await enviarAnexoDocumentoSaida(arquivoComprovante, arquivoComprovante.name, {
             origem: "lancamento",
@@ -742,14 +754,17 @@ export function NovoLancamentoCotistaDialog({
           falhasUpload.push("comprovante");
         }
       }
-      if (urlDocumento || urlComprovante) {
-        try {
-          await editarLancamento(lancamentoId, {
-            ...(urlDocumento ? { url_doc: urlDocumento } : {}),
-            ...(urlComprovante ? { comprovante_url: urlComprovante } : {}),
-          });
-        } catch {
-          falhasUpload.push("gravação das URLs no lançamento");
+      if (modo === "HOLDING") {
+        const camposArquivos: Record<string, unknown> = {
+          ...camposDosDocumentosHolding(anexosDocumentos),
+          ...(urlComprovante ? { comprovante_url: urlComprovante } : {}),
+        };
+        if (Object.keys(camposArquivos).length) {
+          try {
+            await editarLancamento(lancamentoId, camposArquivos);
+          } catch {
+            falhasUpload.push("gravação dos documentos/comprovante");
+          }
         }
       }
       if (falhasUpload.length) {
@@ -1014,73 +1029,40 @@ export function NovoLancamentoCotistaDialog({
                       Arquivos do próprio movimento do caixa Holding; não exigem vínculo com cliente ou cotista.
                     </p>
                   </div>
-                  <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-                    <div className="min-w-0 space-y-2">
-                      <Label htmlFor="holding-documento-file">Documento do lançamento (PDF ou imagem)</Label>
-                      <input
-                        id="holding-documento-file"
-                        type="file"
-                        accept={ACEITOS_DOCUMENTOS_FINANCEIROS}
-                        className="sr-only"
-                        onChange={(event) => {
-                          const file = event.currentTarget.files?.[0] ?? null;
-                          event.currentTarget.value = "";
-                          if (!file) return;
-                          if (!tipoAnexoLancamentoPermitido(file) || file.size > LIMITE_DOCUMENTO_FINANCEIRO) {
-                            toast.error("Selecione um PDF ou imagem compatível de até 20 MB.");
-                            return;
-                          }
-                          setArquivoDocumento(file);
-                        }}
-                      />
-                      <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <Button type="button" variant="outline" className="h-10 shrink-0 gap-2 rounded-xl" onClick={() => document.getElementById("holding-documento-file")?.click()}>
-                          <FileText size={15} /> {arquivoDocumento ? "Trocar documento" : "Anexar documento"}
-                        </Button>
-                        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={arquivoDocumento?.name}>
-                          {arquivoDocumento?.name || "Nenhum arquivo selecionado"}
-                        </span>
-                        {arquivoDocumento && <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Remover documento" onClick={() => setArquivoDocumento(null)}><X size={15} /></Button>}
-                      </div>
-                    </div>
-                    <div className="min-w-0 space-y-2">
-                      <Label htmlFor="holding-numero-documento">Número do documento</Label>
-                      <Input
-                        id="holding-numero-documento"
-                        value={numeroDocumento}
-                        onChange={(event) => setNumeroDocumento(event.target.value)}
-                        placeholder="Número da nota, recibo ou documento"
-                        className="h-10 rounded-xl"
-                      />
-                    </div>
-                    <div className="min-w-0 space-y-2 sm:col-span-2">
-                      <Label htmlFor="holding-comprovante-file">Comprovante do pagamento/recebimento (arquivo separado)</Label>
-                      <input
-                        id="holding-comprovante-file"
-                        type="file"
-                        accept={ACEITOS_DOCUMENTOS_FINANCEIROS}
-                        className="sr-only"
-                        onChange={(event) => {
-                          const file = event.currentTarget.files?.[0] ?? null;
-                          event.currentTarget.value = "";
-                          if (!file) return;
-                          if (!tipoAnexoLancamentoPermitido(file) || file.size > LIMITE_DOCUMENTO_FINANCEIRO) {
-                            toast.error("Selecione um PDF ou imagem compatível de até 20 MB.");
-                            return;
-                          }
-                          setArquivoComprovante(file);
-                        }}
-                      />
-                      <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <Button type="button" variant="outline" className="h-10 shrink-0 gap-2 rounded-xl" onClick={() => document.getElementById("holding-comprovante-file")?.click()}>
-                          <FileText size={15} /> {arquivoComprovante ? "Trocar comprovante" : "Anexar comprovante"}
-                        </Button>
-                        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={arquivoComprovante?.name}>
-                          {arquivoComprovante?.name || "Nenhum comprovante selecionado"}
-                        </span>
-                        {arquivoComprovante && <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Remover comprovante" onClick={() => setArquivoComprovante(null)}><X size={15} /></Button>}
-                      </div>
-                    </div>
+                  <div className="grid min-w-0 gap-4">
+                    <AnexosDinamicosField
+                      anexos={anexosDocumentos}
+                      onChange={setAnexosDocumentos}
+                      allowedTypes={TIPOS_DOCUMENTAIS_HOLDING}
+                      maxAttachments={TIPOS_DOCUMENTAIS_HOLDING.length}
+                      heading="Documento e identificação"
+                      accept={ACEITOS_DOCUMENTOS_FINANCEIROS}
+                      maxSizeMb={20}
+                      uploadFile={async (file, id) => {
+                        if (!tipoAnexoLancamentoPermitido(file) || file.size > LIMITE_DOCUMENTO_FINANCEIRO) {
+                          throw new Error("Selecione um PDF ou imagem compatível de até 20 MB.");
+                        }
+                        const uploaded = await enviarAnexoDocumentoSaida(file, file.name, {
+                          origem: "lancamento",
+                          documentoId: id,
+                        });
+                        return uploaded.url;
+                      }}
+                    />
+                    <AnexosDinamicos
+                      file={arquivoComprovante}
+                      onFileChange={(file) => {
+                        if (file && (!tipoAnexoLancamentoPermitido(file) || file.size > LIMITE_DOCUMENTO_FINANCEIRO)) {
+                          toast.error("Selecione um PDF ou imagem compatível de até 20 MB.");
+                          return;
+                        }
+                        setArquivoComprovante(file);
+                      }}
+                      accept={ACEITOS_DOCUMENTOS_FINANCEIROS}
+                      maxSizeMb={20}
+                      label="Comprovante do pagamento/recebimento"
+                      description="PDF ou imagem · até 20 MB"
+                    />
                   </div>
                 </section>
               )}

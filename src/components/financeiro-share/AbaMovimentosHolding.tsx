@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Building2, CalendarDays, CheckCircle2, Plane, RefreshCw, Search, Wallet } from "lucide-react";
+import { Building2, CalendarDays, CheckCircle2, FileText, Plane, RefreshCw, Search, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { buscarContasBancariasHolding, buscarMovimentosHoldingPendentes, darBaixaMovimentoHolding, formatarCentavos, formatarData, type ContaBancaria, type MovimentoHoldingPendente } from "@/lib/financeiro-share-api";
+import AnexosDinamicos from "@/components/ui/AnexosDinamicos";
+import { enviarAnexoDocumentoSaida } from "@/lib/nfSaidaApi";
+import { tipoAnexoLancamentoPermitido } from "@/lib/documentos-financeiros";
+import { API_BASE } from "@/lib/api";
+
+const ACEITOS_COMPROVANTE = "application/pdf,image/jpeg,image/png,image/apng,image/gif,image/webp,image/avif,image/bmp,image/svg+xml,image/x-icon,.pdf,.jpg,.jpeg,.png,.apng,.gif,.webp,.avif,.bmp,.svg,.ico";
+const LIMITE_COMPROVANTE = 20 * 1024 * 1024;
 
 function hojeLocal() {
   const agora = new Date();
@@ -22,6 +29,17 @@ function movimentoEhEntrada(movimento: MovimentoHoldingPendente | null) {
   return ["ENTRADA", "APORTE", "ESTORNO", "REEMBOLSO"].includes(String(movimento?.fluxo ?? "").toUpperCase());
 }
 
+function documentosMovimento(movimento: MovimentoHoldingPendente) {
+  return [
+    { label: "Nota fiscal", numero: movimento.numero_nf, url: movimento.url_nf },
+    { label: "Recibo", numero: movimento.numero_recibo, url: movimento.url_recibo },
+    { label: "Boleto", numero: movimento.numero_boleto, url: movimento.url_boleto },
+    { label: "Demonstrativo", numero: movimento.numero_demonstrativo, url: movimento.url_demonstrativo },
+    { label: "Documento", numero: movimento.numero_doc, url: movimento.url_doc },
+    { label: "Comprovante", numero: null, url: movimento.comprovante_url },
+  ].filter((documento): documento is { label: string; numero: string | null | undefined; url: string } => Boolean(documento.url));
+}
+
 export function AbaMovimentosHolding() {
   const [movimentos, setMovimentos] = useState<MovimentoHoldingPendente[]>([]);
   const [contas, setContas] = useState<ContaBancaria[]>([]);
@@ -31,7 +49,7 @@ export function AbaMovimentosHolding() {
   const [alvo, setAlvo] = useState<MovimentoHoldingPendente | null>(null);
   const [data, setData] = useState(hojeLocal);
   const [contaId, setContaId] = useState("");
-  const [comprovante, setComprovante] = useState("");
+  const [comprovanteArquivo, setComprovanteArquivo] = useState<File | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   const carregar = useCallback(async () => {
@@ -63,10 +81,20 @@ export function AbaMovimentosHolding() {
     if (!alvo || !contaId) return;
     setSalvando(true);
     try {
-      await darBaixaMovimentoHolding(alvo.id, { dataPagamento: data, contaBancariaId: contaId, formaPagamento: "TRANSFERENCIA", comprovanteUrl: comprovante.trim() || undefined });
+      let comprovanteUrl = alvo.comprovante_url || undefined;
+      if (comprovanteArquivo) {
+        if (!tipoAnexoLancamentoPermitido(comprovanteArquivo) || comprovanteArquivo.size > LIMITE_COMPROVANTE) {
+          throw new Error("Selecione um PDF ou imagem compatível de até 20 MB.");
+        }
+        comprovanteUrl = (await enviarAnexoDocumentoSaida(comprovanteArquivo, comprovanteArquivo.name, {
+          origem: "lancamento",
+          documentoId: alvo.id,
+        })).url;
+      }
+      await darBaixaMovimentoHolding(alvo.id, { dataPagamento: data, contaBancariaId: contaId, formaPagamento: "TRANSFERENCIA", comprovanteUrl });
       toast.success(movimentoEhEntrada(alvo) ? "Recebimento e rateios da holding registrados." : "Pagamento e rateios da holding atualizados.");
       setAlvo(null);
-      setComprovante("");
+      setComprovanteArquivo(null);
       await carregar();
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "Não foi possível baixar o movimento da holding.");
@@ -78,6 +106,7 @@ export function AbaMovimentosHolding() {
   function abrirBaixa(movimento: MovimentoHoldingPendente) {
     setAlvo(movimento);
     setData(hojeLocal());
+    setComprovanteArquivo(null);
     setContaId(contas.find((conta) => conta.holding_id === movimento.holding_id)?.id ?? "");
   }
 
@@ -128,7 +157,7 @@ export function AbaMovimentosHolding() {
             {carregando ? <tr><td colSpan={7} className="p-10 text-center text-muted-foreground">Carregando movimentos…</td></tr>
               : movimentosFiltrados.length === 0 ? <tr><td colSpan={7} className="p-10 text-center text-muted-foreground">{movimentos.length ? "Nenhum movimento corresponde à busca." : "Nenhum movimento pendente da Holding."}</td></tr>
                 : movimentosFiltrados.map((movimento) => <tr key={movimento.id} className="transition-colors hover:bg-muted/25">
-                  <td className="max-w-[300px] px-4 py-3.5"><p className="truncate font-semibold text-foreground" title={movimento.descricao}>{movimento.descricao}</p><p className="mt-1 truncate text-[10px] text-muted-foreground">{movimentoEhEntrada(movimento) ? "Entrada" : "Saída"} · {movimento.fornecedor_nome || "Sem fornecedor"} · {movimento.categoria_nome || "Sem categoria"}</p></td>
+                  <td className="max-w-[300px] px-4 py-3.5"><p className="truncate font-semibold text-foreground" title={movimento.descricao}>{movimento.descricao}</p><p className="mt-1 truncate text-[10px] text-muted-foreground">{movimentoEhEntrada(movimento) ? "Entrada" : "Saída"} · {movimento.fornecedor_nome || "Sem fornecedor"} · {movimento.categoria_nome || "Sem categoria"}</p>{documentosMovimento(movimento).length > 0 && <div className="mt-1.5 flex flex-wrap gap-1.5">{documentosMovimento(movimento).map((documento) => <a key={`${documento.label}-${documento.url}`} href={documento.url.startsWith("/") ? `${API_BASE}${documento.url}` : documento.url} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[9px] text-primary hover:bg-muted"><FileText size={11} />{documento.label}{documento.numero ? ` · ${documento.numero}` : ""}</a>)}</div>}</td>
                   <td className="px-4 py-3.5"><p className="font-medium">{movimento.holding_nome ?? "Holding não identificada"}</p><p className="mt-1 text-[10px] text-muted-foreground">{movimento.socio_nome ?? "Cotista não identificado"}</p></td>
                   <td className="px-4 py-3.5">{movimento.aeronave ?? "—"}</td>
                   <td className="whitespace-nowrap px-4 py-3.5">{formatarData(movimento.data_vencimento)}</td>
@@ -151,6 +180,7 @@ export function AbaMovimentosHolding() {
                 <div><p className="flex items-center gap-1 text-[9px] uppercase tracking-wide text-muted-foreground"><CalendarDays size={11} />Vencimento</p><p className="mt-1 font-medium">{formatarData(movimento.data_vencimento)}</p></div>
                 <div><p className="text-[9px] uppercase tracking-wide text-muted-foreground">Valor do movimento</p><p className="mt-1 font-mono text-sm font-bold tabular-nums text-foreground">{formatarCentavos(movimento.valor_centavos)}</p></div>
               </div>
+              {documentosMovimento(movimento).length > 0 && <div className="flex flex-wrap gap-1.5">{documentosMovimento(movimento).map((documento) => <a key={`${documento.label}-${documento.url}`} href={documento.url.startsWith("/") ? `${API_BASE}${documento.url}` : documento.url} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-primary"><FileText size={12} />{documento.label}{documento.numero ? ` · ${documento.numero}` : ""}</a>)}</div>}
               <Button size="sm" variant="outline" className="h-10 w-full" onClick={() => abrirBaixa(movimento)}>{movimentoEhEntrada(movimento) ? "Registrar recebimento" : "Dar baixa"}</Button>
             </article>)}
       </div>
@@ -163,7 +193,23 @@ export function AbaMovimentosHolding() {
           <div className="rounded-lg bg-muted/40 p-3"><p className="break-words text-sm font-semibold">{alvo?.descricao}</p><p className="mt-1 text-xs text-muted-foreground">{alvo?.holding_nome} · {formatarCentavos(alvo?.valor_centavos ?? 0)}</p></div>
           <div className="grid gap-2"><Label htmlFor="holding-data">{movimentoEhEntrada(alvo) ? "Data do recebimento" : "Data do pagamento"}</Label><Input id="holding-data" type="date" value={data} onChange={(event) => setData(event.target.value)} /></div>
           <div className="grid gap-2"><Label htmlFor="holding-conta">Conta bancária da holding</Label><Select value={contaId} onValueChange={setContaId}><SelectTrigger id="holding-conta"><SelectValue placeholder="Selecione a conta" /></SelectTrigger><SelectContent>{contas.filter((conta) => conta.holding_id === alvo?.holding_id).map((conta) => <SelectItem key={conta.id} value={conta.id}>{conta.banco}{conta.numero_conta ? ` · ${conta.numero_conta}` : ""}</SelectItem>)}</SelectContent></Select></div>
-          <div className="grid gap-2"><Label htmlFor="holding-comprovante">Comprovante (URL)</Label><Input id="holding-comprovante" value={comprovante} onChange={(event) => setComprovante(event.target.value)} placeholder="https://…" /></div>
+          <AnexosDinamicos
+            file={comprovanteArquivo}
+            onFileChange={(file) => {
+              if (file && (!tipoAnexoLancamentoPermitido(file) || file.size > LIMITE_COMPROVANTE)) {
+                toast.error("Selecione um PDF ou imagem compatível de até 20 MB.");
+                return;
+              }
+              setComprovanteArquivo(file);
+            }}
+            accept={ACEITOS_COMPROVANTE}
+            maxSizeMb={20}
+            label="Comprovante do pagamento/recebimento"
+            description="PDF ou imagem · até 20 MB"
+            existingUrl={alvo?.comprovante_url ?? null}
+            existingName={alvo?.comprovante_url ? "Comprovante já anexado" : null}
+            onView={(url) => window.open(url.startsWith("/") ? `${API_BASE}${url}` : url, "_blank", "noopener,noreferrer")}
+          />
         </div>
         <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:gap-0"><Button variant="outline" onClick={() => setAlvo(null)}>Cancelar</Button><Button disabled={salvando || !contaId} onClick={() => void confirmarBaixa()}><CheckCircle2 size={15} className="mr-2" />{salvando ? "Salvando…" : movimentoEhEntrada(alvo) ? "Confirmar recebimento" : "Confirmar baixa"}</Button></DialogFooter>
       </DialogContent>

@@ -1459,6 +1459,22 @@ export type MovimentoHoldingPendente = {
 
   url_doc?: string | null;
 
+  numero_nf?: string | null;
+
+  url_nf?: string | null;
+
+  numero_recibo?: string | null;
+
+  url_recibo?: string | null;
+
+  numero_boleto?: string | null;
+
+  url_boleto?: string | null;
+
+  numero_demonstrativo?: string | null;
+
+  url_demonstrativo?: string | null;
+
   descricao: string;
 
   categoria_nome: string | null;

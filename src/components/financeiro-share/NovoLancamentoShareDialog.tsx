@@ -281,7 +281,6 @@ export function NovoLancamentoShareDialog({
         fornecedor: (fornecedorSelecionado?.nome ?? fornecedor).trim() || null,
         fornecedor_nome: (fornecedorSelecionado?.nome ?? fornecedor).trim() || null,
         numero_doc: numeroDoc.trim() || null,
-        periodicidade: categoria.classificacao,
         observacoes: observacoes.trim() || null,
         categoria_cliente_id: categoriaClienteId || null,
       };

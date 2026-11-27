@@ -434,7 +434,7 @@ export function NovoLancamentoShareDialog({
         if (!estado) aoFechar();
       }}
     >
-      <DialogContent className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-2xl overflow-y-auto rounded-[24px] border-border bg-background p-0 text-foreground uppercase shadow-2xl sm:w-full [&>button]:right-5 [&>button]:top-5 [&>button]:rounded-full [&>button]:bg-primary-foreground/10 [&>button]:p-1.5 [&>button]:text-primary-foreground/85 [&>button]:hover:bg-primary-foreground/20 [&>button]:hover:text-primary-foreground">
+      <DialogContent className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-[992px] mx-[26px] my-0 overflow-y-auto rounded-[24px] border-border bg-background px-px py-0 sm:px-px sm:py-0 sm:pb-0 text-foreground uppercase shadow-2xl sm:w-full [&>button]:right-5 [&>button]:top-5 [&>button]:rounded-full [&>button]:bg-primary-foreground/10 [&>button]:p-1.5 [&>button]:text-primary-foreground/85 [&>button]:hover:bg-primary-foreground/20 [&>button]:hover:text-primary-foreground">
         <DialogHeader className="border-b border-border/60 bg-primary px-5 pb-5 pt-5 text-left text-primary-foreground sm:px-6">
           <div className="mb-1.5 inline-flex w-fit items-center gap-1.5 rounded-full bg-primary-foreground/15 px-3 py-1">
             <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Building2, Calendar, FileText, ImagePlus, Loader2, Plus, UserRound, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Calendar, FileText, ImagePlus, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -119,7 +119,6 @@ export function NovoLancamentoShareDialog({
 
   const [salvando, setSalvando] = useState(false);
   const [fluxo, setFluxo] = useState("saida");
-  const [grupoDespesa, setGrupoDespesa] = useState("DESPESAS EMPRESA");
   const [descricao, setDescricao] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
   const [valor, setValor] = useState("");
@@ -142,9 +141,8 @@ export function NovoLancamentoShareDialog({
   // Evita que re-renderizações do pai sobrescrevam campos editados pelo usuário
   const chaveInicializacaoRef = useRef<string | null>(null);
 
-  const limpar = () => {
+  const limpar = useCallback(() => {
     setFluxo(somenteEntrada ? "entrada" : fluxoInicial ?? "saida");
-    setGrupoDespesa("DESPESAS EMPRESA");
     setDescricao("");
     setCategoriaId("");
     setValor("");
@@ -161,7 +159,7 @@ export function NovoLancamentoShareDialog({
     setComprovanteUrl("");
     setPagoPor("");
     setImagens([]);
-  };
+  }, [fluxoInicial, somenteEntrada]);
 
   useEffect(() => {
     if (!aberto) {
@@ -194,19 +192,7 @@ export function NovoLancamentoShareDialog({
             ? "entrada"
             : "saida";
 
-    const categoriaEncontrada = categorias.find((c) => c.id === lancamentoInicial.categoriaId);
-    const grupoResolvido = (
-      lancamentoInicial.grupoCategoria ||
-      categoriaEncontrada?.grupo ||
-      "DESPESAS EMPRESA"
-    )
-      .trim()
-      .toUpperCase();
-
     setFluxo(fluxoResolvido);
-    setGrupoDespesa(
-      grupoResolvido === "DESPESAS PARTICULARES" ? "DESPESAS PARTICULARES" : "DESPESAS EMPRESA",
-    );
     setDescricao(lancamentoInicial.descricao ?? "");
     setCategoriaId(lancamentoInicial.categoriaId ?? "");
     setValor(
@@ -241,23 +227,22 @@ export function NovoLancamentoShareDialog({
     setComprovanteUrl(lancamentoInicial.comprovanteUrl ?? "");
     setPagoPor(lancamentoInicial.pagoPor ?? "");
     setImagens([]);
-  }, [aberto, lancamentoInicial, categorias, fluxoInicial, somenteDespesa, somenteEntrada]);
+  }, [aberto, lancamentoInicial, limpar, fluxoInicial, somenteDespesa, somenteEntrada]);
 
   const gruposCategoria = useMemo(() => {
     const mapa = new Map<string, CategoriaCaixaShare[]>();
-    const categoriasVisiveis =
-      fluxo === "saida"
-        ? categorias.filter(
-            (categoria) => (categoria.grupo || "").trim().toUpperCase() === grupoDespesa,
-          )
-        : categorias;
+    const tiposDoFluxo = fluxo === "saida" ? ["DESPESA", "SAIDA"] : ["RECEITA", "ENTRADA"];
+    const categoriasVisiveis = categorias.filter((categoria) => {
+      const tipo = String(categoria.tipo ?? "").trim().toUpperCase();
+      return !tipo || tiposDoFluxo.includes(tipo) || (editando && categoria.id === lancamentoInicial?.categoriaId);
+    });
 
     categoriasVisiveis.forEach((categoria) => {
-      const grupo = categoria.grupo || "OUTRAS";
+      const grupo = categoria.grupo?.trim() || "OUTRAS";
       mapa.set(grupo, [...(mapa.get(grupo) ?? []), categoria]);
     });
     return [...mapa.entries()];
-  }, [categorias, fluxo, grupoDespesa]);
+  }, [categorias, editando, fluxo, lancamentoInicial?.categoriaId]);
 
   const salvar = async () => {
     const categoria = categorias.find((item) => item.id === categoriaId);
@@ -266,8 +251,10 @@ export function NovoLancamentoShareDialog({
 
     if (!descricao.trim()) return toast.error("Informe a descrição do lançamento.");
     if (!categoria) return toast.error("Selecione a categoria do caixa Share.");
-    if (fluxo === "saida" && (categoria.grupo || "").trim().toUpperCase() !== grupoDespesa) {
-      return toast.error("Selecione uma categoria da natureza escolhida.");
+    const tiposDoFluxo = fluxo === "saida" ? ["DESPESA", "SAIDA"] : ["RECEITA", "ENTRADA"];
+    const tipoCategoria = String(categoria.tipo ?? "").trim().toUpperCase();
+    if (tipoCategoria && !tiposDoFluxo.includes(tipoCategoria)) {
+      return toast.error("Selecione uma categoria compatível com o tipo de lançamento.");
     }
     if (!Number.isFinite(valorNumerico) || valorNumerico <= 0) {
       return toast.error("Informe um valor válido.");
@@ -284,7 +271,7 @@ export function NovoLancamentoShareDialog({
         tipo_caixa: "SHARE",
         categoria_id: categoria.id,
         categoria_nome: categoria.nome,
-        grupo_categoria: fluxo === "saida" ? grupoDespesa : categoria.grupo,
+        grupo_categoria: categoria.grupo?.trim() || null,
         valor_total: valorNumerico,
         data: emissaoFinal,
         data_emissao: emissaoFinal,
@@ -373,54 +360,8 @@ export function NovoLancamentoShareDialog({
         </DialogHeader>
 
         <div className="mt-2 space-y-5">
-          {/* BLOCO 1: Natureza, Descrição, Valor e Categoria */}
+          {/* BLOCO 1: Descrição, Valor e Categoria */}
           <section className="space-y-4">
-            {fluxo === "saida" && (
-              <div className="space-y-2">
-                <Label>Natureza da despesa</Label>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {[
-                    {
-                      value: "DESPESAS EMPRESA",
-                      label: "Despesas da empresa",
-                      desc: "Custos operacionais e administrativos",
-                      Icon: Building2,
-                    },
-                    {
-                      value: "DESPESAS PARTICULARES",
-                      label: "Despesas particulares",
-                      desc: "Lançamentos internos sem rateio",
-                      Icon: UserRound,
-                    },
-                  ].map(({ value, label, desc, Icon }) => {
-                    const ativo = grupoDespesa === value;
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        aria-pressed={ativo}
-                        onClick={() => {
-                          setGrupoDespesa(value);
-                          setCategoriaId("");
-                        }}
-                        className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                          ativo
-                            ? "border-primary bg-primary/5 text-primary"
-                            : "border-border bg-background text-muted-foreground hover:bg-muted/50"
-                        }`}
-                      >
-                        <Icon size={18} className="mt-0.5 shrink-0" />
-                        <span className="min-w-0">
-                          <span className="block text-xs font-semibold text-foreground">{label}</span>
-                          <span className="block text-[11px] text-muted-foreground">{desc}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             <div className="space-y-1.5">
               <Label htmlFor="nl-descricao">Descrição *</Label>
               <Input
@@ -481,7 +422,7 @@ export function NovoLancamentoShareDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label>Categoria do caixa *</Label>
+              <Label>Categoria do caixa (por grupo) *</Label>
               <Select value={categoriaId} onValueChange={setCategoriaId}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Selecione a categoria" />
@@ -489,7 +430,7 @@ export function NovoLancamentoShareDialog({
                 <SelectContent className="max-h-[300px]">
                   {gruposCategoria.length === 0 && (
                     <div className="px-3 py-2 text-xs text-muted-foreground">
-                      Nenhuma categoria configurada para este tipo de despesa.
+                      Nenhuma categoria configurada para este tipo de lançamento.
                     </div>
                   )}
                   {gruposCategoria.map(([grupo, itens]) => (

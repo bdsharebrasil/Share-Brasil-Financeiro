@@ -696,11 +696,19 @@ export async function darBaixaContaAPagar(id: string, dados: { dataPagamento: st
 }
 
 /** Confirma o pagamento da despesa Share pelo lançamento, com ou sem conta legada. */
-export function darBaixaPagamentoShare(id: string, dados: { dataPagamento: string; bancoPagamento: string; contaBancariaId?: string; comprovantePagamentoUrl?: string; formaPagamento?: string; observacoes?: string }) {
+export function darBaixaPagamentoShare(id: string, dados: { dataPagamento: string; bancoPagamento: string; contaBancariaId?: string; comprovantePagamentoUrl?: string; formaPagamento?: string; observacoes?: string; pagoPor?: string }) {
   return financeiroRequest<Record<string, unknown>>(`/api/financeiro/lancamentos/${encodeURIComponent(id)}/pagamento-share`, {
     method: "POST",
     body: JSON.stringify({ data_pagamento: dados.dataPagamento, conta_bancaria_id: dados.contaBancariaId || dados.bancoPagamento,
-      comprovante_url: dados.comprovantePagamentoUrl, forma_pagamento: dados.formaPagamento, motivo: dados.observacoes }),
+      comprovante_url: dados.comprovantePagamentoUrl, forma_pagamento: dados.formaPagamento, motivo: dados.observacoes, pago_por: dados.pagoPor }),
+  });
+}
+
+export function darBaixaRecebimentoShare(id: string, dados: { dataPagamento: string; bancoPagamento: string; contaBancariaId?: string; comprovantePagamentoUrl?: string; formaPagamento?: string; pagoPor?: string }) {
+  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/lancamentos/${encodeURIComponent(id)}/recebimento-share`, {
+    method: "POST",
+    body: JSON.stringify({ data_pagamento: dados.dataPagamento, conta_bancaria_id: dados.contaBancariaId || dados.bancoPagamento,
+      comprovante_url: dados.comprovantePagamentoUrl, forma_pagamento: dados.formaPagamento, pago_por: dados.pagoPor }),
   });
 }
 

@@ -33,6 +33,8 @@ import {
 import {
   anexarDocumentoLancamento,
   criarDespesa,
+  darBaixaPagamentoShare,
+  darBaixaRecebimentoShare,
   editarLancamento,
   emitirReceita,
   type CategoriaCaixaShare,
@@ -163,6 +165,7 @@ export function NovoLancamentoShareDialog({
   const [observacoes, setObservacoes] = useState("");
   const [categoriaClienteId, setCategoriaClienteId] = useState("");
   const [dataPagamento, setDataPagamento] = useState("");
+  const [registrarBaixaInicial, setRegistrarBaixaInicial] = useState(false);
   const [contaBancariaId, setContaBancariaId] = useState("nenhuma");
   const [formaPagamento, setFormaPagamento] = useState("nenhuma");
   const [comprovanteUrl, setComprovanteUrl] = useState("");
@@ -188,6 +191,7 @@ export function NovoLancamentoShareDialog({
     setObservacoes("");
     setCategoriaClienteId("");
     setDataPagamento("");
+    setRegistrarBaixaInicial(false);
     setContaBancariaId("nenhuma");
     setFormaPagamento("nenhuma");
     setComprovanteUrl("");
@@ -298,6 +302,12 @@ export function NovoLancamentoShareDialog({
     if (!Number.isFinite(valorNumerico) || valorNumerico <= 0) {
       return toast.error("INFORME UM VALOR VÁLIDO.");
     }
+    if (!editando && registrarBaixaInicial && !dataPagamento) {
+      return toast.error(`Informe a data do ${fluxo === "entrada" ? "recebimento" : "pagamento"}.`);
+    }
+    if (!editando && registrarBaixaInicial && contaBancariaId === "nenhuma") {
+      return toast.error("Selecione a conta bancária usada na baixa.");
+    }
 
     setSalvando(true);
     try {
@@ -343,6 +353,27 @@ export function NovoLancamentoShareDialog({
           })
         : await (fluxo === "entrada" ? emitirReceita : criarDespesa)(payload);
 
+      let erroBaixaInicial: string | null = null;
+      if (!editando && registrarBaixaInicial) {
+        try {
+          const dadosBaixa = {
+            dataPagamento,
+            bancoPagamento: contaBancariaId,
+            contaBancariaId,
+            formaPagamento: formaPagamento === "nenhuma" ? undefined : formaPagamento,
+            comprovantePagamentoUrl: comprovanteUrl.trim() || undefined,
+            pagoPor: pagoPor.trim() || undefined,
+          };
+          if (fluxo === "entrada") {
+            await darBaixaRecebimentoShare(lancamento.id, dadosBaixa);
+          } else {
+            await darBaixaPagamentoShare(lancamento.id, dadosBaixa);
+          }
+        } catch (erro) {
+          erroBaixaInicial = erro instanceof Error ? erro.message : "Não foi possível confirmar a baixa.";
+        }
+      }
+
       const errosUpload: string[] = [];
       for (const imagem of imagens) {
         try {
@@ -364,9 +395,15 @@ export function NovoLancamentoShareDialog({
         toast.error(
           `LANÇAMENTO SALVO, MAS NÃO FOI POSSÍVEL ANEXAR: ${errosUpload.join(", ")}. EDITE O LANÇAMENTO PARA TENTAR NOVAMENTE.`,
         );
+      } else if (erroBaixaInicial) {
+        toast.error(`Lançamento criado em aberto, mas a baixa não foi confirmada: ${erroBaixaInicial}. Registre a baixa pela tabela.`);
       } else {
         toast.success(
-          editando ? "LANÇAMENTO ATUALIZADO." : "LANÇAMENTO DO CAIXA SHARE REGISTRADO.",
+          editando
+            ? "LANÇAMENTO ATUALIZADO."
+            : registrarBaixaInicial
+              ? `LANÇAMENTO REGISTRADO COMO ${fluxo === "entrada" ? "RECEBIDO" : "PAGO"}.`
+              : "LANÇAMENTO DO CAIXA SHARE REGISTRADO EM ABERTO."
         );
       }
 
@@ -596,10 +633,33 @@ export function NovoLancamentoShareDialog({
                 </Select>
               </div>
             </div>
+            {!editando && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="nl-status-inicial">Situação inicial</Label>
+                  <Select
+                    value={registrarBaixaInicial ? "baixado" : "aberto"}
+                    onValueChange={(value) => {
+                      const baixar = value === "baixado";
+                      setRegistrarBaixaInicial(baixar);
+                      if (baixar && !dataPagamento) setDataPagamento(new Date().toISOString().slice(0, 10));
+                    }}
+                  >
+                    <SelectTrigger id="nl-status-inicial" className="h-10 bg-background">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="aberto">Em aberto</SelectItem>
+                      <SelectItem value="baixado">{fluxo === "entrada" ? "Recebido" : "Pago"}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
           </section>
 
-          {/* BLOCO 3: DADOS DA BAIXA (QUANDO JÁ PAGO/RECEBIDO) */}
-          {temBaixaEditavel && (
+          {/* BLOCO 3: DADOS DA BAIXA (QUANDO JÁ PAGO/RECEBIDO OU BAIXA INICIAL) */}
+          {(temBaixaEditavel || (!editando && registrarBaixaInicial)) && (
             <section
               className="grid gap-4 rounded-2xl border border-[#233329]/25 bg-[#233329]/[0.04] p-4 dark:border-[#C8E636]/25 dark:bg-[#C8E636]/[0.05] sm:grid-cols-2"
               aria-label="DADOS DA BAIXA"
@@ -613,18 +673,19 @@ export function NovoLancamentoShareDialog({
                     DADOS DA BAIXA
                   </h3>
                   <p className="text-[10px] font-medium uppercase text-muted-foreground">
-                    EDITE OS DADOS DO PAGAMENTO JÁ REGISTRADO NESTE LANÇAMENTO.
+                    {editando ? "EDITE OS DADOS DA BAIXA JÁ REGISTRADA NESTE LANÇAMENTO." : `INFORME OS DADOS DO ${fluxo === "entrada" ? "RECEBIMENTO" : "PAGAMENTO"} PARA REGISTRAR A BAIXA AGORA.`}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="nl-data-pagamento" className={LABEL_CLASS}>
-                  DATA DO PAGAMENTO
+                  DATA DO {fluxo === "entrada" ? "RECEBIMENTO" : "PAGAMENTO"}{!editando && registrarBaixaInicial ? " *" : ""}
                 </Label>
                 <Input
                   id="nl-data-pagamento"
                   type="date"
+                  required={!editando && registrarBaixaInicial}
                   className={`${INPUT_CLASS} tabular-nums [color-scheme:light] dark:[color-scheme:dark]`}
                   value={dataPagamento}
                   onChange={(evento) => setDataPagamento(evento.target.value)}
@@ -632,7 +693,7 @@ export function NovoLancamentoShareDialog({
               </div>
 
               <div className="space-y-1.5">
-                <Label className={LABEL_CLASS}>CONTA BANCÁRIA</Label>
+                <Label className={LABEL_CLASS}>CONTA BANCÁRIA{!editando && registrarBaixaInicial ? " *" : ""}</Label>
                 <Select value={contaBancariaId} onValueChange={setContaBancariaId}>
                   <SelectTrigger className={SELECT_TRIGGER_CLASS}>
                     <SelectValue placeholder="SELECIONE A CONTA" />
@@ -692,20 +753,20 @@ export function NovoLancamentoShareDialog({
 
               <div className="space-y-1.5">
                 <Label htmlFor="nl-pago-por" className={LABEL_CLASS}>
-                  PAGO POR
+                  {fluxo === "entrada" ? "RECEBIDO DE" : "PAGO POR"}
                 </Label>
                 <Input
                   id="nl-pago-por"
                   className={INPUT_CLASS}
                   value={pagoPor}
                   onChange={(evento) => setPagoPor(sanitizarDigitacao(evento.target.value))}
-                  placeholder="RESPONSÁVEL PELO PAGAMENTO"
+                  placeholder={fluxo === "entrada" ? "NOME DO PAGADOR" : "RESPONSÁVEL PELO PAGAMENTO"}
                 />
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="nl-comprovante" className={LABEL_CLASS}>
-                  LINK DO COMPROVANTE
+                  COMPROVANTE DO {fluxo === "entrada" ? "RECEBIMENTO" : "PAGAMENTO"} (LINK)
                 </Label>
                 <Input
                   id="nl-comprovante"

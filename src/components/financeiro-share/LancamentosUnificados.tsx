@@ -20,6 +20,7 @@ import {
   Columns2,
   Eye,
   EyeOff,
+  FileDown,
   Filter,
   List,
   Loader2,
@@ -33,6 +34,9 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import logoShare from "@/assets/share-signature-logo.png";
 import { anexosFinanceiros } from "@/lib/documentos-financeiros";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { API_BASE } from "@/lib/api";
@@ -95,9 +99,15 @@ type Coluna = { chave: ChaveColuna; rotulo: string; largura?: number };
 type FiltroSituacao = "TODAS" | "EM_ABERTO" | "PAGO" | "EM_ATRASO" | "RECEBIDO" | "AGUARDANDO_REEMBOLSO" | "REEMBOLSADO" | "CANCELADO";
 type FiltroColuna = "contaBancaria" | "documento" | "data";
 type ModoData = "EMISSAO" | "VENCIMENTO" | "AMBAS";
+type CampoRelatorioMensal = "data" | "descricao" | "tipoCaixa" | "entrada" | "saida";
 
 const TIPOS_DOCUMENTO: TipoDocumento[] = ["RECIBO", "RELATORIO VIAGEM", "DEMONSTRATIVO", "NOTA FISCAL", "COMANDA", "BOLETO"];
 const ROTULOS_MODO_DATA: Record<ModoData, string> = { EMISSAO: "DATA EMISSÃO", VENCIMENTO: "VENCIMENTO", AMBAS: "AMBAS" };
+const CAMPOS_RELATORIO_MENSAL: Array<{ chave: CampoRelatorioMensal; rotulo: string }> = [
+  { chave: "data", rotulo: "Data" }, { chave: "descricao", rotulo: "Descrição" },
+  { chave: "tipoCaixa", rotulo: "Tipo de caixa" }, { chave: "entrada", rotulo: "Entrada" },
+  { chave: "saida", rotulo: "Saída" },
+];
 
 function tipoDocumento(linha: LinhaConta): TipoDocumento | null {
   return linha.raw.tipoDocumento ?? null;
@@ -175,7 +185,26 @@ function ehReembolso(linha: LinhaConta) {
   const raw = linha.raw as unknown as Record<string, unknown>;
   const origem = String(raw.origemTipo ?? raw.origem_tipo ?? "").trim().toUpperCase();
   const categoria = String(raw.categoriaNome ?? raw.categoria_nome ?? linha.categoria ?? "").trim().toUpperCase();
-  return raw.reembolsavel === true || origem.includes("REEMBOLSO") || categoria.includes("REEMBOLSO");
+  const grupo = String(raw.grupoCategoria ?? raw.grupo_categoria ?? "").trim().toUpperCase();
+  return raw.reembolsavel === true || raw.reembolsavel === 1 || raw.reembolsavel === "1"
+    || origem.includes("REEMBOLSO") || categoria.includes("REEMBOLSO") || grupo.includes("REEMBOLS");
+}
+function tipoCaixaRelatorio(linha: LinhaConta) {
+  const raw = linha.raw as unknown as Record<string, unknown>;
+  const valor = raw.tipoCaixa ?? raw.tipo_caixa ?? raw.conta_tipo_caixa ?? linha.caixa;
+  return String(valor ?? linha.caixa).trim().toUpperCase() || linha.caixa;
+}
+function fluxoRelatorio(linha: LinhaConta): "ENTRADA" | "SAIDA" {
+  return linha.fluxo === "ENTRADA" || linha.fluxo === "ENTRADA REEMBOLSO" || linha.fluxo === "RECEITA" ? "ENTRADA" : "SAIDA";
+}
+function correspondeAoSegmentoCaixa(linha: LinhaConta, filtro: string) {
+  if (filtro === "TODOS") return true;
+  const raw = linha.raw as unknown as Record<string, unknown>;
+  const grupo = String(raw.grupoCategoria ?? raw.grupo_categoria ?? "").trim().toUpperCase();
+  if (filtro === "EMPRESA") return grupo === "DESPESAS EMPRESA";
+  if (filtro === "PARTICULAR") return grupo === "PARTICULAR";
+  if (filtro === "SHARE") return linha.caixa === "SHARE" || (linha.fluxo === "SAIDA" && ehReembolso(linha));
+  return linha.caixa === filtro;
 }
 function correspondeAoFluxo(linha: LinhaConta, filtro: "TODOS" | FluxoLinha) {
   if (filtro === "TODOS") return true;
@@ -379,7 +408,7 @@ function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
 }
 
 export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalhes }: Props) {
-  const pagar = useContasAPagar({ incluirLancamentos: fluxo === "SAIDA", incluirReembolsos: fluxo === "SAIDA" });
+  const pagar = useContasAPagar({ incluirLancamentos: true, incluirReembolsos: true });
   const receber = useContasAReceber();
   const ehEntrada = fluxo === "ENTRADA";
   const ehHolding = caixa === "HOLDING";
@@ -444,6 +473,26 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
   }, [ehHolding, ehEntrada, lancamentosHolding, movimentosHolding, movimentosHoldingShare, receber.contas, pagar.contas, matriculasAeronaves]);
 
   const [busca, setBusca] = useState("");
+  const [relatorioMensalAberto, setRelatorioMensalAberto] = useState(false);
+  const [mesRelatorio, setMesRelatorio] = useState(mesAtualIso);
+  const [camposRelatorio, setCamposRelatorio] = useState<CampoRelatorioMensal[]>(CAMPOS_RELATORIO_MENSAL.map((campo) => campo.chave));
+  const linhasRelatorioMensal = useMemo(() => {
+    const base = ehHolding
+      ? linhasDeLancamentosHolding(lancamentosHolding, movimentosHolding)
+      : [...linhasDeContasAPagar(pagar.contas), ...linhasDeContasAReceber(receber.contas)];
+    const unicas = new Map<string, LinhaConta>();
+    for (const linha of base) {
+      const chave = `${linha.caixa}:${linha.id}:${linha.fluxo}`;
+      if (!unicas.has(chave) && (linha.dataLancamento || "").slice(0, 7) === mesRelatorio) unicas.set(chave, linha);
+    }
+    return [...unicas.values()].sort((a, b) => a.dataLancamento.localeCompare(b.dataLancamento, "pt-BR") || a.descricao.localeCompare(b.descricao, "pt-BR"));
+  }, [ehHolding, lancamentosHolding, movimentosHolding, pagar.contas, receber.contas, mesRelatorio]);
+  const totaisRelatorioMensal = useMemo(() => linhasRelatorioMensal.reduce((totais, linha) => {
+    if (linha.fluxo === "ENTRADA" || linha.fluxo === "ENTRADA REEMBOLSO" || linha.fluxo === "RECEITA") totais.entrada += linha.valor;
+    else totais.saida += linha.valor;
+    return totais;
+  }, { entrada: 0, saida: 0 }), [linhasRelatorioMensal]);
+  const carregandoRelatorioMensal = ehHolding ? carregandoHolding : pagar.carregando || receber.carregando;
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [situacaoFiltro, setSituacaoFiltro] = useState<FiltroSituacao>(situacaoFiltroInicial(filtroInicial?.situacao));
   const [statusFiltroAberto, setStatusFiltroAberto] = useState(false);
@@ -696,7 +745,7 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
         if (!dentro) return false;
       }
       if (situacaoFiltro !== "TODAS" && statusParaFiltro(linha) !== situacaoFiltro) return false;
-      if (caixaFiltro !== "TODOS" && linha.caixa !== caixaFiltro) return false;
+      if (!correspondeAoSegmentoCaixa(linha, caixaFiltro)) return false;
       if (!correspondeAoFluxo(linha, fluxoFiltro)) return false;
       if (contaFiltro !== null && linha.contaBancaria !== contaFiltro) return false;
       if (docFiltro !== null && tipoDocumento(linha) !== docFiltro) return false;
@@ -778,6 +827,78 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
   function limparFiltros() {
     setBusca(""); setSituacaoFiltro("TODAS"); setCaixaFiltro("TODOS"); setFluxoFiltro("TODOS");
     setContaFiltro(null); setDocFiltro(null); setModoData("EMISSAO");
+  }
+  function alternarCampoRelatorio(campo: CampoRelatorioMensal) {
+    setCamposRelatorio((atuais) => atuais.includes(campo) ? atuais.filter((item) => item !== campo) : [...atuais, campo]);
+  }
+  async function exportarRelatorioMensalPdf() {
+    if (camposRelatorio.length === 0) {
+      toast.error("Marque ao menos um campo para exportar o relatório.");
+      return;
+    }
+    const campos = CAMPOS_RELATORIO_MENSAL.filter(({ chave }) => camposRelatorio.includes(chave));
+    try {
+      const respostaLogo = await fetch(logoShare);
+      if (!respostaLogo.ok) throw new Error("Não foi possível carregar a logo da Share.");
+      const blobLogo = await respostaLogo.blob();
+      const logoData = await new Promise<string>((resolve, reject) => {
+        const leitor = new FileReader();
+        leitor.onload = () => resolve(String(leitor.result));
+        leitor.onerror = () => reject(new Error("Não foi possível preparar a logo da Share para o PDF."));
+        leitor.readAsDataURL(blobLogo);
+      });
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const emitirCabecalho = () => {
+        doc.addImage(logoData, "PNG", 14, 6, 34, 18);
+        doc.setTextColor(23, 61, 96);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(15);
+        doc.text("FINANCEIRO SHARE", 55, 13);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(`Relatório mensal · ${rotuloMes(mesRelatorio)}`, 55, 19);
+        doc.setTextColor(95, 108, 122);
+        doc.setFontSize(8);
+        doc.text(`Movimentações do mês completo · Emitido em ${new Date().toLocaleDateString("pt-BR")}`, 55, 24);
+        doc.setDrawColor(34, 91, 132);
+        doc.setLineWidth(0.6);
+        doc.line(14, 29, doc.internal.pageSize.getWidth() - 14, 29);
+      };
+      const body = linhasRelatorioMensal.map((linha) => campos.map(({ chave }) => {
+        switch (chave) {
+          case "data": return dataOuTraco(linha.dataLancamento);
+          case "descricao": return linha.descricao || "—";
+          case "tipoCaixa": return tipoCaixaRelatorio(linha);
+          case "entrada": return fluxoRelatorio(linha) === "ENTRADA" ? formatarMoeda(linha.valor) : "";
+          case "saida": return fluxoRelatorio(linha) === "SAIDA" ? formatarMoeda(linha.valor) : "";
+        }
+      }));
+      const rodape = campos.map(({ chave }, indice) => {
+        if (indice === 0) return "TOTAL DO MÊS";
+        if (chave === "entrada") return formatarMoeda(totaisRelatorioMensal.entrada);
+        if (chave === "saida") return formatarMoeda(totaisRelatorioMensal.saida);
+        return "";
+      });
+      autoTable(doc, {
+        head: [campos.map(({ rotulo }) => rotulo)], body, foot: [rodape], startY: 34,
+        margin: { top: 34, bottom: 16, left: 14, right: 14 },
+        styles: { fontSize: 8, cellPadding: 2.5 }, headStyles: { fillColor: [31, 64, 104] },
+        footStyles: { fillColor: [235, 240, 246], textColor: [20, 35, 55], fontStyle: "bold" },
+        didDrawPage: emitirCabecalho,
+      });
+      const totalPaginas = doc.getNumberOfPages();
+      for (let paginaPdf = 1; paginaPdf <= totalPaginas; paginaPdf += 1) {
+        doc.setPage(paginaPdf);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(95, 108, 122);
+        doc.text(`Entradas: ${formatarMoeda(totaisRelatorioMensal.entrada)}   ·   Saídas: ${formatarMoeda(totaisRelatorioMensal.saida)}`, 14, doc.internal.pageSize.getHeight() - 7);
+        doc.text(`Página ${paginaPdf} de ${totalPaginas}`, doc.internal.pageSize.getWidth() - 14, doc.internal.pageSize.getHeight() - 7, { align: "right" });
+      }
+      doc.save(`financeiro-share-${mesRelatorio}.pdf`);
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível gerar o PDF.");
+    }
   }
   async function excluirLinha(linha: LinhaConta) {
     const lancamentoId = linha.raw.lancamentoId;
@@ -999,6 +1120,9 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
             <button type="button" className="erp-btn erp-btn-sutis" onClick={() => { setLarguras({}); setOrdemColunas([]); setColunasOcultas([]); }} title="Restaurar colunas">
               <Columns2 size={14} aria-hidden="true" />Restaurar
             </button>
+            <button type="button" className="erp-btn" onClick={() => { setMesRelatorio(mes); setRelatorioMensalAberto(true); }}>
+              <FileDown size={14} aria-hidden="true" />Ver mês / PDF
+            </button>
             <ControleZoomTabela zoom={zoom} alterar={alterarZoom} restaurar={() => definirZoom(100)} />
           </div>
 
@@ -1078,7 +1202,7 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
         )}
         {mostrarFiltros && <div className="erp-filtros" id={`${id}-filtros`}>
           <label><span className="erp-sr-only">Caixa</span><select value={caixaFiltro} onChange={(e) => setCaixaFiltro(e.target.value)}>
-            <option value="TODOS">Todos os caixas</option><option value="SHARE">Share</option><option value="CLIENTE">Cliente</option>{ehHolding && <option value="HOLDING">Holding</option>}
+            <option value="TODOS">Todos os caixas</option><option value="EMPRESA">Despesas empresa</option><option value="PARTICULAR">Particular</option><option value="SHARE">Share</option>{ehHolding && <option value="HOLDING">Holding</option>}
           </select></label>
           <label><span className="erp-sr-only">Fluxo</span><select value={fluxoFiltro} onChange={(e) => setFluxoFiltro(e.target.value as "TODOS" | FluxoLinha)}>
             <option value="TODOS">Todos os fluxos</option>{fluxosFiltro.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -1250,6 +1374,50 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
           <tfoot><tr><td colSpan={colunas.length - 1}>{selecionadosVisiveis.length ? "Total selecionado" : "Total listado"} ({itensRelatorio.length} {itensRelatorio.length === 1 ? "item" : "itens"})</td><td className="erp-direita">{formatarMoeda(totalRelatorio)}</td></tr></tfoot>
         </table>
       </div>
+
+      <Dialog open={relatorioMensalAberto} onOpenChange={setRelatorioMensalAberto}>
+        <DialogContent className="flex max-h-[92dvh] max-w-6xl flex-col gap-4 overflow-hidden">
+          <div className="flex flex-wrap items-start justify-between gap-3 pr-7">
+            <div><DialogTitle>Movimentação mensal</DialogTitle><DialogDescription>Entradas e saídas do mês completo, com o tipo de caixa de cada lançamento.</DialogDescription></div>
+            <label className="flex items-center gap-2 text-sm font-medium">Mês
+              <input aria-label="Mês do relatório" type="month" value={mesRelatorio} onChange={(evento) => setMesRelatorio(evento.target.value)} className="rounded-md border border-input bg-background px-3 py-2 text-sm" />
+            </label>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="rounded-lg border border-border px-3 py-2"><div className="text-xs text-muted-foreground">Lançamentos</div><strong>{linhasRelatorioMensal.length}</strong></div>
+            <div className="rounded-lg border border-border px-3 py-2"><div className="text-xs text-muted-foreground">Total de entradas</div><strong>{formatarMoeda(totaisRelatorioMensal.entrada)}</strong></div>
+            <div className="rounded-lg border border-border px-3 py-2"><div className="text-xs text-muted-foreground">Total de saídas</div><strong>{formatarMoeda(totaisRelatorioMensal.saida)}</strong></div>
+          </div>
+          <fieldset className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-border p-3">
+            <legend className="px-1 text-xs font-semibold">Marque os campos para exibir e exportar</legend>
+            {CAMPOS_RELATORIO_MENSAL.map(({ chave, rotulo }) => <label key={chave} className="flex cursor-pointer items-center gap-2 text-sm">
+              <input type="checkbox" checked={camposRelatorio.includes(chave)} onChange={() => alternarCampoRelatorio(chave)} />{rotulo}
+            </label>)}
+          </fieldset>
+          <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-border">
+            {carregandoRelatorioMensal ? <p className="p-6 text-center text-sm text-muted-foreground">Carregando entradas e saídas do mês…</p>
+              : camposRelatorio.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">Marque ao menos um campo para exibir o relatório.</p>
+              : <table className="w-full min-w-[640px] border-collapse text-sm">
+                <thead className="sticky top-0 bg-muted"><tr>{CAMPOS_RELATORIO_MENSAL.filter(({ chave }) => camposRelatorio.includes(chave)).map(({ chave, rotulo }) => <th key={chave} className="border-b border-border px-3 py-2 text-left">{rotulo}</th>)}</tr></thead>
+                <tbody>{linhasRelatorioMensal.map((linha) => <tr key={`${linha.caixa}:${linha.id}:${linha.fluxo}`} className="odd:bg-muted/30">
+                  {camposRelatorio.includes("data") && <td className="border-b border-border/60 px-3 py-2 whitespace-nowrap">{dataOuTraco(linha.dataLancamento)}</td>}
+                  {camposRelatorio.includes("descricao") && <td className="border-b border-border/60 px-3 py-2">{linha.descricao}</td>}
+                  {camposRelatorio.includes("tipoCaixa") && <td className="border-b border-border/60 px-3 py-2">{tipoCaixaRelatorio(linha)}</td>}
+                  {camposRelatorio.includes("entrada") && <td className="border-b border-border/60 px-3 py-2 text-right tabular-nums">{fluxoRelatorio(linha) === "ENTRADA" ? formatarMoeda(linha.valor) : "—"}</td>}
+                  {camposRelatorio.includes("saida") && <td className="border-b border-border/60 px-3 py-2 text-right tabular-nums">{fluxoRelatorio(linha) === "SAIDA" ? formatarMoeda(linha.valor) : "—"}</td>}
+                </tr>)}
+                {!linhasRelatorioMensal.length && <tr><td colSpan={camposRelatorio.length} className="px-3 py-8 text-center text-muted-foreground">Nenhum lançamento encontrado neste mês.</td></tr>}
+                </tbody>
+              </table>}
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button type="button" className="erp-btn" onClick={() => setRelatorioMensalAberto(false)}>Fechar</button>
+            <button type="button" className="erp-btn erp-btn-primario" disabled={carregandoRelatorioMensal || !linhasRelatorioMensal.length || !camposRelatorio.length} onClick={exportarRelatorioMensalPdf}>
+              <FileDown size={14} aria-hidden="true" />Exportar PDF
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <NovoLancamentoShareDialog aberto={novo || Boolean(lancamentoEditando)} aoFechar={() => { setNovo(false); setLancamentoEditando(null); }} categorias={categorias}
         fornecedores={fornecedores} contasBancarias={contasBancarias} lancamentoInicial={lancamentoEditando ?? undefined}

@@ -109,6 +109,15 @@
   font-weight: 650;
 }
 
+.fb-tab-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-bottom: 6px;
+}
+
 .fb-button {
   display: inline-flex;
   align-items: center;

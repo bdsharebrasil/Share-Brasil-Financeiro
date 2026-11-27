@@ -1847,7 +1847,7 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
                 fornecedores={fornecedoresEdicao}
                 mesesSelecionados={mesesAplicados}
                 cotistaId={cotistaVisaoId}
-                filtrosTabela={
+                filtrosAbas={
                   <>
                     <SearchableCombobox
                       items={cotistasAeronave.map((cotista) => ({

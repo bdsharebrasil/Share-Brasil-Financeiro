@@ -51,8 +51,8 @@ export function ListaAgenda({ itens, filtro, aoFiltro, aoAbrir, aoNovo, carregan
   </section>;
 }
 
-export function HistoricoAgenda({ itens, aoAbrir, carregando }: { itens: SolicitacaoVooInterna[]; aoAbrir: (v: SolicitacaoVooInterna) => void; carregando: boolean }) {
-  const grupos = agruparHistoricoAgenda(itens);
+export function HistoricoAgenda({ itens, clientes, socios, aoAbrir, carregando }: { itens: SolicitacaoVooInterna[]; clientes: { id: string; nome: string }[]; socios: { id: string; cliente_id?: string | null }[]; aoAbrir: (v: SolicitacaoVooInterna) => void; carregando: boolean }) {
+  const grupos = agruparHistoricoAgenda(itens, clientes, socios);
   return <section className="mx-auto max-w-5xl space-y-2.5">
     {grupos.map(([id, grupo]) => <details key={id} className={cardAgenda + " group p-3"}><summary className="flex cursor-pointer list-none items-center gap-3 px-1 py-2 font-semibold"><Folder size={20} className="text-[#1D6CE0]"/><span className="flex-1">{grupo.nome}</span><span className="text-xs font-normal text-slate-500 dark:text-slate-400">{grupo.voos.length} voo(s)</span><ChevronRight size={16} className="transition group-open:rotate-90"/></summary><div className="mt-3 space-y-2">{grupo.voos.map(item => <LinhaAgenda key={item.id} item={item} aoAbrir={aoAbrir} />)}</div></details>)}
     {!grupos.length && <p className="py-10 text-center text-sm text-slate-500">{carregando ? "Carregando histórico…" : "Nenhum voo no histórico."}</p>}

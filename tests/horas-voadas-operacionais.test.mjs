@@ -39,9 +39,10 @@ test("mês sem diário mostra zero em vez de 1 hora fictícia", () => {
 
 test("visualizações usam dados reais comuns, sem fallback de agendamentos", async () => {
   const pagina = await readFile(new URL("../src/pages/Agendamentos.tsx", import.meta.url), "utf8");
-  const modal = await readFile(new URL("../src/components/agendamento/ModalHorasVoadas.tsx", import.meta.url), "utf8");
+  const modal = await readFile(new URL("../src/components/agendamento/DetalhamentoHorasVoadas.tsx", import.meta.url), "utf8");
   assert.match(pagina, /buscarHorasVoadasOperacionais\(anoHoras\)/);
-  assert.match(pagina, /resumoHorasVoadas\.totalMes\.minutos/);
+  assert.match(pagina, /<DetalhamentoHorasVoadas dados=\{dadosHoras\}/);
+  assert.match(modal, /resumo\.totalMes\.minutos/);
   assert.match(modal, /consolidarHorasVoadas\(dados, ano, mes\)/);
   assert.match(modal, /resumo\.porAeronave/);
   assert.doesNotMatch(modal, /return 75|\|\| 60|\|\| 2480|baseVoos/);

@@ -4,7 +4,6 @@ import { ListaAgenda, HistoricoAgenda, AoVivoAgenda } from "@/components/agendam
 import FichaAgendaOperacional from "@/components/agendamento/FichaAgendaOperacional";
 import { historicoAgenda, type FiltroAgenda } from "@/components/agendamento/agendaOperacionalModel";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, CalendarDays, CheckCircle2, ChevronLeft, Clock3, History, Inbox, Plane, Plus, Radio, Search, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -32,29 +31,17 @@ import {
   type HorasVoadasOperacionaisResponse,
 } from "@/lib/colaborador-api";
 import { buscarAerodromos, type AerodromoOption } from "@/lib/flightplan-api";
-import ChecklistPreVoo from "@/components/agendamento/ChecklistPreVoo";
-import JornadaVoo from "@/components/agendamento/JornadaVoo";
 import { conflitosDoTripulante, DIA, montarBlocos } from "@/lib/escala-tempo";
 import {
   calcularProgressoChecklist,
-  correspondeFiltroStatusAgendamento,
   obterAcoesAgendamento,
-  statusPermiteAbrirJornada,
-  statusPermiteChecklist,
 } from "@/components/agendamento/agendamentoCardFlow";
 import { AGENDAMENTO_ABRIR_SESSAO_KEY } from "@/lib/agendamento-navigation";
-import { hojeBrasilia, operacaoNaData } from "@/lib/agendamentos-hoje";
-import { consolidarHorasVoadas, formatarHorasVoadas } from "@/lib/horas-voadas-operacionais";
+import { hojeBrasilia } from "@/lib/agendamentos-hoje";
 import { vincularPlanejamentos } from "@/components/agendamento/planejamentoAgendamento";
-import OperacaoVooSelecionado from "@/components/agendamento/OperacaoVooSelecionado";
-import { filtrarOperacoes, operacaoIniciada, rotuloOperacao, selecionarOperacao, statusOperacao, type FiltroOperacoes } from "@/components/agendamento/operacoesPainelModel";
 import { useVoosEmOperacao } from "@/hooks/useVoosEmOperacao";
 import type { AbaAgendamento } from "@/components/agendamento/AgendamentoNavigation";
-import { abaExibeLista, obterFiltroDaAba } from "@/components/agendamento/agendamentoNavigationModel";
-import { Cronograma, AcoesDetalhe, type FiltroStatusCronograma, type VisaoCronograma } from "@/components/agendamento/AgendamentoCronograma";
-import { CalendarioAgendamento, type VisaoEscala } from "@/components/agendamento/AgendamentoCalendario";
 import EscalaCalendario from "@/components/agendamento/EscalaCalendario";
-import { abaParaAgendamento, ordenarPorDataHorario, urgenciaVoo } from "@/components/agendamento/agendamentoFluxo";
 import { DetalhesSolicitacao } from "@/components/agendamento/AgendamentoDetalhes";
 import { FormularioAgendamento, FormularioDisponibilidade } from "@/components/agendamento/AgendamentoFormularios";
 import PesoBalanceamentoFicha from "@/components/agendamento/PesoBalanceamentoFicha";
@@ -84,56 +71,10 @@ function horaUtcCurta(valor?: string | null) {
   return parte ? `${parte[1].padStart(2, "0")}:${parte[2]}` : "";
 }
 
-function formatarDataCompletaBr(data?: string | null, dataFim?: string | null) {
-  const inicio = String(data || "").slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio)) return "Sem data";
-  const fim = String(dataFim || "").slice(0, 10);
-  const dtInicio = new Date(`${inicio}T12:00:00Z`);
-  const inicioFmt = dtInicio.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).replace(/\./g, "");
-  if (/^\d{4}-\d{2}-\d{2}$/.test(fim) && fim > inicio) {
-    const dtFim = new Date(`${fim}T12:00:00Z`);
-    const iniC = dtInicio.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
-    const fimC = dtFim.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
-    return `${iniC} a ${fimC}`;
-  }
-  return inicioFmt;
-}
-
 function horarioUtc(data: string, hora?: string) {
   if (!hora) return undefined;
   const instante = new Date(`${data}T${hora}:00Z`);
   return Number.isFinite(instante.getTime()) ? instante.toISOString() : undefined;
-}
-function primeiroDiaMes(data: Date) {
-  return new Date(data.getFullYear(), data.getMonth(), 1);
-}
-function ultimoDiaMes(data: Date) {
-  return new Date(data.getFullYear(), data.getMonth() + 1, 0);
-}
-function inicioSemana(data: Date) {
-  return new Date(data.getFullYear(), data.getMonth(), data.getDate() - ((data.getDay() + 6) % 7));
-}
-function diasCalendario(data: Date) {
-  const inicio = primeiroDiaMes(data);
-  const deslocamento = (inicio.getDay() + 6) % 7;
-  const total = Math.ceil((deslocamento + ultimoDiaMes(data).getDate()) / 7) * 7;
-  return Array.from({ length: total }, (_, indice) => new Date(data.getFullYear(), data.getMonth(), indice - deslocamento + 1));
-}
-function ordenarPorAeronave(itens: SolicitacaoVooInterna[]) {
-  const prioridadeStatus: Record<string, number> = { decolado: 0, em_voo: 0, em_rota: 0, acionado: 1, aprovada: 2, pendente: 3 };
-  return [...itens].sort((a, b) => {
-    const prioridadeA = prioridadeStatus[a.status] ?? 3;
-    const prioridadeB = prioridadeStatus[b.status] ?? 3;
-    if (prioridadeA !== prioridadeB) return prioridadeA - prioridadeB;
-
-    const aeronaveA = a.matricula_registro?.trim() || "";
-    const aeronaveB = b.matricula_registro?.trim() || "";
-    if (!aeronaveA && aeronaveB) return 1;
-    if (aeronaveA && !aeronaveB) return -1;
-    return aeronaveA.localeCompare(aeronaveB, "pt-BR", { numeric: true, sensitivity: "base" })
-      || String(a.data_agendada || "").localeCompare(String(b.data_agendada || ""))
-      || String(a.numero_voo || "").localeCompare(String(b.numero_voo || ""), "pt-BR", { numeric: true, sensitivity: "base" });
-  });
 }
 function itensTitulares(opcoes: OpcoesAgendamentoResponse) {
   return [
@@ -147,44 +88,24 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
   const { voos: voosAoVivo, carregando: carregandoAoVivo, erro: erroAoVivo, atualizadoEm: atualizadoAoVivo } = useVoosEmOperacao();
   const [aba, setAba] = useState<AbaAgendamento>("cronograma");
   const [filtroAgenda, setFiltroAgenda] = useState<FiltroAgenda>("todos");
-  const [mes, setMes] = useState(() => primeiroDiaMes(new Date()));
-  const [semanaCalendario, setSemanaCalendario] = useState(() => inicioSemana(new Date()));
-  const [visaoCalendario, setVisaoCalendario] = useState<VisaoEscala>("semanal");
   const [painel, setPainel] = useState<PainelAgendamentoResponse | null>(null);
   const [opcoes, setOpcoes] = useState<OpcoesAgendamentoResponse>({ clientes: [], socios: [], aeronaves: [], vinculos: [] });
   const [aerodromos, setAerodromos] = useState<AerodromoOption[]>([]);
   const [aerodromosCarregando, setAerodromosCarregando] = useState(true);
   const [selecionada, setSelecionada] = useState<SolicitacaoVooInterna | null>(null);
-  const [dataOperacoes, setDataOperacoes] = useState(hojeBrasilia());
-  const [vooHojeSelecionadoId, setVooHojeSelecionadoId] = useState<string | null>(null);
-  const [abaAnterior, setAbaAnterior] = useState<AbaAgendamento | null>(null);
-  const [busca, setBusca] = useState("");
-  const [filtroOperacoes, setFiltroOperacoes] = useState<FiltroOperacoes>("operacao");
-  const [semVooSelecionado, setSemVooSelecionado] = useState(false);
-  const [visaoAndamento, setVisaoAndamento] = useState<"monitoramento" | "hoje">("hoje");
 
-  const [filtroStatus, setFiltroStatus] = useState<FiltroStatusCronograma>("todos");
-  const [visaoCronograma, setVisaoCronograma] = useState<VisaoCronograma>("grid");
-  const [buscaCalendario, setBuscaCalendario] = useState("");
   const [mostrarNovo, setMostrarNovo] = useState(false);
-  const [recusandoId, setRecusandoId] = useState<string | null>(null);
   const [extrato, setExtrato] = useState<{ tripulante: TripulanteAgendamento; inicio: string; fim: string; carregando: boolean; erro: string | null; jornadas: JornadaRegistro[] } | null>(null);
-  const filtroOperacoesAjustado = useRef(false);
   const [mostrarDisponibilidade, setMostrarDisponibilidade] = useState(false);
   const [dadosHoras, setDadosHoras] = useState<HorasVoadasOperacionaisResponse | null>(null);
   const [carregandoHoras, setCarregandoHoras] = useState(true);
   const [erroHoras, setErroHoras] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [atualizando, setAtualizando] = useState(false);
   const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pilotoId, setPilotoId] = useState("");
   const [copilotoId, setCopilotoId] = useState("");
   const [motivo, setMotivo] = useState("");
-  const [checklistAberto, setChecklistAberto] = useState(false);
-  const [progressoChecklistPorId, setProgressoChecklistPorId] = useState<Record<string, number>>({});
-  const [jornadaAberta, setJornadaAberta] = useState(false);
-  const [jornadaModo, setJornadaModo] = useState<"historico" | "atualizar">("atualizar");
   const [agendamentoParaExcluir, setAgendamentoParaExcluir] = useState<SolicitacaoVooInterna | null>(null);
   const [agendamentoParaFinalizar, setAgendamentoParaFinalizar] = useState<SolicitacaoVooInterna | null>(null);
   const [mensagensConfirmacaoId, setMensagensConfirmacaoId] = useState<string | null>(null);
@@ -193,22 +114,9 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
   const [fichaAutoItem, setFichaAutoItem] = useState<SolicitacaoVooInterna | null>(null);
   const [novaDisponibilidade, setNovaDisponibilidade] = useState({ tripulante_id: "", data_inicio: dataIso(new Date()), data_fim: dataIso(new Date()), status: "aviso" as "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel", observacoes: "" });
   const carregamentoAtual = useRef(0);
-  const solicitacaoSelecionadaId = selecionada?.id;
-
-  const notificarProgressoChecklist = useCallback((progresso: number) => {
-    if (!solicitacaoSelecionadaId) return;
-    setProgressoChecklistPorId((atual) => atual[solicitacaoSelecionadaId] === progresso ? atual : { ...atual, [solicitacaoSelecionadaId]: progresso });
-  }, [solicitacaoSelecionadaId]);
-
-  useEffect(() => {
-    if (!solicitacaoSelecionadaId || !["cronograma", "pendentes", "aprovados", "historico"].includes(aba)) return;
-    const frame = window.requestAnimationFrame(() => document.getElementById("detalhes-solicitacao")?.scrollIntoView({ behavior: "smooth", block: "start" }));
-    return () => window.cancelAnimationFrame(frame);
-  }, [aba, solicitacaoSelecionadaId]);
-
   const carregar = useCallback(async (silencioso = false) => {
     const idCarregamento = ++carregamentoAtual.current;
-    if (silencioso) setAtualizando(true); else setCarregando(true);
+    if (!silencioso) setCarregando(true);
     setErro(null);
     try {
       const [painelAtual, opcoesAtuais] = await Promise.all([buscarPainelAgendamento("2000-01-01", "2099-12-31"), buscarOpcoesAgendamento()]);
@@ -227,7 +135,6 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
         const atualizado = agendamentosAtualizados.find((item) => item.id === atual.id);
         return atualizado || atual;
       });
-      setProgressoChecklistPorId(Object.fromEntries(agendamentosAtualizados.map((item) => [item.id, calcularProgressoChecklist(item)])));
       setOpcoes({
         ...opcoesAtuais,
         clientes: Array.isArray(opcoesAtuais?.clientes) ? opcoesAtuais.clientes : [],
@@ -237,7 +144,7 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
       });
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Não foi possível carregar o módulo de agendamento.");
-    } finally { setCarregando(false); setAtualizando(false); }
+    } finally { if (idCarregamento === carregamentoAtual.current) setCarregando(false); }
   }, []);
 
   useEffect(() => { void carregar(); }, [carregar]);
@@ -262,10 +169,6 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
 
   const agendaCompleta = useMemo(() => normalizarAgendamentos(painel?.agendamentos), [painel?.agendamentos]);
   const agendamentos = useMemo(() => agendaCompleta.filter(item => !item.solicitacao_origem_id), [agendaCompleta]);
-  const confirmados = useMemo(() => agendaCompleta.filter((item) => String(item.status || "").trim().toLowerCase() === "aprovada"), [agendaCompleta]);
-  const encerrados = useMemo(() => agendamentos.filter((item) => ["encerrada", "concluida"].includes(String(item.status || "").trim().toLowerCase())), [agendamentos]);
-  const pendentes = useMemo(() => agendamentos.filter((item) => item.status === "pendente"), [agendamentos]);
-
   const referenciaHoras = hojeBrasilia();
   const anoHoras = Number(referenciaHoras.slice(0, 4));
   const mesHoras = Number(referenciaHoras.slice(5, 7));
@@ -285,76 +188,17 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
 
   useEffect(() => { void carregarHorasOperacionais(); }, [carregarHorasOperacionais]);
 
-  const resumoHorasVoadas = useMemo(
-    () => consolidarHorasVoadas(dadosHoras, anoHoras, mesHoras),
-    [dadosHoras, anoHoras, mesHoras],
-  );
-  const horasVoadasMes = carregandoHoras || erroHoras
-    ? "—"
-    : formatarHorasVoadas(resumoHorasVoadas.totalMes.minutos);
-
-  const dias = useMemo(() => diasCalendario(mes), [mes]);
   const titulares = useMemo(() => itensTitulares(opcoes), [opcoes]);
-  const nomesTripulantes = useMemo(() => new Map((painel?.tripulacao || []).map((tripulante) => [tripulante.id, tripulante.nome_completo])), [painel?.tripulacao]);
-  const filtroCronograma = obterFiltroDaAba(aba, filtroStatus);
-
-  const solicitacoesFiltradas = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-    const hoje = hojeBrasilia();
-    const ativos = (aba === "historico" ? agendamentos : agendaCompleta).filter((item) => aba === "cronograma"
-      ? operacaoNaData(item, hoje)
-      : filtroCronograma === "encerrada"
-        ? ["encerrada", "concluida"].includes(String(item.status || "").trim().toLowerCase())
-        : correspondeFiltroStatusAgendamento(item.status, filtroCronograma));
-    const encontrados = termo
-      ? ativos.filter((item) => [item.id, item.data_agendada, item.cliente_razao_social, item.socio_nome, item.codigo_cliente, item.origem, item.destino, item.matricula_registro, item.numero_voo].filter(Boolean).join(" ").toLowerCase().includes(termo))
-      : ativos;
-    const ordenados = ordenarPorDataHorario(encontrados);
-    return aba === "historico" ? ordenados.reverse() : ordenados;
-  }, [agendamentos, agendaCompleta, aba, busca, filtroCronograma]);
 
   const selecionarAba = (proxima: AbaAgendamento) => {
     setMensagensConfirmacaoId(null);
-    setRecusandoId(null);
-    setAbaAnterior(null);
     setAba(proxima);
     setSelecionada(null);
-    setChecklistAberto(false);
-    setJornadaAberta(false);
-    if (proxima === "cronograma") setFiltroStatus("todos");
-    if (proxima === "pendentes") setFiltroStatus("pendente");
-    if (proxima === "aprovados") setFiltroStatus("aprovada");
-    if (proxima === "historico") setFiltroStatus("encerrada");
-    if (proxima === "voos-hoje") setVooHojeSelecionadoId(null);
   };
 
   const abrirSolicitacao = useCallback((item: SolicitacaoVooInterna) => {
     setMensagensConfirmacaoId(null);
     setSelecionada(item);
-    setChecklistAberto(false);
-    setJornadaAberta(false);
-    setPilotoId(item.piloto_id || "");
-    setCopilotoId(item.copiloto_id || "");
-    setMotivo("");
-  }, []);
-
-  const confirmarSolicitacao = (item: SolicitacaoVooInterna) => {
-    setRecusandoId(null);
-    abrirSolicitacao(item);
-    setTimeout(() => document.getElementById("confirmacao-voo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-  };
-
-  const recusarSolicitacao = (item: SolicitacaoVooInterna) => {
-    setRecusandoId(item.id);
-    abrirSolicitacao(item);
-    setTimeout(() => document.getElementById("confirmacao-voo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-  };
-
-  const abrirJornada = useCallback((item: SolicitacaoVooInterna, modo: "historico" | "atualizar" = "atualizar") => {
-    setSelecionada(item);
-    setChecklistAberto(false);
-    setJornadaModo(modo);
-    setJornadaAberta(true);
     setPilotoId(item.piloto_id || "");
     setCopilotoId(item.copiloto_id || "");
     setMotivo("");
@@ -372,13 +216,6 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
     setAba(historicoAgenda(item) ? "historico" : "cronograma");
     abrirSolicitacao(item);
   }, [abrirSolicitacao, carregando, painel?.agendamentos]);
-
-  const navegarParaDataCalendario = useCallback((data: string) => {
-    const dataVoo = new Date(`${data}T00:00:00`);
-    if (Number.isNaN(dataVoo.getTime())) return;
-    setMes(primeiroDiaMes(dataVoo));
-    setSemanaCalendario(inicioSemana(dataVoo));
-  }, []);
 
   const avisarConflitoComandante = (pilotoId: string, voo: EscalaAgendamento) => {
     const existentes = montarBlocos((painel?.escala || []).filter((item) => item.id !== voo.id), [], painel?.tripulacao || []);
@@ -606,7 +443,6 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
 
   const atualizarSelecionada = async (alvo: SolicitacaoVooInterna, dados: AtualizacaoAgendamento): Promise<boolean> => {
     if (!alvo?.id) return false;
-    const dataAnterior = String(alvo.data_agendada || "").slice(0, 10);
     if (dados.piloto_id && dados.piloto_id !== alvo.piloto_id) {
       avisarConflitoComandante(dados.piloto_id, {
         id: alvo.id,
@@ -648,11 +484,6 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
             }
           : atual,
       );
-      const novaData = String(resposta.data_agendada || dados.data_agendada || "").slice(0, 10);
-      if (aba === "voos-hoje" && filtroOperacoes === "confirmados" && novaData && novaData !== dataAnterior) {
-        setDataOperacoes(novaData);
-        setVooHojeSelecionadoId(alvo.id);
-      }
       toast({ title: "Agendamento atualizado", description: "As alterações foram salvas e disponibilizadas para toda a equipe." });
       await carregar(true);
       return true;
@@ -719,53 +550,6 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
     setMostrarDisponibilidade(true);
   };
 
-  const mudarMes = (delta: number) => setMes((atual) => new Date(atual.getFullYear(), atual.getMonth() + delta, 1));
-  const mudarSemana = (delta: number) => setSemanaCalendario((atual) => new Date(atual.getFullYear(), atual.getMonth(), atual.getDate() + delta * 7));
-  const mudarVisaoCalendario = (visao: VisaoEscala) => {
-    setVisaoCalendario(visao);
-    if (visao === "mensal") setMes(primeiroDiaMes(semanaCalendario));
-    else setSemanaCalendario(inicioSemana(mes));
-  };
-
-  const abaLista = abaExibeLista(aba);
-  const tituloAba: Record<AbaAgendamento, string> = {
-    cronograma: "Voos de hoje",
-    pendentes: "Solicitações pendentes",
-    aprovados: "Aprovados e escalados",
-    calendario: "Agenda de voos",
-    escala: "Escala da tripulação",
-    "voos-hoje": "Operação de voo",
-    historico: "Histórico de voos",
-    "horas-voadas": "Horas Voadas",
-  };
-  const descricaoAba: Record<AbaAgendamento, string> = {
-    cronograma: "Operações previstas ou realizadas no dia de hoje, no horário de Brasília.",
-    pendentes: "Pedidos de clientes aguardando análise e confirmação de escala.",
-    aprovados: "Voos confirmados com tripulação definida e plano de voo.",
-    calendario: "Visualização por período (hoje, amanhã, semana) e calendário mensal.",
-    escala: "Disponibilidade, escalas e limites RBAC 117 da tripulação.",
-    "voos-hoje": "Selecione um voo na lista para acompanhar checklist, horários em UTC e telemetria.",
-    historico: "Operações concluídas e registros de voo para consulta.",
-    "horas-voadas": "Tempo de voo registrado no diário de bordo, por aeronave, mês, dia e ano.",
-  };
-
-  const hojeOperacoes = dataOperacoes;
-  const voosEmAndamento = ordenarPorAeronave(filtrarOperacoes(agendamentos, "operacao", hojeOperacoes));
-  const voosConfirmadosHoje = ordenarPorDataHorario(filtrarOperacoes(agendaCompleta, "confirmados", hojeOperacoes));
-
-  useEffect(() => {
-    if (carregando || !painel || filtroOperacoesAjustado.current) return;
-    filtroOperacoesAjustado.current = true;
-    if (voosEmAndamento.length === 0 && voosConfirmadosHoje.length > 0) setFiltroOperacoes("confirmados");
-  }, [carregando, painel, voosEmAndamento.length, voosConfirmadosHoje.length]);
-
-  const baseLateral = visaoAndamento === "monitoramento" || filtroOperacoes === "operacao" ? voosEmAndamento : voosConfirmadosHoje;
-  const voosLateral = baseLateral.filter((voo) => {
-    const termo = busca.trim().toLocaleLowerCase("pt-BR");
-    const tripulantes = [voo.piloto_nome || nomesTripulantes.get(voo.piloto_id || ""), voo.copiloto_nome || nomesTripulantes.get(voo.copiloto_id || "")];
-    const texto = [voo.numero_voo, voo.matricula_registro, voo.origem, voo.destino, voo.cliente_razao_social, voo.socio_nome, ...tripulantes].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
-    return !termo || texto.includes(termo);
-  });
   const areaAtual: AreaAgendamento = aba === "escala" ? "escala" : aba === "historico" ? "historico" : aba === "horas-voadas" ? "horas" : aba === "voos-hoje" ? "ao-vivo" : "agenda";
   const selecionarArea = (proxima: AbaAgendamento) => {
     setMostrarNovo(false);
@@ -776,22 +560,18 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
   const selecionarAreaShell = (area: AreaAgendamento) => selecionarArea(({ agenda: "cronograma", escala: "escala", historico: "historico", horas: "horas-voadas", "ao-vivo": "voos-hoje" } as const)[area]);
   const voltarTelaAnterior = () => {
     setSelecionada(null);
-    setChecklistAberto(false);
-    setJornadaAberta(false);
-    setRecusandoId(null);
     setMensagensConfirmacaoId(null);
   };
-  const renderizarDetalhes = (item: SolicitacaoVooInterna, somenteLeitura = false, incorporado = false) => (
+  const renderizarDetalhes = (item: SolicitacaoVooInterna, somenteLeitura = false) => (
     <DetalhesSolicitacao
       key={item.id}
-      incorporado={incorporado}
+      incorporado
+      acoes={null}
       somenteLeitura={somenteLeitura}
       mostrarMensagensConfirmacao={mensagensConfirmacaoId === item.id}
-      acoes={incorporado ? null : <AcoesDetalhe item={item} aoChecklist={(voo) => { setSelecionada(voo); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={(voo) => abrirJornada(voo, ["encerrada", "concluida"].includes(voo.status) ? "historico" : "atualizar")} aoFinalizar={(voo) => void finalizar(voo)} progressoChecklist={progressoChecklistPorId[item.id] ?? calcularProgressoChecklist(item)} checklistAberto={checklistAberto} />}
       selecionada={item}
       escala={painel?.escala || []}
       disponibilidades={painel?.disponibilidades || []}
-      iniciarRecusa={recusandoId === item.id}
       opcoes={opcoes}
       tripulacao={painel?.tripulacao || []}
       pilotoId={pilotoId}
@@ -799,7 +579,7 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
       motivo={motivo}
       processando={processando}
       aoAtualizar={(dados) => atualizarSelecionada(item, dados)}
-      aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }}
+      aoFechar={voltarTelaAnterior}
       aoPiloto={setPilotoId}
       aoCopiloto={setCopilotoId}
       aoMotivo={setMotivo}
@@ -815,11 +595,11 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
         {erro && <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">{erro}<button type="button" className="underline" onClick={() => void carregar()}>Tentar novamente</button></div>}
         {selecionada && operacaoSelecionada ? (
           <FichaAgendaOperacional key={selecionada.id} item={selecionada} operacao={operacaoSelecionada} aeronave={painel?.aeronaves.find(a => a.id === selecionada.aeronave_id)} itens={agendaCompleta} voosAoVivo={voosAoVivo} erroAoVivo={erroAoVivo}
-            detalhes={renderizarDetalhes(selecionada, historicoAgenda(selecionada), true)} processando={processando} aoAbrir={abrirSolicitacao} aoAbrirPlano={aoAbrirPlano} aoAtualizar={() => carregar(true)} aoFinalizar={finalizar} aoExcluir={excluir} />
+            detalhes={renderizarDetalhes(selecionada, historicoAgenda(selecionada))} processando={processando} aoAbrir={abrirSolicitacao} aoAbrirPlano={aoAbrirPlano} aoAtualizar={() => carregar(true)} aoFinalizar={finalizar} aoExcluir={excluir} />
         ) : areaAtual === "agenda" ? (
           <ListaAgenda itens={agendaCompleta} filtro={filtroAgenda} aoFiltro={setFiltroAgenda} aoAbrir={abrirSolicitacao} aoNovo={() => abrirNovoAgendamento()} carregando={carregando} />
         ) : areaAtual === "historico" ? (
-          <HistoricoAgenda itens={agendaCompleta} aoAbrir={abrirSolicitacao} carregando={carregando} />
+          <HistoricoAgenda itens={agendaCompleta} clientes={opcoes.clientes} socios={opcoes.socios} aoAbrir={abrirSolicitacao} carregando={carregando} />
         ) : areaAtual === "ao-vivo" ? (
           <AoVivoAgenda voos={voosAoVivo} carregando={carregandoAoVivo} erro={erroAoVivo} atualizado={atualizadoAoVivo} itens={agendaCompleta} aoAbrir={abrirSolicitacao} />
         ) : areaAtual === "horas" ? (
@@ -866,40 +646,6 @@ export default function Agendamentos({ aoAbrirPlano, aoFechar }: { aoAbrirPlano?
               </tr>)}</tbody>
             </table></div>
           ) : <p className="py-6 text-center text-xs text-muted-foreground">Nenhuma jornada registrada neste período.</p>)}
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal Jornada via Dialog */}
-      <Dialog
-        open={Boolean(selecionada && statusPermiteAbrirJornada(selecionada.status) && jornadaAberta)}
-        onOpenChange={(aberto) => {
-          if (!aberto) {
-            setJornadaAberta(false);
-            setSelecionada(null);
-            void carregar(true);
-          }
-        }}
-      >
-        <DialogContent className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-5xl overflow-y-auto p-0">
-          <DialogTitle className="sr-only">Jornada e histórico do voo</DialogTitle>
-          <DialogDescription className="sr-only">Acompanhamento de horários, pernas e jornada da tripulação em UTC</DialogDescription>
-          {selecionada && (
-            <JornadaVoo
-              item={selecionada}
-              modo={jornadaModo}
-              permitirMapa={false}
-              voosEmOperacao={voosAoVivo}
-              aoAtualizarAgendamento={async (status) => {
-                await carregar(true);
-                if (status) setSelecionada((atual) => (atual ? { ...atual, status } : atual));
-              }}
-              aoFechar={() => {
-                setJornadaAberta(false);
-                setSelecionada(null);
-                void carregar(true);
-              }}
-            />
-          )}
         </DialogContent>
       </Dialog>
 

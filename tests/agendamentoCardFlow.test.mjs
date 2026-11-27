@@ -7,9 +7,9 @@ import {
   statusPermiteChecklist,
 } from "../src/components/agendamento/agendamentoCardFlow.ts";
 
-const paginaAgendamentos = readFileSync(new URL("../src/pages/Agendamentos.tsx", import.meta.url), "utf8");
+const paginaAgendamentos = readFileSync(new URL("../src/components/agendamento/FichaAgendaOperacional.tsx", import.meta.url), "utf8");
 
-test("status acionado e decolado mantêm o modal de jornada acessível", () => {
+test("status acionado e decolado mantêm a jornada acessível", () => {
   for (const status of ["acionado", "decolado"]) {
     assert.equal(statusPermiteAbrirJornada(status), true);
     assert.equal(statusPermiteChecklist(status), true);
@@ -23,6 +23,7 @@ test("a abertura da jornada preserva o histórico encerrado e bloqueia solicita�
   assert.equal(statusPermiteAbrirJornada("pendente"), false);
 });
 
-test("a página usa a regra compartilhada ao renderizar o modal de jornada", () => {
-  assert.match(paginaAgendamentos, /statusPermiteAbrirJornada\(selecionada\.status\)\s*&&\s*jornadaAberta/);
+test("a ficha usa a regra compartilhada e valida o vínculo antes de renderizar a jornada", () => {
+  assert.match(paginaAgendamentos, /statusPermiteAbrirJornada\(operacao\.status\)\s*&&\s*vinculoValido/);
+  assert.match(paginaAgendamentos, /acao === "horarios" && \(podeHorarios/);
 });

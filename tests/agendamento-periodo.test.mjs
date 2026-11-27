@@ -29,6 +29,6 @@ test('o editor e a agenda aplicam a atualização otimista após salvar datas', 
   const pagina = await readFile(new URL('../src/pages/Agendamentos.tsx', import.meta.url), 'utf8');
   assert.match(detalhe, /ajustarPeriodoAoAlterarDataSaida/);
   assert.match(detalhe, /campo === "data_agendada"/);
-  assert.match(pagina, /setSelecionada\(\(atual\) => atual\?\.id === selecionada\.id/);
-  assert.match(pagina, /setPainel\(\(atual\) => atual \? \{ \.\.\.atual, agendamentos: atual\.agendamentos\.map/);
+  assert.match(pagina, /setSelecionada\(\(atual\) => \(atual\?\.id === alvo\.id/);
+  assert.match(pagina, /setPainel\(\(atual\) =>\s*atual\s*\?\s*\{\s*\.\.\.atual,\s*agendamentos: atual\.agendamentos\.map/);
 });

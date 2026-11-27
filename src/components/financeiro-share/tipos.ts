@@ -20,6 +20,7 @@ export interface Lancamento {
   cotista?: string | null;
   data: string; // ISO date
   dataPagamento?: string | null;
+  comprovanteUrl?: string | null;
   dataRecebimento?: string | null;
   descricao: string;
   documento: string | null;

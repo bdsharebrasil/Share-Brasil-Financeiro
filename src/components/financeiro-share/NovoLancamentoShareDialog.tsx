@@ -364,6 +364,16 @@ export function NovoLancamentoShareDialog({
         categoria_cliente_id: categoriaClienteId || null,
       };
 
+      const errosUpload: string[] = [];
+      let urlComprovante: string | null = null;
+      if (editando && arquivoComprovante) {
+        const enviado = await enviarAnexoDocumentoSaida(arquivoComprovante, arquivoComprovante.name, {
+          origem: "lancamento",
+          documentoId: lancamentoInicial!.id,
+        });
+        urlComprovante = enviado.url;
+      }
+
       const lancamento = editando
         ? await editarLancamento(lancamentoInicial!.id, {
             ...payload,
@@ -376,12 +386,11 @@ export function NovoLancamentoShareDialog({
                   pago_por: formatarTextoUi(pagoPor) || null,
                 }
               : {}),
+            ...(urlComprovante ? { comprovante_url: urlComprovante } : {}),
           })
         : await (fluxo === "entrada" ? emitirReceita : criarDespesa)(payload);
 
-      const errosUpload: string[] = [];
-      let urlComprovante: string | null = null;
-      if (arquivoComprovante) {
+      if (!editando && arquivoComprovante) {
         try {
           const enviado = await enviarAnexoDocumentoSaida(arquivoComprovante, arquivoComprovante.name, {
             origem: "lancamento",
@@ -410,7 +419,7 @@ export function NovoLancamentoShareDialog({
       const camposDocumentos = camposDosDocumentos(anexosDocumentos);
       const camposArquivos: Record<string, unknown> = {
         ...camposDocumentos,
-        ...(urlComprovante ? { comprovante_url: urlComprovante } : {}),
+        ...(!editando && urlComprovante ? { comprovante_url: urlComprovante } : {}),
       };
       if (Object.keys(camposArquivos).length) {
         try {

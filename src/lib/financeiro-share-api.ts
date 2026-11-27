@@ -413,6 +413,7 @@ function normalizarLancamentoCaixa(row: any): Lancamento {
 
     data: String(dataBruta).slice(0, 10),
     dataPagamento: row.dataPagamento ?? row.data_pagamento ?? null,
+    comprovanteUrl: row.comprovanteUrl ?? row.comprovante_url ?? row.comprovantePagamentoUrl ?? row.comprovante_pagamento_url ?? null,
     dataRecebimento: row.dataRecebimento ?? row.data_recebimento ?? null,
     descricao: String(row.descricao ?? ""),
     documento:

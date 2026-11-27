@@ -375,58 +375,104 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
 }
 
 function normalizarLancamentoCaixa(row: any): Lancamento {
-
   const anexos = (() => {
-
     const valor = row.anexos ?? row.anexos_json;
-
     if (Array.isArray(valor)) return valor;
-
-    try { return valor ? JSON.parse(String(valor)) : []; } catch { return []; }
-
+    try {
+      return valor ? JSON.parse(String(valor)) : [];
+    } catch {
+      return [];
+    }
   })();
 
+  const dataBruta = row.data_emissao ?? row.dataEmissao ?? row.data ?? row.criado_em ?? "";
+  const prazoBruto = row.data_vencimento ?? row.dataVencimento ?? row.prazo ?? null;
+
   return {
+    id: String(row.id ?? ""),
+    aeronaveId: row.aeronaveId ?? row.aeronave_id ?? null,
+    cotistaId: row.cotistaId ?? row.cotista_aeronave_id ?? row.cotista_id ?? null,
+    cotistaNome: row.cotistaNome ?? row.cotista_nome ?? null,
+    cotista: row.cotista ?? row.cotista_nome ?? null,
 
-    id: String(row.id ?? ""), aeronaveId: row.aeronaveId ?? row.aeronave_id ?? null, cotistaId: row.cotistaId ?? row.cotista_aeronave_id ?? row.cotista_id ?? null,
-    cotistaNome: row.cotistaNome ?? row.cotista_nome ?? null, cotista: row.cotista ?? row.cotista_nome ?? null,
-
-    data: String(row.data ?? row.data_emissao ?? row.criado_em ?? "").slice(0, 10),
-
-    descricao: String(row.descricao ?? ""), documento: row.documento ?? row.numero_doc ?? row.numero_nf ?? row.numero_recibo ?? row.numero_demonstrativo ?? null,
-    numeroDoc: row.numeroDoc ?? row.numero_doc ?? null, numeroNf: row.numeroNf ?? row.numero_nf ?? null,
-    numeroRecibo: row.numeroRecibo ?? row.numero_recibo ?? null, numeroDemonstrativo: row.numeroDemonstrativo ?? row.numero_demonstrativo ?? null,
+    data: String(dataBruta).slice(0, 10),
+    descricao: String(row.descricao ?? ""),
+    documento:
+      row.documento ??
+      row.numero_doc ??
+      row.numero_nf ??
+      row.numero_recibo ??
+      row.numero_demonstrativo ??
+      null,
+    numeroDoc: row.numeroDoc ?? row.numero_doc ?? null,
+    numeroNf: row.numeroNf ?? row.numero_nf ?? null,
+    numeroRecibo: row.numeroRecibo ?? row.numero_recibo ?? null,
+    numeroDemonstrativo: row.numeroDemonstrativo ?? row.numero_demonstrativo ?? null,
     documentoUrl: row.documentoUrl ?? row.url_doc ?? null,
-    url_demonstrativo: row.url_demonstrativo ?? null, url_nf: row.url_nf ?? null, url_recibo: row.url_recibo ?? null,
-    url_boleto: row.url_boleto ?? null, url_doc: row.url_doc ?? null,
+    url_demonstrativo: row.url_demonstrativo ?? null,
+    url_nf: row.url_nf ?? null,
+    url_recibo: row.url_recibo ?? null,
+    url_boleto: row.url_boleto ?? null,
+    url_doc: row.url_doc ?? null,
 
-    fornecedor: row.fornecedor ?? row.fornecedor_nome ?? null, fornecedorId: row.fornecedorId ?? row.fornecedor_id ?? row.fornecedores_favoritos_id ?? null,
+    fornecedor: row.fornecedor ?? row.fornecedor_nome ?? null,
+    fornecedorId:
+      row.fornecedorId ?? row.fornecedor_id ?? row.fornecedores_favoritos_id ?? null,
 
-    categoria: String(row.categoria ?? row.categoria_nome ?? "SEM CATEGORIA"), categoriaId: row.categoriaId ?? row.categoria_share_id ?? row.categoria_id ?? null,
+    categoria: String(row.categoria ?? row.categoria_nome ?? "SEM CATEGORIA"),
+    categoriaId: row.categoriaId ?? row.categoria_share_id ?? row.categoria_id ?? null,
     categoriaClienteId: row.categoriaClienteId ?? row.categoria_cliente_id ?? null,
 
-    grupoCategoria: String(row.grupoCategoria ?? row.grupo_categoria ?? ""), tipo: row.tipo ?? row.tipo_despesa ?? null,
+    grupoCategoria: String(row.grupoCategoria ?? row.grupo_categoria ?? ""),
+    tipo: row.tipo ?? row.tipo_despesa ?? null,
 
-    prazo: row.prazo ?? row.data_vencimento ?? null, fluxoOriginal: String(row.fluxo ?? ""), fluxo: ["ENTRADA", "RECEITA"].includes(String(row.fluxo ?? "").trim().toUpperCase()) ? "ENTRADA" : "SAIDA",
+    prazo: prazoBruto ? String(prazoBruto).slice(0, 10) : null,
+    fluxoOriginal: String(row.fluxo ?? ""),
+    fluxo: ["ENTRADA", "RECEITA"].includes(String(row.fluxo ?? "").trim().toUpperCase())
+      ? "ENTRADA"
+      : "SAIDA",
 
-    valorCentavos: Number(row.valorCentavos ?? row.valor_centavos ?? Math.round(Number(row.valor_total ?? row.valor ?? 0) * 100)),
+    valorCentavos: Number(
+      row.valorCentavos ??
+        row.valor_centavos ??
+        Math.round(Number(row.valor_total ?? row.valor ?? 0) * 100),
+    ),
 
-    pagoPor: String(row.pagoPor ?? row.pago_por ?? row.pago_por_cotista_id ?? ""), caixa: ((String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() === "CLIENTE" || String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() === "HOLDING") ? String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() : "SHARE") as "CLIENTE" | "HOLDING" | "SHARE",
+    pagoPor: String(row.pagoPor ?? row.pago_por ?? row.pago_por_cotista_id ?? ""),
+    caixa: (String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() === "CLIENTE" ||
+    String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() === "HOLDING"
+      ? String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase()
+      : "SHARE") as "CLIENTE" | "HOLDING" | "SHARE",
     contaBancariaId: row.contaBancariaId ?? row.conta_bancaria_id ?? null,
-    contaBancaria: row.contaBancaria ?? row.conta_bancaria_nome ?? row.nome_conta_bancaria ?? row.banco_pagamento_nome ?? null,
+    contaBancaria:
+      row.contaBancaria ??
+      row.conta_bancaria_nome ??
+      row.nome_conta_bancaria ??
+      row.banco_pagamento_nome ??
+      null,
 
-    pagoDiretamente: flagFinanceira(row.pagoDiretamente ?? row.pago_diretamente), reembolsavel: flagFinanceira(row.reembolsavel),
+    pagoDiretamente: flagFinanceira(row.pagoDiretamente ?? row.pago_diretamente),
+    reembolsavel: flagFinanceira(row.reembolsavel),
 
-    reembolsoQuitado: flagFinanceira(row.reembolsoQuitado ?? row.reembolso_quitado), status: String(row.status ?? "EM_ABERTO").toUpperCase() as Lancamento["status"],
+    reembolsoQuitado: flagFinanceira(row.reembolsoQuitado ?? row.reembolso_quitado),
+    status: String(row.status ?? "EM_ABERTO").toUpperCase() as Lancamento["status"],
 
-    observacoes: row.observacoes ?? null, criadoPor: row.criadoPor ?? row.criado_por ?? null,
+    observacoes: row.observacoes ?? null,
+    criadoPor: row.criadoPor ?? row.criado_por ?? null,
 
-    criadoEm: String(row.criadoEm ?? row.criado_em ?? ""), atualizadoEm: String(row.atualizadoEm ?? row.atualizado_em ?? ""),
+    criadoEm: String(row.criadoEm ?? row.criado_em ?? ""),
+    atualizadoEm: String(row.atualizadoEm ?? row.atualizado_em ?? ""),
 
-    anexos: anexos.filter((item: any) => item && item.url).map((item: any) => ({ id: String(item.id ?? crypto.randomUUID()), nome: String(item.nome ?? "Documento"), url: String(item.url), tipo: item.tipo ?? null, numero: item.numero ?? null })),
-
+    anexos: anexos
+      .filter((item: any) => item && item.url)
+      .map((item: any) => ({
+        id: String(item.id ?? crypto.randomUUID()),
+        nome: String(item.nome ?? "Documento"),
+        url: String(item.url),
+        tipo: item.tipo ?? null,
+        numero: item.numero ?? null,
+      })),
   };
-
 }
 
 function periodoCompetencia(competencia?: string) {
@@ -543,26 +589,79 @@ function valorCentavosDoPayload(payload: Record<string, unknown>): number {
 
 }
 
-async function criarLancamentoPeloKernel(payload: Record<string, unknown>, fluxo: "SAIDA" | "ENTRADA"): Promise<Lancamento> {
-
-  const data = String(payload.data ?? payload.data_emissao ?? new Date().toISOString().slice(0, 10));
-
+async function criarLancamentoPeloKernel(
+  payload: Record<string, unknown>,
+  fluxo: "SAIDA" | "ENTRADA",
+): Promise<Lancamento> {
+  const data = String(payload.data_emissao ?? payload.data ?? new Date().toISOString().slice(0, 10));
   const valorCentavos = valorCentavosDoPayload(payload);
 
-  const camposPermitidos = new Set(["idempotency_key", "idempotencyKey", "reference_id", "valor_centavos", "valorCentavos", "descricao", "descricao_servico", "fluxo", "data", "data_emissao", "data_vencimento", "vencimento", "aeronave_id", "cotista_aeronave_id", "cotista_id", "socio_id", "holding_id", "categoria_id", "categoria_nome", "categoria", "fornecedor_id", "fornecedor", "tipo_caixa", "forma_pagamento", "conta_bancaria_id", "observacoes", "numero_doc", "pago_diretamente", "pagoDiretamente", "pago_por", "rateio_linhas", "rateios", "tipo_rateio", "reembolsavel", "colaborador_id", "motivo", "valor"]);
+  const camposPermitidos = new Set([
+    "idempotency_key",
+    "idempotencyKey",
+    "reference_id",
+    "valor_centavos",
+    "valorCentavos",
+    "descricao",
+    "descricao_servico",
+    "fluxo",
+    "data",
+    "data_emissao",
+    "data_vencimento",
+    "vencimento",
+    "aeronave_id",
+    "cotista_aeronave_id",
+    "cotista_id",
+    "socio_id",
+    "holding_id",
+    "categoria_id",
+    "categoria_nome",
+    "categoria",
+    "grupo_categoria",
+    "categoria_cliente_id",
+    "fornecedor_id",
+    "fornecedor",
+    "fornecedor_nome",
+    "tipo_caixa",
+    "forma_pagamento",
+    "conta_bancaria_id",
+    "observacoes",
+    "numero_doc",
+    "pago_diretamente",
+    "pagoDiretamente",
+    "pago_por",
+    "rateio_linhas",
+    "rateios",
+    "tipo_rateio",
+    "reembolsavel",
+    "colaborador_id",
+    "motivo",
+    "valor",
+  ]);
 
-  const contrato = Object.fromEntries(Object.entries(payload).filter(([campo]) => camposPermitidos.has(campo)));
+  const contrato = Object.fromEntries(
+    Object.entries(payload).filter(([campo]) => camposPermitidos.has(campo)),
+  );
 
-  const resposta = await financeiroRequest<unknown>(fluxo === "ENTRADA" ? "/api/financeiro/lancamentos/receita" : "/api/financeiro/lancamentos/despesa", {
-
-    method: "POST",
-
-    body: JSON.stringify({ ...contrato, fluxo, valorCentavos, data, data_emissao: payload.data_emissao ?? data, idempotencyKey: payload.idempotencyKey ?? `ui:${fluxo}:${data}:${payload.descricao ?? ""}:${valorCentavos}` }),
-
-  });
+  const resposta = await financeiroRequest<unknown>(
+    fluxo === "ENTRADA"
+      ? "/api/financeiro/lancamentos/receita"
+      : "/api/financeiro/lancamentos/despesa",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...contrato,
+        fluxo,
+        valorCentavos,
+        data,
+        data_emissao: payload.data_emissao ?? data,
+        idempotencyKey:
+          payload.idempotencyKey ?? `ui:${fluxo}:${data}:${payload.descricao ?? ""}:${valorCentavos}`,
+      }),
+    },
+  );
 
   return normalizarLancamentoCaixa(resposta);
-
 }
 
 export function criarDespesa(payload: Record<string, unknown>): Promise<Lancamento> { return criarLancamentoPeloKernel(payload, "SAIDA"); }
@@ -1775,10 +1874,87 @@ export const getShareFinance = buscarDashboardShare;
 
 export const getCotistaFinance = (periodo: string, visao: string, cotista: string, aeronave: string) => financeiroRequest<Record<string, unknown>>(`/api/financeiro/cotista${paraQueryString({ periodo, visao, cotista, aeronave })}`);
 
-export function editarLancamento(id: string, dados: Record<string, unknown>) {
+export async function editarLancamento(
+  id: string,
+  dados: Record<string, unknown>,
+): Promise<Lancamento> {
+  const payload: Record<string, unknown> = { ...dados };
 
-  return financeiroRequest<Lancamento>(`/api/financeiro/lancamentos/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(dados) });
+  if ("data" in payload || "data_emissao" in payload || "dataEmissao" in payload) {
+    const dataEmissao = textoPreenchido(
+      payload.data_emissao ?? payload.dataEmissao ?? payload.data,
+    );
+    payload.data = dataEmissao;
+    payload.data_emissao = dataEmissao;
+  }
 
+  if (
+    "prazo" in payload ||
+    "data_vencimento" in payload ||
+    "dataVencimento" in payload ||
+    "vencimento" in payload
+  ) {
+    const dataVencimento = textoPreenchido(
+      payload.data_vencimento ?? payload.dataVencimento ?? payload.prazo ?? payload.vencimento,
+    );
+    payload.prazo = dataVencimento;
+    payload.data_vencimento = dataVencimento;
+    payload.vencimento = dataVencimento;
+  }
+
+  if ("data_pagamento" in payload || "dataPagamento" in payload) {
+    payload.data_pagamento = textoPreenchido(payload.data_pagamento ?? payload.dataPagamento);
+  }
+
+  if (
+    "valor_centavos" in payload ||
+    "valorCentavos" in payload ||
+    "valor_total" in payload ||
+    "valor" in payload
+  ) {
+    const centavos = valorCentavosDoPayload(payload);
+    payload.valor_centavos = centavos;
+    payload.valorCentavos = centavos;
+    payload.valor_total = centavos / 100;
+    payload.valor = centavos / 100;
+  }
+
+  if ("categoriaId" in payload && !("categoria_id" in payload)) {
+    payload.categoria_id = payload.categoriaId;
+  }
+  if ("fornecedorId" in payload && !("fornecedor_id" in payload)) {
+    payload.fornecedor_id = payload.fornecedorId;
+  }
+  if ("numeroDoc" in payload && !("numero_doc" in payload)) {
+    payload.numero_doc = payload.numeroDoc;
+  }
+  if ("categoriaClienteId" in payload && !("categoria_cliente_id" in payload)) {
+    payload.categoria_cliente_id = payload.categoriaClienteId;
+  }
+  if ("contaBancariaId" in payload && !("conta_bancaria_id" in payload)) {
+    payload.conta_bancaria_id = payload.contaBancariaId;
+  }
+  if ("formaPagamento" in payload && !("forma_pagamento" in payload)) {
+    payload.forma_pagamento = payload.formaPagamento;
+  }
+  if ("comprovanteUrl" in payload && !("comprovante_url" in payload)) {
+    payload.comprovante_url = payload.comprovanteUrl;
+  }
+  if ("pagoPor" in payload && !("pago_por" in payload)) {
+    payload.pago_por = payload.pagoPor;
+  }
+
+  const resposta = await financeiroRequest<Record<string, unknown>>(
+    `/api/financeiro/lancamentos/${encodeURIComponent(id)}`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+  );
+
+  const bruto =
+    resposta && typeof resposta === "object" && "lancamento" in resposta && resposta.lancamento
+      ? resposta.lancamento
+      : resposta;
+
+  return normalizarLancamentoCaixa(bruto);
 }
 
 export function darBaixaLancamento(id: string, dados: { dataPagamento?: string; valorPagoRealCentavos?: number; pagoPor?: string | null; contaBancariaId?: string | null; comprovanteUrl?: string | null } = {}) {

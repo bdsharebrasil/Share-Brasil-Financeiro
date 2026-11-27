@@ -43,7 +43,7 @@ export function AgendamentoShell({
   const rotulo = title || areas.find((a) => a.id === area)?.label || "Agenda de Voos";
 
   return (
-    <div className="min-w-0 rounded-[32px] bg-[#0B2244] p-2.5 text-[#0B2244] shadow-xl dark:bg-[#050B16] dark:text-slate-100 sm:p-4">
+    <div className="min-w-0 rounded-[32px] bg-[#0B2244] p-2.5 text-[#0B2244] shadow-xl dark:bg-[rgba(12,19,22,1)] dark:text-slate-100 sm:p-4">
       <header className="flex flex-col-reverse gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
         {/* Botão circular + Aba curva integrada ao corpo principal */}
         <div className="relative z-10 -mb-[1px] flex min-w-0 items-end">

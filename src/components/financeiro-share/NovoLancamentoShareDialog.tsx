@@ -47,6 +47,7 @@ import {
 } from "@/lib/nfSaidaApi";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { API_BASE } from "@/lib/api";
+import { tipoAnexoLancamentoPermitido } from "@/lib/documentos-financeiros";
 import type { Lancamento } from "@/components/financeiro-share/tipos";
 import { opcoesPeriodicidade } from "@/data/opcoes";
 import type { Periodicidade } from "@/types/financeiro";
@@ -77,6 +78,7 @@ export type LancamentoEdicao = {
   contaBancariaRotulo?: string | null;
   formaPagamento?: string | null;
   comprovanteUrl?: string | null;
+  documentoUrl?: string | null;
   pagoPor?: string | null;
   status?: string | null;
   anexos?: Array<{ id?: string; nome: string; url: string; tipo?: string | null }>;
@@ -97,10 +99,7 @@ type Props = {
 
 const FORMAS_BAIXA = ["PIX", "TRANSFERÊNCIA", "BOLETO", "DINHEIRO", "CARTÃO"];
 const LIMITE_ANEXO_LANCAMENTO = 20 * 1024 * 1024;
-
-function tipoAnexoLancamentoPermitido(arquivo: File) {
-  return arquivo.type === "application/pdf" || arquivo.type.startsWith("image/");
-}
+const ACCEPT_ANEXO_LANCAMENTO = "application/pdf,image/jpeg,image/png,image/apng,image/gif,image/webp,image/avif,image/bmp,image/svg+xml,image/x-icon,.pdf,.jpg,.jpeg,.png,.apng,.gif,.webp,.avif,.bmp,.svg,.ico";
 
 /** Remove underscores e padroniza textos exibidos na UI em MAIÚSCULAS */
 function formatarTextoUi(valor?: string | null): string {
@@ -176,6 +175,8 @@ export function NovoLancamentoShareDialog({
   const [pagoPor, setPagoPor] = useState("");
   const [categoriasCliente, setCategoriasCliente] = useState<CategoriaDespesaOpcao[]>([]);
   const [anexosSelecionados, setAnexosSelecionados] = useState<File[]>([]);
+  const [arquivoDocumento, setArquivoDocumento] = useState<File | null>(null);
+  const [arquivoComprovante, setArquivoComprovante] = useState<File | null>(null);
   const [inputAnexoKey, setInputAnexoKey] = useState(0);
 
   // Evita que re-renderizações do pai sobrescrevam campos editados pelo usuário
@@ -201,6 +202,8 @@ export function NovoLancamentoShareDialog({
     setComprovanteUrl("");
     setPagoPor("");
     setAnexosSelecionados([]);
+    setArquivoDocumento(null);
+    setArquivoComprovante(null);
   }, [fluxoInicial, somenteEntrada]);
 
   useEffect(() => {
@@ -270,6 +273,8 @@ export function NovoLancamentoShareDialog({
     setComprovanteUrl(lancamentoInicial.comprovanteUrl ?? "");
     setPagoPor(formatarTextoUi(lancamentoInicial.pagoPor));
     setAnexosSelecionados([]);
+    setArquivoDocumento(null);
+    setArquivoComprovante(null);
   }, [aberto, lancamentoInicial, limpar, fluxoInicial, somenteDespesa, somenteEntrada]);
 
   const gruposCategoria = useMemo(() => {
@@ -357,6 +362,43 @@ export function NovoLancamentoShareDialog({
           })
         : await (fluxo === "entrada" ? emitirReceita : criarDespesa)(payload);
 
+      const errosUpload: string[] = [];
+      let urlDocumento: string | null = null;
+      let urlComprovante: string | null = null;
+      if (arquivoDocumento) {
+        try {
+          const enviado = await enviarAnexoDocumentoSaida(arquivoDocumento, arquivoDocumento.name, {
+            origem: "lancamento",
+            documentoId: lancamento.id,
+          });
+          urlDocumento = enviado.url;
+        } catch {
+          errosUpload.push(`DOCUMENTO: ${formatarTextoUi(arquivoDocumento.name)}`);
+        }
+      }
+      if (arquivoComprovante) {
+        try {
+          const enviado = await enviarAnexoDocumentoSaida(arquivoComprovante, arquivoComprovante.name, {
+            origem: "lancamento",
+            documentoId: lancamento.id,
+          });
+          urlComprovante = enviado.url;
+        } catch {
+          errosUpload.push(`COMPROVANTE: ${formatarTextoUi(arquivoComprovante.name)}`);
+        }
+      }
+      if (urlDocumento || urlComprovante) {
+        try {
+          await editarLancamento(lancamento.id, {
+            ...(urlDocumento ? { url_doc: urlDocumento } : {}),
+            ...(urlComprovante ? { comprovante_url: urlComprovante } : {}),
+          });
+        } catch {
+          errosUpload.push("GRAVAÇÃO DO DOCUMENTO/COMPROVANTE");
+        }
+      }
+
+      const comprovanteFinal = urlComprovante || comprovanteUrl.trim() || undefined;
       let erroBaixaInicial: string | null = null;
       if (!editando && registrarBaixaInicial) {
         try {
@@ -365,7 +407,7 @@ export function NovoLancamentoShareDialog({
             bancoPagamento: contaBancariaId,
             contaBancariaId,
             formaPagamento: formaPagamento === "nenhuma" ? undefined : formaPagamento,
-            comprovantePagamentoUrl: comprovanteUrl.trim() || undefined,
+            comprovantePagamentoUrl: comprovanteFinal,
             pagoPor: pagoPor.trim() || undefined,
           };
           if (fluxo === "entrada") {
@@ -378,7 +420,6 @@ export function NovoLancamentoShareDialog({
         }
       }
 
-      const errosUpload: string[] = [];
       for (const anexo of anexosSelecionados) {
         try {
           const enviado = await enviarAnexoDocumentoSaida(anexo, anexo.name, {
@@ -518,20 +559,6 @@ export function NovoLancamentoShareDialog({
                 </div>
               </div>
 
-              {!mostrarSeletorFluxo && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="nl-doc-inline" className={LABEL_CLASS}>
-                    DOCUMENTO / NF
-                  </Label>
-                  <Input
-                    id="nl-doc-inline"
-                    className={INPUT_CLASS}
-                    value={numeroDoc}
-                    onChange={(evento) => setNumeroDoc(sanitizarDigitacao(evento.target.value))}
-                    placeholder="EX.: NF-1042"
-                  />
-                </div>
-              )}
             </div>
 
             <div className="space-y-1.5">
@@ -834,24 +861,81 @@ export function NovoLancamentoShareDialog({
                 </Select>
               </div>
 
-              {mostrarSeletorFluxo && (
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label htmlFor="nl-doc-full" className={LABEL_CLASS}>
-                    DOCUMENTO / NF
-                  </Label>
-                  <Input
-                    id="nl-doc-full"
-                    className={INPUT_CLASS}
-                    value={numeroDoc}
-                    onChange={(evento) => setNumeroDoc(sanitizarDigitacao(evento.target.value))}
-                    placeholder="NÚMERO DO DOCUMENTO OU NOTA FISCAL"
-                  />
+            </div>
+
+            <div className="grid gap-4 rounded-xl border border-border bg-muted/35 p-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="share-documento-arquivo" className={LABEL_CLASS}>DOCUMENTO DO LANÇAMENTO (PDF OU IMAGEM)</Label>
+                <input
+                  id="share-documento-arquivo"
+                  type="file"
+                  accept={ACCEPT_ANEXO_LANCAMENTO}
+                  className="sr-only"
+                  onChange={(evento) => {
+                    const arquivo = evento.currentTarget.files?.[0] ?? null;
+                    evento.currentTarget.value = "";
+                    if (!arquivo) return;
+                    if (!tipoAnexoLancamentoPermitido(arquivo) || arquivo.size > LIMITE_ANEXO_LANCAMENTO) {
+                      toast.error("SELECIONE PDF OU UMA IMAGEM COMPATÍVEL DE ATÉ 20 MB.");
+                      return;
+                    }
+                    setArquivoDocumento(arquivo);
+                  }}
+                />
+                <div className="flex min-w-0 items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" className="shrink-0 rounded-xl" onClick={() => document.getElementById("share-documento-arquivo")?.click()}>
+                    <FileText size={14} /> {arquivoDocumento ? "TROCAR ARQUIVO" : "SELECIONAR ARQUIVO"}
+                  </Button>
+                  <span className="min-w-0 truncate text-xs font-medium text-muted-foreground" title={arquivoDocumento?.name}>
+                    {arquivoDocumento ? formatarTextoUi(arquivoDocumento.name) : formatarTextoUi(lancamentoInicial?.documentoUrl ? "Documento já anexado" : "Nenhum arquivo selecionado")}
+                  </span>
+                  {arquivoDocumento && <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="REMOVER DOCUMENTO" onClick={() => setArquivoDocumento(null)}><X size={14} /></Button>}
                 </div>
-              )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="nl-doc-full" className={LABEL_CLASS}>NÚMERO DO DOCUMENTO</Label>
+                <Input
+                  id="nl-doc-full"
+                  className={INPUT_CLASS}
+                  value={numeroDoc}
+                  onChange={(evento) => setNumeroDoc(sanitizarDigitacao(evento.target.value))}
+                  placeholder="NÚMERO DA NOTA, RECIBO OU DOCUMENTO"
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="share-comprovante-arquivo" className={LABEL_CLASS}>COMPROVANTE DO {fluxo === "entrada" ? "RECEBIMENTO" : "PAGAMENTO"} (ARQUIVO SEPARADO)</Label>
+                <input
+                  id="share-comprovante-arquivo"
+                  type="file"
+                  accept={ACCEPT_ANEXO_LANCAMENTO}
+                  className="sr-only"
+                  onChange={(evento) => {
+                    const arquivo = evento.currentTarget.files?.[0] ?? null;
+                    evento.currentTarget.value = "";
+                    if (!arquivo) return;
+                    if (!tipoAnexoLancamentoPermitido(arquivo) || arquivo.size > LIMITE_ANEXO_LANCAMENTO) {
+                      toast.error("SELECIONE PDF OU UMA IMAGEM COMPATÍVEL DE ATÉ 20 MB.");
+                      return;
+                    }
+                    setArquivoComprovante(arquivo);
+                  }}
+                />
+                <div className="flex min-w-0 items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" className="shrink-0 rounded-xl" onClick={() => document.getElementById("share-comprovante-arquivo")?.click()}>
+                    <FileText size={14} /> {arquivoComprovante ? "TROCAR COMPROVANTE" : "ANEXAR COMPROVANTE"}
+                  </Button>
+                  <span className="min-w-0 truncate text-xs font-medium text-muted-foreground" title={arquivoComprovante?.name}>
+                    {arquivoComprovante ? formatarTextoUi(arquivoComprovante.name) : lancamentoInicial?.comprovanteUrl ? "Comprovante já anexado" : "Nenhum comprovante selecionado"}
+                  </span>
+                  {arquivoComprovante && <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="REMOVER COMPROVANTE" onClick={() => setArquivoComprovante(null)}><X size={14} /></Button>}
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2 rounded-xl border border-dashed border-border bg-muted/35 p-3">
-              <Label className={LABEL_CLASS}>IMAGENS E COMPROVANTES</Label>
+              <Label className={LABEL_CLASS}>ANEXOS COMPLEMENTARES (OPCIONAL)</Label>
 
               {lancamentoInicial?.anexos?.length ? (
                 <div className="flex flex-wrap gap-2">
@@ -895,7 +979,7 @@ export function NovoLancamentoShareDialog({
                 <input
                   key={inputAnexoKey}
                   type="file"
-                  accept="application/pdf,image/*,.pdf"
+                  accept={ACCEPT_ANEXO_LANCAMENTO}
                   multiple
                   className="sr-only"
                   id="anexos-lancamento"
@@ -905,7 +989,7 @@ export function NovoLancamentoShareDialog({
                       (arquivo) =>
                         !tipoAnexoLancamentoPermitido(arquivo) || arquivo.size > LIMITE_ANEXO_LANCAMENTO,
                     );
-                    if (invalidos.length) toast.error("SELECIONE PDF OU IMAGENS DE ATÉ 20 MB CADA.");
+                    if (invalidos.length) toast.error("SELECIONE PDF OU IMAGENS JPG, PNG, GIF, WEBP, AVIF, BMP, SVG OU ICO DE ATÉ 20 MB CADA.");
                     setAnexosSelecionados((atuais) => [
                       ...atuais,
                       ...novos.filter(
@@ -927,7 +1011,7 @@ export function NovoLancamentoShareDialog({
                   {anexosSelecionados.length ? "ADICIONAR MAIS ARQUIVOS" : "ANEXAR ARQUIVO"}
                 </Button>
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  PDF OU IMAGENS · ATÉ 20 MB POR ARQUIVO
+                  PDF OU IMAGENS JPG, PNG, GIF, WEBP, AVIF, BMP, SVG OU ICO · ATÉ 20 MB POR ARQUIVO
                 </span>
               </div>
             </div>

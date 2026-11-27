@@ -392,7 +392,7 @@ function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
       return <td key={chave}><span className={`erp-status erp-status-${linha.fluxo === "ENTRADA" ? "sucesso" : "atrasado"}`}>{linha.fluxo === "ENTRADA" ? "ENTRADA" : "SAÍDA"}</span></td>;
     case "periodicidade": {
       const rotulo = opcoesPeriodicidade.find((opcao) => opcao.id === linha.periodicidade)?.label ?? linha.periodicidade ?? "—";
-      return <td key={chave}>{rotulo}</td>;
+      return <td key={chave}>{rotulo.toLocaleUpperCase("pt-BR")}</td>;
     }
     case "favorecido":
       return <td key={chave} title={linha.favorecido || undefined}>{linha.favorecido || "—"}</td>;

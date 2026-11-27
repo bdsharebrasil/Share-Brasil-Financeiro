@@ -75,7 +75,7 @@ type Props = {
 };
 
 export default function EscalaCalendario({ tripulacao, escala, disponibilidades, aoCriarEscala, aoAbrirVoo, aoAbrirExtrato }: Props) {
-  const [visao, setVisao] = useState<Visao>("semana");
+  const [visao, setVisao] = useState<Visao>("mes");
   const [fuso, setFuso] = useState<Fuso>("UTC");
   const [origemTripulacao, setOrigemTripulacao] = useState<OrigemTripulacao>("todos");
   const [tripulanteId, setTripulanteId] = useState("todos");

@@ -38,7 +38,6 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { API_BASE } from "@/lib/api";
 import { buscarAeronavesShare } from "@/lib/colaborador-api";
 import { IconeAnexo } from "./IconeAnexo";
-import { ContaBancariaCell } from "./ContaBancariaCell";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
   buscarCaixaEmpresa,
@@ -361,7 +360,7 @@ function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
     case "fornecedor":
       return <td key={chave} title={linha.fornecedor || undefined}>{linha.fornecedor || "—"}</td>;
     case "contaBancaria":
-      return <ContaBancariaCell key={chave} contaBancaria={linha.contaBancaria} />;
+      return <td key={chave} title={linha.contaBancaria || undefined}>{linha.contaBancaria || "—"}</td>;
     case "situacao":
       return <td key={chave}><span className={`erp-status erp-status-${TONS[statusParaFiltro(linha)] ?? "cancelado"}`}>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</span></td>;
     case "valor":

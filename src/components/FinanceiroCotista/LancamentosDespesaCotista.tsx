@@ -1286,7 +1286,7 @@ export function LancamentosDespesaCotista({
     Number(modoData !== "emissao");
 
   return (
-    <section className="cotista-ledger-shell" aria-label="Lançamentos mensais">
+    <section className="cotista-ledger-shell !mt-[1px]" aria-label="Lançamentos mensais">
       {/* Cabeçalho com totais gerais */}
       <header className="cotista-ledger-header">
         <div className="cotista-ledger-title">

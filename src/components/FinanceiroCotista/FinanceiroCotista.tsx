@@ -1622,13 +1622,13 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
               type="button"
               variant="outline"
               size="sm"
-              className="h-9 shrink-0 justify-start gap-1 border-0 px-3 sm:px-5"
+              className="h-9 shrink-0 justify-start gap-1 ml-[10px] mr-auto -mt-[18px] min-h-[19px] px-[27px] text-[16px] border [border-color:rgba(182,222,240,0.25)] rounded-[16px] overflow-hidden shadow-[1px_1px_1px_0_rgba(21,25,25,0.55)]"
               onClick={() => setPaginaAberta(false)}
             >
               <ChevronLeft size={15} /> Voltar
             </Button>
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 mr-auto -mt-[39px] text-center text-[8px]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               {modoFechamento ? "Fechamento Balanço" : "Financeiro Cotista"}
             </p>
@@ -1668,7 +1668,7 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && !modoFechamento && (
-        <div className="cotista-navegacao">
+        <div className="cotista-navegacao !mt-[2px]">
           <div
             className="financeiro-tabs flex min-w-0 flex-1 justify-center gap-1 overflow-x-auto rounded-none border-0 border-transparent bg-transparent py-1 px-1"
             role="tablist"
@@ -1682,6 +1682,7 @@ export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDash
                 aria-selected={abaAtiva === id}
                 aria-label={rotulo}
                 title={rotulo}
+                data-aba={id}
                 onClick={() => setAbaAtiva(id as typeof abaAtiva)}
                 className={`financeiro-tab group ${abaAtiva === id ? "is-active" : ""}`}
               >

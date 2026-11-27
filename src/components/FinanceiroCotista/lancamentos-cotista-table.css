@@ -37,7 +37,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 8px 14px;
   background: var(--grid-surface);
   border: 1px solid var(--grid-border);
   border-bottom: 0;
@@ -109,6 +109,10 @@
   min-width: 0;
 }
 
+.cotista-toolbar-left {
+  justify-content: flex-start;
+}
+
 .cotista-toolbar-right {
   margin-left: auto;
 }
@@ -116,9 +120,9 @@
 .cotista-search-box {
   position: relative;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
   width: 240px;
   max-width: 100%;
   margin: 0 5px;

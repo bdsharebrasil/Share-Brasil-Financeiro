@@ -14,7 +14,8 @@ html:not(.dark) .app-sidebar{--sb-page:var(--erp-workspace, hsl(var(--background
 .sb-tab-label{min-width:0;flex:1;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 
 /* Item ativo: mesma cor da página + dois cantos côncavos (acima e abaixo) */
-.sb-tab[aria-current="page"]{--sb-page:#e1e6eb;background:var(--sb-page);color:hsl(var(--foreground));z-index:1}
+html:not(.dark) .sb-tab[aria-current="page"]{--sb-page:#e1e6eb}
+.sb-tab[aria-current="page"]{background:var(--sb-page);color:hsl(var(--foreground));z-index:1}
 .sb-tab[aria-current="page"]:hover{background:var(--sb-page)}
 .sb-tab[aria-current="page"] svg{color:hsl(var(--primary))}
 .sb-tab[aria-current="page"]::before,

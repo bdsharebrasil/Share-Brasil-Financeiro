@@ -1,4 +1,4 @@
-import type { ContaAPagar, ContaAReceber } from "./tipos";
+import type { ContaAPagar, ContaAReceber, Lancamento } from "./tipos";
 
 export type FluxoLinha =
   | "ESTORNO"
@@ -15,7 +15,7 @@ export type LinhaConta = {
   documento: string | null;
   fluxo: FluxoLinha;
   natureza: string;
-  caixa: "SHARE" | "CLIENTE";
+  caixa: "SHARE" | "CLIENTE" | "HOLDING";
   descricao: string;
   categoria: string;
   favorecido: string;
@@ -81,6 +81,43 @@ export function linhasDeContasAPagar(contas: ContaAPagar[]): LinhaConta[] {
     valor: Number(c.valor || 0),
     raw: c,
   }));
+}
+
+export function linhasDeLancamentosHolding(lancamentos: Lancamento[]): LinhaConta[] {
+  return lancamentos.map((l) => {
+    const status = String(l.status ?? "EM_ABERTO").trim().toUpperCase().replace(/[\s-]+/g, "_");
+    const entrada = l.fluxo === "ENTRADA";
+    const raw = {
+      ...l,
+      lancamentoId: l.id,
+      fonteLancamento: true,
+      valor: l.valorCentavos / 100,
+      dataEmissao: l.data,
+      dataVencimento: l.prazo ?? l.data,
+      categoriaNome: l.categoria,
+    } as unknown as ContaAPagar;
+    return {
+      id: l.id,
+      documento: l.documento || l.numeroDoc || null,
+      fluxo: entrada ? "ENTRADA" : "SAIDA",
+      natureza: entrada ? "RECEITA" : "DESPESA",
+      caixa: "HOLDING",
+      descricao: l.descricao || "—",
+      categoria: l.categoria || "—",
+      favorecido: l.cotistaNome || l.cotista || l.fornecedor || "—",
+      favorecidoPessoa: l.cotistaNome || l.cotista || null,
+      fornecedor: l.fornecedorId ? l.fornecedor : null,
+      contaBancaria: l.contaBancaria || l.contaBancariaId || "—",
+      aeronaveId: l.aeronaveId || null,
+      aeronave: null,
+      dataLancamento: l.data || l.criadoEm || "",
+      dataVencimento: l.prazo || null,
+      situacao: situacaoDaConta(status, l.prazo || null),
+      statusOriginal: status,
+      valor: l.valorCentavos / 100,
+      raw,
+    };
+  });
 }
 
 export function linhasDeContasAReceber(contas: ContaAReceber[]): LinhaConta[] {

@@ -32,7 +32,7 @@ export function filtrarAgenda(itens: SolicitacaoVooInterna[], filtro: FiltroAgen
     (filtro === "dia" && operacaoNaData(item, hoje)) ||
     (filtro === "confirmados" && statusNormalizado(item.status) === "aprovada") ||
     (filtro === "pendentes" && statusNormalizado(item.status) === "pendente")))
-    .sort((a,b) => a.data_agendada.localeCompare(b.data_agendada) || (horaAgenda(a.horario_previsto_agendamento) === "—" ? "99:99" : horaAgenda(a.horario_previsto_agendamento)).localeCompare(horaAgenda(b.horario_previsto_agendamento) === "—" ? "99:99" : horaAgenda(b.horario_previsto_agendamento)) || a.id.localeCompare(b.id));
+    .sort((a,b) => Number(operacaoNaData(b, hoje)) - Number(operacaoNaData(a, hoje)) || a.data_agendada.localeCompare(b.data_agendada) || (horaAgenda(a.horario_previsto_agendamento) === "—" ? "99:99" : horaAgenda(a.horario_previsto_agendamento)).localeCompare(horaAgenda(b.horario_previsto_agendamento) === "—" ? "99:99" : horaAgenda(b.horario_previsto_agendamento)) || a.id.localeCompare(b.id));
 }
 export function proximoAgenda(item: SolicitacaoVooInterna, itens: SolicitacaoVooInterna[]) {
   const inicio = instanteAgenda(item.data_agendada, item.horario_previsto_agendamento);

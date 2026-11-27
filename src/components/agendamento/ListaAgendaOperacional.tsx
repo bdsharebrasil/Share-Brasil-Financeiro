@@ -9,7 +9,7 @@ import { botaoAgenda, cardAgenda, pillAgenda } from "./AgendamentoShell";
 const MapaAoVivo = lazy(() => import("@/components/dashboard/operacoes/VooEmOperacaoMapa"));
 
 const classes = {
-  verde: "bg-[rgba(104,238,93,0.63)] text-[#1F2723] border-[rgba(126,211,33,0.72)] dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30",
+  verde: "bg-[rgba(104,238,93,0.63)] text-[#1F2723] border-[rgba(126,211,33,0.72)] dark:bg-[rgba(16,185,129,0.15)] dark:text-emerald-300 dark:border-[rgba(16,185,129,0.3)]",
   azul: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30",
   amarelo: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
   neutro: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700/30 dark:text-slate-300 dark:border-slate-700",

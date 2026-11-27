@@ -144,65 +144,40 @@ html .financeiro-profissional .cotista-expanded :is(.document-list, .support-fac
 html .despesas-theme.despesa-dialog { padding: 24px; border-color: var(--fin-border); background: var(--fin-surface); box-shadow: 0 20px 60px #0004; }
 .despesas-theme.despesa-dialog :is(input, select, textarea) { font-size: 13px; line-height: 1.5; }
 
-/* Fechamento, análises e páginas complementares usam a mesma escala visual. */
-html .financeiro-profissional .fb {
-  --fb-bg: var(--fin-canvas); --fb-card: var(--fin-surface); --fb-fg: var(--fin-text); --fb-text: var(--fin-text); --fb-blue: var(--fin-accent); --fb-navy: #153b62; --fb-ok: var(--fin-success); --fb-warn: var(--fin-warning); --fb-bad: var(--fin-danger);
-  --fb-muted: var(--fin-muted); --fb-border: var(--fin-border); --fb-soft: var(--fin-soft);
-  --fb-accent: var(--fin-accent); --fb-heading: var(--fin-muted);
-  width: 100%; max-width: none; margin: 0; padding: 0 0 24px;
-  font-family: inherit; font-size: 13px; line-height: 1.5;
-}
+/* Análises e páginas complementares; o fechamento tem CSS próprio. */
+
 html .financeiro-profissional .bcp {
   --bcp-bg: var(--fin-canvas); --bcp-card: var(--fin-surface); --bcp-fg: var(--fin-text);
   --bcp-muted: var(--fin-muted); --bcp-border: var(--fin-border); --bcp-soft: var(--fin-soft);
   --bcp-accent: var(--fin-accent); --bcp-heading: var(--fin-muted);
   font-size: 13px; line-height: 1.5;
 }
-html .financeiro-profissional .fb-page-actions { margin: 0 0 12px; padding: 0; min-height: 36px; }
-html .financeiro-profissional :is(.fb-tabs, .bcp-tabs) {
+
+html .financeiro-profissional :is(.bcp-tabs) {
   display: flex; gap: 4px; overflow-x: auto; padding: 0; margin: 0 0 20px;
   border-bottom: 1px solid var(--fin-border); scrollbar-width: thin;
 }
-html .financeiro-profissional :is(.fb-tabs, .bcp-tabs) button {
+html .financeiro-profissional :is(.bcp-tabs) button {
   padding: 12px 16px; min-height: 44px; font-size: 12px; font-weight: 500; white-space: nowrap;
 }
-html .financeiro-profissional :is(.fb-card, .fb-kpi, .fb-ledger-card, .bcp-panel, .bcp-kpi, .bcp-owner, .acc-person) {
+html .financeiro-profissional :is(.bcp-panel, .bcp-kpi, .bcp-owner, .acc-person) {
   border: 1px solid var(--fin-border); border-radius: 10px; box-shadow: none; background: var(--fin-surface);
 }
-html .financeiro-profissional :is(.fb-grid, .fb-g2, .fb-g3, .bcp-grid-two, .bcp-kpis) { gap: 16px; }
-html .financeiro-profissional :is(.fb-card, .fb-kpi) { padding: 20px; }
-html .financeiro-profissional :is(.fb-kicker, .fb-note, .fb-legend, .fb-date-label) { color: var(--fin-muted); font-size: 11px; line-height: 1.5; }
-html .financeiro-profissional .fb-big { font-size: clamp(22px, 2vw, 28px); line-height: 1.3; }
-html .financeiro-profissional .fb-ledger-head { padding: 16px 20px; gap: 16px; border-bottom: 1px solid var(--fin-border); }
-html .financeiro-profissional .fb-ledger-head h3 { font-size: 14px; font-weight: 600; }
-html .financeiro-profissional .fb-ledger-total { padding-left: 20px; border-color: var(--fin-border); }
-html .financeiro-profissional .fb-ledger-tools {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px;
-  background: var(--fin-soft); border-color: var(--fin-border);
-}
-html .financeiro-profissional .fb-ledger-tools select { min-width: 180px; height: 36px; font-size: 12px; border-radius: 5px; }
-html .financeiro-profissional .fb-search { flex: 1 1 260px; max-width: 480px; height: 36px; border-radius: 5px; }
-html .financeiro-profissional .fb-search input { font-size: 12px; }
-html .financeiro-profissional .fb-ledger-count { margin-left: auto; color: var(--fin-muted); font-size: 11px; }
-html .financeiro-profissional :is(.fb-scroll, .bcp-scroll) { max-width: 100%; overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: var(--fin-border) var(--fin-soft); }
-html .financeiro-profissional :is(.fb, .bcp, .cotista-portal) table { font-family: inherit; font-size: 12px; line-height: 1.5; border-spacing: 0; }
-html .financeiro-profissional :is(.fb, .bcp, .cotista-portal) table th {
+html .financeiro-profissional :is(.bcp-grid-two, .bcp-kpis) { gap: 16px; }
+
+html .financeiro-profissional :is(.bcp-scroll) { max-width: 100%; overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: var(--fin-border) var(--fin-soft); }
+html .financeiro-profissional :is(.bcp, .cotista-portal) table { font-family: inherit; font-size: 12px; line-height: 1.5; border-spacing: 0; }
+html .financeiro-profissional :is(.bcp, .cotista-portal) table th {
   padding: 12px; height: 44px; font-size: 11px; font-weight: 600; line-height: 1.5;
   letter-spacing: .02em; vertical-align: middle; color: var(--fin-muted); background: var(--fin-header); border-color: var(--fin-border);
 }
-html .financeiro-profissional :is(.fb, .bcp, .cotista-portal) table td { padding: 12px; line-height: 1.5; border-color: var(--fin-grid); vertical-align: middle; }
-html .financeiro-profissional :is(.fb, .bcp, .cotista-portal) tbody tr:hover { background: var(--fin-hover); }
-html .financeiro-profissional .fb-ledger .fb-desc { min-width: 260px; white-space: normal; font-size: 12px; line-height: 1.5; }
-html .financeiro-profissional :is(.fb-num, .fb-money, .fb-share-cell) { font-family: inherit; font-variant-numeric: tabular-nums; white-space: nowrap; }
-html .financeiro-profissional .fb-share-header { min-width: 180px; max-width: 240px; white-space: normal; overflow-wrap: break-word; font-size: 11px; }
-html .financeiro-profissional .fb-share-cell { background: var(--fin-soft); }
-html .financeiro-profissional :is(.fb-tone-0, .fb-tone-1) { background: var(--fin-soft); }
-html .financeiro-profissional :is(.fb-doc, .fb-date-stack) { font-size: 11px; line-height: 1.5; }
-html .financeiro-profissional .fb-status,
+html .financeiro-profissional :is(.bcp, .cotista-portal) table td { padding: 12px; line-height: 1.5; border-color: var(--fin-grid); vertical-align: middle; }
+html .financeiro-profissional :is(.bcp, .cotista-portal) tbody tr:hover { background: var(--fin-hover); }
+
 html .financeiro-profissional .erp-financeiro .erp-status { border-radius: 5px; padding: 4px 8px; font-size: 11px; line-height: 1.4; letter-spacing: 0; font-weight: 500; }
-html .financeiro-profissional :is(.fb-status-pend, .fb-status-wait, .erp-status-aberto, .erp-status-pendente) { color: var(--fin-warning); background: var(--fin-warning-soft); border-color: color-mix(in srgb, var(--fin-warning) 24%, transparent); }
-html .financeiro-profissional :is(.fb-status-late, .erp-status-atrasado, .erp-status-atraso) { color: var(--fin-danger); background: var(--fin-danger-soft); border-color: color-mix(in srgb, var(--fin-danger) 24%, transparent); }
-html .financeiro-profissional :is(.fb-status-ok, .erp-status-pago, .erp-status-recebido) { color: var(--fin-success); background: var(--fin-success-soft); border-color: color-mix(in srgb, var(--fin-success) 24%, transparent); }
+html .financeiro-profissional :is(.erp-status-aberto, .erp-status-pendente) { color: var(--fin-warning); background: var(--fin-warning-soft); border-color: color-mix(in srgb, var(--fin-warning) 24%, transparent); }
+html .financeiro-profissional :is(.erp-status-atrasado, .erp-status-atraso) { color: var(--fin-danger); background: var(--fin-danger-soft); border-color: color-mix(in srgb, var(--fin-danger) 24%, transparent); }
+html .financeiro-profissional :is(.erp-status-pago, .erp-status-recebido) { color: var(--fin-success); background: var(--fin-success-soft); border-color: color-mix(in srgb, var(--fin-success) 24%, transparent); }
 html .financeiro-profissional .acc-credit { color: var(--fin-success) !important; }
 html .financeiro-profissional .acc-debt { color: var(--fin-danger) !important; }
 html .financeiro-profissional :is(.bcp-footnote, .bcp-footer, .bcp-kpi-label, .bcp-kpi-note, .bcp-cur-legenda) { font-size: 11px; line-height: 1.6; }
@@ -231,18 +206,9 @@ html .financeiro-profissional .cotista-portal > div:first-child { padding: 20px;
   html .financeiro-profissional .despesa-pagination-info { flex-wrap: wrap; }
   html .financeiro-profissional .expanded-support-grid { grid-template-columns: minmax(0, 1fr); }
   html .financeiro-profissional .cotista-fechamento-filtros { padding: 16px; }
-  html .financeiro-profissional :is(.fb-ledger-head, .fb-ledger-tools) { padding: 14px 16px; }
-  html .financeiro-profissional .fb-ledger-tools select { width: 100%; }
-  html .financeiro-profissional .fb-search { max-width: none; }
-  html .financeiro-profissional .fb-ledger-count { width: 100%; margin: 0; }
-  html .financeiro-profissional :is(.fb-card, .fb-kpi) { padding: 16px; }
+
   html .despesas-theme.despesa-dialog { padding: 20px; }
 }
-
-html .financeiro-profissional .fb { color-scheme: inherit; }
-html .financeiro-profissional .fb-share-header strong { max-width: 240px; white-space: normal; font-size: 11px; line-height: 1.5; }
-html .financeiro-profissional .fb-ledger-head h2 { font-size: 14px; font-weight: 600; }
-html .financeiro-profissional .fb-ledger-total strong { font-family: inherit; font-size: 16px; font-weight: 600; }
 
 /* A tabela global usa cabeçalhos escuros no modo claro. No cotista, a
    superfície neutra e a grade seguem o padrão dos demais demonstrativos. */
@@ -267,13 +233,7 @@ html .financeiro-profissional .erp-financeiro .erp-colunas-lista button { min-he
 html .financeiro-profissional .erp-financeiro .erp-btn-primario:hover:not(:disabled) { background: var(--fin-primary-hover); color: var(--app-primary-text); }
 html .financeiro-profissional .erp-financeiro .erp-status-sucesso { color: var(--fin-success); background: var(--fin-success-soft); border-color: color-mix(in srgb, var(--fin-success) 24%, transparent); }
 html .financeiro-profissional .erp-financeiro .erp-status-aguardando { color: var(--fin-accent); background: var(--fin-accent-soft); border-color: color-mix(in srgb, var(--fin-accent) 24%, transparent); }
-html .financeiro-profissional .fb .fb-ledger tbody tr { height: 52px; }
-html .financeiro-profissional .fb .fb-ledger :is(th, td) { padding: 12px; font-size: 12px; line-height: 1.5; }
-html .financeiro-profissional .fb .fb-ledger thead th { height: 48px; font-size: 11px; font-weight: 600; letter-spacing: .02em; background: var(--fin-header); }
-html .financeiro-profissional .fb .fb-ledger .fb-share-header { white-space: normal; }
-html .financeiro-profissional .fb .fb-ledger :is(.fb-tone-0, .fb-tone-1) { background-image: none; }
-html .financeiro-profissional .fb :is(.fb-money, .fb-share-cell strong, .fb-share-cell span, .fb-date-stack b) { font-family: inherit; font-variant-numeric: tabular-nums; }
-html .financeiro-profissional .fb-date-stack small { font-size: 10px; line-height: 1.5; letter-spacing: .02em; }
+
 @media (max-width: 640px) {
   html .financeiro-profissional .erp-financeiro .erp-periodo { width: 100%; justify-content: space-between; gap: 8px; }
   html .financeiro-profissional .erp-financeiro .erp-navegacao-mes { flex: 1; justify-content: flex-end; }
@@ -289,10 +249,10 @@ html .financeiro-profissional :is(.text-\[8px\], .text-\[9px\]) { font-size: 11p
 html .financeiro-profissional .cotista-portal .text-emerald-600 { color: var(--fin-success); }
 html .financeiro-profissional .cotista-portal .text-amber-600 { color: var(--fin-warning); }
 @media (max-width: 900px) {
-  html .financeiro-profissional .fb-g3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
 }
 @media (max-width: 640px) {
-  html .financeiro-profissional :is(.fb-g2, .fb-g3) { grid-template-columns: minmax(0, 1fr); }
+
 }
 
 /* O número e o titular permanecem visíveis em cada documento do rateio. */

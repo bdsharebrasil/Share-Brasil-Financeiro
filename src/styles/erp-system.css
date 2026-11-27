@@ -301,6 +301,30 @@ html:not(.dark) .erp-financeiro .erp-tabela thead th {
 html:not(.dark) .erp-financeiro .erp-tabela th .erp-ordenar {
   color: var(--erp-section-text);
 }
+html:not(.dark) .erp-financeiro .erp-tabela thead th .erp-status-filtro-trigger {
+  color: var(--erp-section-text);
+}
+html:not(.dark) .erp-financeiro .erp-tabela thead th .erp-status-filtro-trigger:hover,
+html:not(.dark) .erp-financeiro .erp-tabela thead th .erp-status-filtro-trigger.erp-status-filtro-ativo {
+  background: rgb(255 255 255 / 0.18);
+  color: #ffffff;
+}
+html:not(.dark) .erp-financeiro .erp-tabela thead th .erp-status-filtro-menu {
+  background: var(--erp-surface);
+  border-color: var(--erp-stroke-strong);
+  box-shadow: 0 12px 28px rgb(15 23 42 / 0.18);
+}
+html:not(.dark) .erp-financeiro .erp-tabela thead th .erp-status-filtro-menu button {
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-weight: 500;
+}
+html:not(.dark) .erp-financeiro .erp-tabela thead th .erp-status-filtro-menu button:hover,
+html:not(.dark) .erp-financeiro .erp-tabela thead th .erp-status-filtro-menu button[aria-pressed="true"] {
+  background: var(--app-info-soft);
+  color: var(--app-info);
+  font-weight: 600;
+}
 html:not(.dark) .erp-financeiro .erp-tabela td {
   color: hsl(var(--foreground));
   border-color: var(--erp-stroke);

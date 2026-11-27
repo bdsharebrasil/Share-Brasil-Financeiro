@@ -63,7 +63,9 @@ test('card sempre monta mapa, monitor mostra AC/DEP e o hook resolve origem e de
   const [card, mapa, historico, monitor, hook] = arquivos
   assert.match(card, /<MapaRastreio key=\{voo\.id\}/)
   assert.doesNotMatch(card, /aoVivo \|\| Boolean\(voo\.trilha\?\.length\) \?/)
-  assert.match(mapa, /World_Imagery/)
+  const camadas = await readFile(new URL("../src/components/agendamento/MapaAgendaCamadas.tsx", import.meta.url), "utf8")
+  assert.match(camadas, /World_Imagery/)
+  assert.match(mapa, /mapStyle=\{estilo\}/)
   assert.match(mapa, /rota-prevista/)
   assert.match(mapa, /Linha tracejada: rota prevista/)
   assert.match(historico, /function dataHoraRastreio/)

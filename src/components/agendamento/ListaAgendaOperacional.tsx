@@ -1,9 +1,10 @@
-import { ChevronRight, Folder, Plane, Plus, Radio } from "lucide-react";
+import { ArrowLeft, ChevronRight, Folder, Plane, Plus, Radio } from "lucide-react";
 import { useState, lazy, Suspense } from "react";
-import type { SolicitacaoVooInterna, VooEmOperacao } from "@/lib/colaborador-api";
+import { buscarPlanosVoo, type PlanoVooSalvo, type SolicitacaoVooInterna, type VooEmOperacao } from "@/lib/colaborador-api";
+import { useQuery } from "@tanstack/react-query";
 import { vooComSinalNoAr } from "@/lib/rastreio";
 import { hojeBrasilia, operacaoNaData } from "@/lib/agendamentos-hoje";
-import { agruparHistoricoAgenda, dataAgenda, emVooAgenda, filtrarAgenda, horaAgenda, statusNormalizado, type FiltroAgenda } from "./agendaOperacionalModel";
+import { agruparHistoricoAgenda, dataAgenda, duracaoAgenda, instanteAgenda, emVooAgenda, filtrarAgenda, horaAgenda, statusNormalizado, planoAgenda, type FiltroAgenda } from "./agendaOperacionalModel";
 import { botaoAgenda, cardAgenda, pillAgenda } from "./AgendamentoShell";
 const MapaAoVivo = lazy(() => import("@/components/dashboard/operacoes/VooEmOperacaoMapa"));
 
@@ -23,39 +24,50 @@ export function StatusAgenda({ item }: { item: SolicitacaoVooInterna }) {
   return <span className={"inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold " + classes[cor]}><span className="h-1.5 w-1.5 rounded-full bg-current" />{rotulo}</span>;
 }
 
-export function LinhaAgenda({ item, aoAbrir }: { item: SolicitacaoVooInterna; aoAbrir: (item: SolicitacaoVooInterna) => void }) {
-  return <button type="button" onClick={() => aoAbrir(item)} className={cardAgenda + " grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 text-left transition hover:border-[#1D6CE0]/50 hover:bg-sky-50/40 dark:hover:bg-[#182640] sm:grid-cols-[minmax(0,1fr)_140px_150px] sm:px-4"}>
-    <span className="flex min-w-0 items-center gap-3">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-sky-50 text-[#1D6CE0] dark:bg-sky-500/10 dark:text-sky-300"><Plane size={19} /></span>
-      <span className="min-w-0">
-        <span className="flex flex-wrap items-center gap-1.5"><strong className="text-sm font-bold">{item.numero_voo ? "#" + item.numero_voo.replace(/^#/,"") : "Sem número"}</strong><span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-[#182640] dark:text-slate-300">{item.matricula_registro || "Sem aeronave"}</span></span>
-        <span className="mt-1 block font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">{item.origem || "—"} → {item.destino || "—"}</span>
-        <span className="mt-1 block text-[11px] text-slate-500 dark:text-slate-400 sm:hidden">{dataAgenda(item.data_agendada)} · {horaAgenda(item.horario_previsto_agendamento)}</span>
-      </span>
+export function LinhaAgenda({ item, aoAbrir, planos = [] }: { item: SolicitacaoVooInterna; aoAbrir: (item: SolicitacaoVooInterna) => void; planos?: PlanoVooSalvo[] }) {
+  const plano = planoAgenda(planos,item);
+  const real = !item.solicitacao_origem_id && item.perna_atual_origem === item.origem && item.perna_atual_destino === item.destino;
+  const partida = real && item.perna_atual_horario_dep ? item.perna_atual_horario_dep : item.horario_previsto_agendamento;
+  const inicio = instanteAgenda(item.data_agendada,partida);
+  const pouso = real ? instanteAgenda(item.data_agendada,item.perna_atual_horario_pouso) : null;
+  const minPlano = Number(plano?.payload?.minutos_voo);
+  const minutos = inicio != null && pouso != null && pouso >= inicio ? (pouso-inicio)/60000 : Number.isFinite(minPlano) && minPlano > 0 ? minPlano : null;
+  const chegada = pouso ?? (inicio != null && minutos != null ? inicio+minutos*60000 : null);
+  const data = new Date(item.data_agendada.slice(0,10)+"T12:00:00Z");
+  const dia = Number.isFinite(data.getTime()) ? new Intl.DateTimeFormat("pt-BR",{weekday:"short",day:"2-digit",month:"long",year:"numeric",timeZone:"UTC"}).format(data) : dataAgenda(item.data_agendada);
+  return <button type="button" onClick={() => aoAbrir(item)} className={cardAgenda + " group w-full px-4 py-3 text-left transition hover:border-[#1D6CE0]/50 hover:bg-sky-50/40 dark:hover:bg-[#182640]"}>
+    <span className="mb-2 flex flex-wrap items-center justify-between gap-2"><span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{dia}</span><span className="flex items-center gap-2"><StatusAgenda item={item}/><ChevronRight size={15} className="text-slate-400 transition group-hover:translate-x-0.5"/></span></span>
+    <span className="grid grid-cols-[auto_minmax(0,1fr)_minmax(48px,1.2fr)_minmax(0,1fr)] items-center gap-2 sm:gap-5">
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 text-[#1D6CE0] dark:bg-sky-500/10 dark:text-sky-300"><Plane size={22} className="rotate-45"/></span>
+      <span><strong className="block text-base tabular-nums">{horaAgenda(partida)}</strong><span className="block text-xs font-semibold">{item.origem || "—"}</span><span className="block text-[10px] text-slate-500 dark:text-slate-400">{real && item.perna_atual_horario_dep ? "Partida real" : "Partida prevista"}</span></span>
+      <span className="text-center"><span className="block text-[11px] font-semibold">{duracaoAgenda(minutos)}</span><span className="my-1 flex items-center gap-1 text-sky-600 dark:text-sky-300"><span className="h-1.5 w-1.5 shrink-0 rounded-full border border-current"/><span className="flex-1 border-t border-dashed border-slate-300 dark:border-slate-600"/><Plane size={14} className="rotate-45"/></span><span className="block text-[10px] text-slate-500 dark:text-slate-400">{pouso != null ? "Real" : "Estimado"}</span></span>
+      <span className="text-right"><strong className="block text-base tabular-nums">{chegada != null ? horaAgenda(new Date(chegada).toISOString()) : "—"}</strong><span className="block text-xs font-semibold">{item.destino || "—"}</span><span className="block text-[10px] text-slate-500 dark:text-slate-400">{pouso != null ? "Chegada real" : "Chegada prevista"}{chegada != null && inicio != null && new Date(chegada).toISOString().slice(0,10) !== new Date(inicio).toISOString().slice(0,10) ? " · "+dataAgenda(new Date(chegada).toISOString()) : ""}</span></span>
     </span>
-    <span className="hidden text-center sm:block"><span className="block text-[10px] text-slate-500 dark:text-slate-400">Decolagem prevista (UTC)</span><strong className="block text-sm tabular-nums">{horaAgenda(item.horario_previsto_agendamento)}</strong><span className="block text-[10px] text-slate-500 dark:text-slate-400">{dataAgenda(item.data_agendada)}</span></span>
-    <span className="flex items-center justify-end gap-2"><StatusAgenda item={item} /><ChevronRight size={16} className="shrink-0 text-slate-400" /></span>
+    <span className="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-2 text-[11px] font-medium text-slate-500 dark:border-slate-800 dark:text-slate-400"><span>{item.numero_voo || "Sem número"}</span><span>·</span><span>{item.matricula_registro || "Sem aeronave"}</span><span className="ml-auto">UTC/Zulu</span></span>
   </button>;
 }
 
 export function ListaAgenda({ itens, filtro, aoFiltro, aoAbrir, aoNovo, carregando }: { itens: SolicitacaoVooInterna[]; filtro: FiltroAgenda; aoFiltro: (f: FiltroAgenda) => void; aoAbrir: (v: SolicitacaoVooInterna) => void; aoNovo: () => void; carregando: boolean }) {
   const voos = filtrarAgenda(itens, filtro, hojeBrasilia());
+  const { data: planos = [] } = useQuery({ queryKey:["agenda-shell-planos"],queryFn:buscarPlanosVoo,staleTime:30000 });
   const filtros = [{ id:"todos", label:"Todos" }, { id:"dia", label:"No Dia" }, { id:"confirmados", label:"Confirmados" }, { id:"pendentes", label:"Pendentes" }] as const;
   return <section className="mx-auto max-w-5xl space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex flex-wrap gap-1.5" aria-label="Filtrar agendamentos">{filtros.map(f => <button key={f.id} type="button" aria-pressed={filtro === f.id} className={pillAgenda(filtro === f.id)} onClick={() => aoFiltro(f.id)}>{f.label}</button>)}</div>
       <button type="button" className={botaoAgenda} onClick={aoNovo}><Plus size={15}/> Novo agendamento</button>
     </div>
-    <div className="space-y-2">{voos.map(item => <LinhaAgenda key={item.id} item={item} aoAbrir={aoAbrir} />)}</div>
+    <div className="space-y-2">{voos.map(item => <LinhaAgenda key={item.id} item={item} aoAbrir={aoAbrir} planos={planos} />)}</div>
     {carregando ? <p role="status" className="py-10 text-center text-sm text-slate-500">Carregando agendamentos…</p> : voos.length === 0 ? <p className="py-10 text-center text-sm text-slate-500 dark:text-slate-400">Nenhum agendamento neste filtro.</p> : null}
   </section>;
 }
 
-export function HistoricoAgenda({ itens, clientes, socios, aoAbrir, carregando }: { itens: SolicitacaoVooInterna[]; clientes: { id: string; nome: string }[]; socios: { id: string; cliente_id?: string | null }[]; aoAbrir: (v: SolicitacaoVooInterna) => void; carregando: boolean }) {
+export function HistoricoAgenda({ itens, clientes, socios, aoAbrir, carregando, clienteSelecionado, aoSelecionarCliente }: { itens: SolicitacaoVooInterna[]; clientes: { id: string; nome: string }[]; socios: { id: string; cliente_id?: string | null }[]; aoAbrir: (v: SolicitacaoVooInterna) => void; carregando: boolean; clienteSelecionado: string | null; aoSelecionarCliente: (id: string | null) => void }) {
   const grupos = agruparHistoricoAgenda(itens, clientes, socios);
+  const grupo = grupos.find(([id]) => id === clienteSelecionado)?.[1];
+  const { data: planos = [] } = useQuery({ queryKey:["agenda-shell-planos"],queryFn:buscarPlanosVoo,staleTime:30000,enabled:Boolean(grupo) });
   return <section className="mx-auto max-w-5xl space-y-2.5">
-    {grupos.map(([id, grupo]) => <details key={id} className={cardAgenda + " group p-3"}><summary className="flex cursor-pointer list-none items-center gap-3 px-1 py-2 font-semibold"><Folder size={20} className="text-[#1D6CE0]"/><span className="flex-1">{grupo.nome}</span><span className="text-xs font-normal text-slate-500 dark:text-slate-400">{grupo.voos.length} voo(s)</span><ChevronRight size={16} className="transition group-open:rotate-90"/></summary><div className="mt-3 space-y-2">{grupo.voos.map(item => <LinhaAgenda key={item.id} item={item} aoAbrir={aoAbrir} />)}</div></details>)}
-    {!grupos.length && <p className="py-10 text-center text-sm text-slate-500">{carregando ? "Carregando histórico…" : "Nenhum voo no histórico."}</p>}
+    {clienteSelecionado ? <><button type="button" onClick={() => aoSelecionarCliente(null)} className={pillAgenda(false)}><ArrowLeft size={14} className="mr-1 inline"/> Voltar aos clientes</button><h2 className="py-1 text-lg font-bold">{grupo?.nome || "Cliente"} <span className="text-xs font-normal text-slate-500">· {grupo?.voos.length || 0} voo(s)</span></h2>{grupo?.voos.map(item => <LinhaAgenda key={item.id} item={item} aoAbrir={aoAbrir} planos={planos}/>)}{!grupo?.voos.length && <p className="py-6 text-sm text-slate-500">Nenhum voo neste cliente.</p>}</> :
+    <>{grupos.map(([id, g]) => <button type="button" key={id} onClick={() => aoSelecionarCliente(id)} className={cardAgenda+" flex w-full items-center gap-3 p-4 text-left font-semibold hover:border-sky-500/50"}><Folder size={21} className="text-[#1D6CE0]"/><span className="flex-1">{g.nome}</span><span className="text-xs font-normal text-slate-500 dark:text-slate-400">{g.voos.length} voo(s)</span><ChevronRight size={16}/></button>)}{!grupos.length && <p className="py-10 text-center text-sm text-slate-500">{carregando ? "Carregando histórico…" : "Nenhum voo no histórico."}</p>}</>}
   </section>;
 }
 

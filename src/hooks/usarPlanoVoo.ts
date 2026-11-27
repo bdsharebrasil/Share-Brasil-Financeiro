@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { buscarAerodromos, buscarRotaer, calcularPlanoVoo } from "@/lib/flightplan-api";
 import { supabase } from "@/lib/supabase";
-import { codigoAerodromoValido, formularioDaPerna, ordenarPernas, pernaInicial, pernaPodePlanejar, guardarRascunho, lerRascunho, localizarAgendamento, vinculosDoAgendamento, horarioFpl, type RascunhoPlano } from "@/lib/plano-voo";
+import { codigoAerodromoValido, formularioDaPerna, ordenarPernas, pernaInicial, pernaPodePlanejar, guardarRascunho, lerRascunho, localizarAgendamento, pernaDoAgendamento, vinculosDoAgendamento, horarioFpl, type RascunhoPlano } from "@/lib/plano-voo";
 import { buscarPainelAgendamento, buscarPernasPlanoVoo } from "@/lib/colaborador-api";
 import {
   calcularCombustivel,
@@ -187,19 +187,36 @@ export function usePlanoVoo() {
     return () => { ativo = false; };
   }, [revisaoVoos]);
 
-  const buscarVoo = useCallback(async (numeroVoo: string) => {
+  const buscarVoo = useCallback(async (numeroVoo: string, abrirAgendamentoExato = false) => {
     const sequencia = ++consulta.current;
     setCarregando(true);
     setErro(null);
+    if (abrirAgendamentoExato) {
+      setContexto(null);
+      setPernas([]);
+      setPernaSelecionadaId("");
+      setFormulariosPorPerna({});
+      setFormulario({ ...FORMULARIO_INICIAL, dataVoo: new Date().toISOString().slice(0,10) });
+      setRotaAisweb(null);
+      setCombustivelABordo("");
+      setVentoKt(0);
+      setMinutosReserva(45);
+      setMinutosTaxi(10);
+    }
     try {
-      const painel = painelRef.current ?? await buscarPainelAgendamento("2000-01-01", "2099-12-31").catch(() => { throw new Error("Não foi possível consultar os voos. Tente novamente."); });
+      const painel = (abrirAgendamentoExato ? null : painelRef.current) ?? await buscarPainelAgendamento("2000-01-01", "2099-12-31").catch(() => { throw new Error("Não foi possível consultar os voos. Tente novamente."); });
       if (sequencia !== consulta.current) return;
       const solicitacao = localizarAgendamento(painel.agendamentos, numeroVoo);
-      const dadosPernas = await buscarPernasPlanoVoo(solicitacao.id).catch(() => { throw new Error("Não foi possível carregar os trechos deste voo. Tente buscar novamente."); });
+      let avisoPernas: string | null = null;
+      const dadosPernas = await buscarPernasPlanoVoo(solicitacao.id).catch(() => {
+        if (!abrirAgendamentoExato) throw new Error("Não foi possível carregar os trechos deste voo. Tente buscar novamente.");
+        avisoPernas = "Dados do agendamento carregados; não foi possível consultar as pernas registradas. Confira os trechos antes de salvar.";
+        return { pernas: [] };
+      });
       if (sequencia !== consulta.current) return;
       const pernasDoVoo = ordenarPernas(dadosPernas.pernas);
-      const selecionada = pernaInicial(pernasDoVoo);
-      if (pernasDoVoo.length && !selecionada) throw new Error("Os trechos deste voo estão cancelados ou com origem e destino incompletos. Revise as pernas cadastradas.");
+      const selecionada = abrirAgendamentoExato ? pernaDoAgendamento(pernasDoVoo, solicitacao) : pernaInicial(pernasDoVoo);
+      if (pernasDoVoo.length && !selecionada && !abrirAgendamentoExato) throw new Error("Os trechos deste voo estão cancelados ou com origem e destino incompletos. Revise as pernas cadastradas.");
       const aeronave = painel.aeronaves.find((item) => item.id === solicitacao.aeronave_id) ?? null;
       const piloto = painel.tripulacao.find((item) => item.id === solicitacao.piloto_id) ?? null;
       const copiloto = painel.tripulacao.find((item) => item.id === solicitacao.copiloto_id) ?? null;
@@ -261,9 +278,10 @@ export function usePlanoVoo() {
           : atual.outrasInformacoes,
       };
       setPernas(pernasDoVoo);
+      if (avisoPernas) setErro(avisoPernas);
       setPernaSelecionadaId(selecionada?.id ?? "");
       setFormulariosPorPerna({});
-      setFormulario(selecionada ? formularioDaPerna(base, selecionada, pernasDoVoo[0]?.id === selecionada.id && selecionada.data.slice(0, 10) === solicitacao.data_agendada.slice(0, 10) ? solicitacao.horario_previsto_agendamento : null) : base);
+      setFormulario(selecionada ? formularioDaPerna(base, selecionada, (abrirAgendamentoExato || pernasDoVoo[0]?.id === selecionada.id) && selecionada.data.slice(0, 10) === solicitacao.data_agendada.slice(0, 10) ? solicitacao.horario_previsto_agendamento : null) : base);
     } catch (e) {
       if (sequencia !== consulta.current) return;
       setErro(e instanceof Error ? e.message : "Falha ao consultar o voo.");

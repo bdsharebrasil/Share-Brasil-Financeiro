@@ -60,6 +60,7 @@ export interface SugestaoVoo {
 }
 
 export interface PernaPlanoVoo {
+  horario_programado?: string | null;
   id: string;
   jornada_id: string;
   numero_jornada: number;

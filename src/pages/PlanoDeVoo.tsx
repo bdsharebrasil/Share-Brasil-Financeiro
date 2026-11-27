@@ -27,10 +27,11 @@ const MENU_PLANO: { id: AbaPlano; label: string; icon: typeof FilePlus2 }[] = [
 
 export default function PlanoDeVoo({ agendamentoInicialId }: { agendamentoInicialId?: string } = {}) {
   const plano = usePlanoVoo();
-  const { buscarVoo } = plano;
+  const { buscarVoo, pronto } = plano;
+  // Aguarda a sessão e a restauração do rascunho antes de buscar o voo solicitado.
   useEffect(() => {
-    if (agendamentoInicialId) void buscarVoo(agendamentoInicialId);
-  }, [agendamentoInicialId, buscarVoo]);
+    if (pronto && agendamentoInicialId) void buscarVoo(agendamentoInicialId, true);
+  }, [pronto, agendamentoInicialId, buscarVoo]);
   const [aba, setAba] = useState<AbaPlano>("completo");
   const [abaCompleto, setAbaCompleto] = useState<AbaCompleto>("formulario");
   const [planosSalvos, setPlanosSalvos] = useState<PlanoVooSalvo[]>([]);

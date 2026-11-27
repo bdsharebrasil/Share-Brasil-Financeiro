@@ -24,8 +24,14 @@ export function pernaInicial(pernas: PernaPlanoVoo[]): PernaPlanoVoo | undefined
     ?? validas[0];
 }
 
+/** Ao abrir pela agenda, não substitui o trecho escolhido por outra perna da operação. */
+export function pernaDoAgendamento(pernas: PernaPlanoVoo[], voo: Pick<SolicitacaoVooInterna,"origem"|"destino"|"data_agendada"|"perna_atual_id">) {
+  const correspondentes = ordenarPernas(pernas).filter(p => pernaPodePlanejar(p) && p.origem.trim().toUpperCase() === voo.origem.trim().toUpperCase() && p.destino.trim().toUpperCase() === voo.destino.trim().toUpperCase() && p.data.slice(0,10) === voo.data_agendada.slice(0,10));
+  return correspondentes.find(p => p.id === voo.perna_atual_id) ?? (correspondentes.length === 1 ? correspondentes[0] : undefined);
+}
+
 export function formularioDaPerna(base: FormularioIcao, perna: PernaPlanoVoo, horarioInicial?: string | null): FormularioIcao {
-  const horario = horarioFpl(perna.horario_dep || perna.horario_ac || horarioInicial, perna.data.slice(0, 10));
+  const horario = horarioFpl(perna.horario_dep || perna.horario_ac || perna.horario_programado || horarioInicial, perna.data.slice(0, 10));
   return { ...base, adep: perna.origem.trim().toUpperCase(), ades: perna.destino.trim().toUpperCase(), dataVoo: horario.data, eobt: horario.hora,
     pessoasABordo: String(perna.numero_passageiros ?? ""), rota: "", alternado1: "", alternado2: "", eet: "" };
 }

@@ -1,7 +1,7 @@
 import "./fechamento-balanco.css";
 import "./lancamentos-cotista-table.css";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowRight, FileDown, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { ArrowRight, ChevronDown, ChevronUp, ChevronsUpDown, FileDown, Search } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -80,8 +80,17 @@ const ABAS: { id: Aba; nome: string }[] = [
 ];
 
 const MESES_PROJECAO = Array.from({ length: 45 }, (_, index) => index + 1);
-const LARGURAS_COLUNAS_LANCAMENTOS = [96, 110, 240, 170, 140, 130, 120, 150];
-const LARGURA_COLUNA_COTISTA = 150;
+const COLUNAS_LANCAMENTOS = {
+  data: { largura: 96, minimo: 96 },
+  doc: { largura: 110, minimo: 88 },
+  descricao: { largura: 240, minimo: 150 },
+  favorecido: { largura: 170, minimo: 130 },
+  categoria: { largura: 140, minimo: 110 },
+  tipoRateio: { largura: 130, minimo: 115 },
+  valorPago: { largura: 120, minimo: 115 },
+  pagoPor: { largura: 150, minimo: 120 },
+} as const;
+const COLUNA_COTISTA = { largura: 150, minimo: 120 };
 const CORES = {
   fixos: "#2f6db5",
   variaveis: "#52794a",
@@ -114,6 +123,16 @@ export function FechamentoBalancoReferencia({
   useEffect(() => {
     setFiltroCotistaEmprestimo(cotistaId || "__todos__");
   }, [cotistaId]);
+
+  const [larguras, setLarguras] = useState<Record<string, number>>({});
+  const [arrastandoLancamentos, setArrastandoLancamentos] = useState(false);
+  const scrollLancamentosRef = useRef<HTMLDivElement>(null);
+  const limparGestoLancamentosRef = useRef<(() => void) | null>(null);
+  const bloquearCliqueLancamentosRef = useRef(false);
+  const [ordenacaoLancamentos, setOrdenacaoLancamentos] = useState<{
+    chave: string;
+    direcao: "asc" | "desc";
+  } | null>(null);
 
   const d = dashboard as DashboardBalanco | null;
   const b = useMemo(
@@ -276,9 +295,188 @@ export function FechamentoBalancoReferencia({
   const custoNaoClassificado = total.naoClassificados;
   const seriesCusto = meses.map((mes) => ({ ...mes, nome: mes.nome }));
 
+  const larguraDaColuna = (chave: string, padrao: number) => larguras[chave] ?? padrao;
+
   const larguraTabelaLancamentos =
-    LARGURAS_COLUNAS_LANCAMENTOS.reduce((soma, largura) => soma + largura, 0) +
-    cotistas.length * LARGURA_COLUNA_COTISTA;
+    Object.entries(COLUNAS_LANCAMENTOS).reduce(
+      (soma, [id, coluna]) => soma + larguraDaColuna(id, coluna.largura),
+      0,
+    ) +
+    cotistas.reduce(
+      (soma, cotista) => soma + larguraDaColuna(`cotista:${cotista.id}`, COLUNA_COTISTA.largura),
+      0,
+    );
+
+  const valorParaOrdenacaoLancamento = (
+    origem: (typeof lancamentos)[number],
+    chave: string,
+  ): string | number => {
+    if (chave.startsWith("cotista:")) {
+      const cotista = cotistas.find((item) => `cotista:${item.id}` === chave);
+      if (!cotista) return 0;
+      return rateioDoCotista(origem, cotista, cotistas)?.valorCentavos ?? 0;
+    }
+    switch (chave) {
+      case "data":
+        return origem.dataEmissao || origem.data;
+      case "doc":
+        return numeroDocLancamento(origem) || "";
+      case "descricao":
+        return origem.descricao || "";
+      case "favorecido":
+        return nomeFornecedorLancamento(origem, fornecedores);
+      case "categoria":
+        return origem.categoria || "Sem categoria";
+      case "tipoRateio":
+        return tipoRateioLancamento(origem);
+      case "valorPago":
+        return valorPagoLancamento(origem);
+      case "pagoPor":
+        return nomePagadoresDoLancamento(origem, cotistas);
+      default:
+        return "";
+    }
+  };
+
+  const lancamentosExibidos = ordenacaoLancamentos
+    ? [...lancamentosFiltrados].sort((a, z) => {
+        const esquerda = valorParaOrdenacaoLancamento(a, ordenacaoLancamentos.chave);
+        const direita = valorParaOrdenacaoLancamento(z, ordenacaoLancamentos.chave);
+        const comparacao =
+          typeof esquerda === "number" && typeof direita === "number"
+            ? esquerda - direita
+            : String(esquerda).localeCompare(String(direita), "pt-BR", {
+                numeric: true,
+                sensitivity: "base",
+              });
+        return ordenacaoLancamentos.direcao === "asc" ? comparacao : -comparacao;
+      })
+    : lancamentosFiltrados;
+
+  const iniciarRedimensionamentoLancamento = (
+    chave: string,
+    minimo: number,
+    evento: ReactPointerEvent<HTMLSpanElement>,
+  ) => {
+    if (!evento.isPrimary || evento.button !== 0) return;
+    evento.preventDefault();
+    evento.stopPropagation();
+    limparGestoLancamentosRef.current?.();
+    const inicioX = evento.clientX;
+    const larguraInicial =
+      evento.currentTarget.parentElement?.getBoundingClientRect().width ?? minimo;
+    const cursorAnterior = document.body.style.cursor;
+    const selecaoAnterior = document.body.style.userSelect;
+    const mover = (e: PointerEvent) => {
+      if (e.pointerId !== evento.pointerId) return;
+      setLarguras((atual) => ({
+        ...atual,
+        [chave]: Math.max(minimo, larguraInicial + e.clientX - inicioX),
+      }));
+    };
+    const soltar = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      window.removeEventListener("pointercancel", soltar);
+      window.removeEventListener("blur", soltar);
+      document.body.style.cursor = cursorAnterior;
+      document.body.style.userSelect = selecaoAnterior;
+      limparGestoLancamentosRef.current = null;
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    limparGestoLancamentosRef.current = soltar;
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar);
+    window.addEventListener("pointercancel", soltar);
+    window.addEventListener("blur", soltar);
+  };
+
+  const iniciarArrasteLancamentos = (evento: ReactPointerEvent<HTMLDivElement>) => {
+    bloquearCliqueLancamentosRef.current = false;
+    const viewport = scrollLancamentosRef.current;
+    if (
+      !viewport ||
+      evento.pointerType !== "mouse" ||
+      evento.button !== 0 ||
+      (evento.target as HTMLElement).closest(
+        "button,a,input,select,textarea,label,[role=checkbox],[role=separator],[role=menuitem]",
+      )
+    ) {
+      return;
+    }
+    limparGestoLancamentosRef.current?.();
+    const inicioX = evento.clientX;
+    const inicioScroll = viewport.scrollLeft;
+    const selecaoAnterior = document.body.style.userSelect;
+    let moveu = false;
+    const mover = (e: PointerEvent) => {
+      if (e.pointerId !== evento.pointerId) return;
+      const delta = e.clientX - inicioX;
+      if (!moveu && Math.abs(delta) < 5) return;
+      moveu = true;
+      bloquearCliqueLancamentosRef.current = true;
+      setArrastandoLancamentos(true);
+      document.body.style.userSelect = "none";
+      e.preventDefault();
+      viewport.scrollLeft = inicioScroll - delta;
+    };
+    const soltar = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      window.removeEventListener("pointercancel", soltar);
+      window.removeEventListener("blur", soltar);
+      document.body.style.userSelect = selecaoAnterior;
+      setArrastandoLancamentos(false);
+      window.setTimeout(() => {
+        bloquearCliqueLancamentosRef.current = false;
+      }, 0);
+      limparGestoLancamentosRef.current = null;
+    };
+    limparGestoLancamentosRef.current = soltar;
+    window.addEventListener("pointermove", mover, { passive: false });
+    window.addEventListener("pointerup", soltar);
+    window.addEventListener("pointercancel", soltar);
+    window.addEventListener("blur", soltar);
+  };
+
+  const alternarOrdenacaoLancamento = (chave: string) =>
+    setOrdenacaoLancamentos((atual) => {
+      if (atual?.chave !== chave) return { chave, direcao: "asc" };
+      return atual.direcao === "asc" ? { chave, direcao: "desc" } : null;
+    });
+
+  const renderizarOrdenacao = (chave: string, rotulo: string, subtitulo?: string) => {
+    const direcao = ordenacaoLancamentos?.chave === chave ? ordenacaoLancamentos.direcao : null;
+    const Icone = direcao === "asc" ? ChevronUp : direcao === "desc" ? ChevronDown : ChevronsUpDown;
+    return (
+      <div className="cotista-th-inner">
+        <button
+          type="button"
+          className="cotista-sort-btn"
+          data-active={direcao !== null}
+          title={`Ordenar por ${rotulo}`}
+          onClick={() => alternarOrdenacaoLancamento(chave)}
+        >
+          <span className="cotista-th-title">
+            <span>{rotulo}</span>
+            {subtitulo && <small>{subtitulo}</small>}
+          </span>
+          <Icone size={12} className="shrink-0" aria-hidden="true" />
+        </button>
+      </div>
+    );
+  };
+
+  const renderizarRedimensionador = (chave: string, coluna: { largura: number; minimo: number }) => (
+    <span
+      role="separator"
+      aria-orientation="vertical"
+      className="cotista-resizer"
+      onPointerDown={(evento) => iniciarRedimensionamentoLancamento(chave, coluna.minimo, evento)}
+      onDoubleClick={() => setLarguras((atual) => ({ ...atual, [chave]: coluna.largura }))}
+    />
+  );
 
   const abrirDialogPdf = () => {
     const selecionado = participante ? [participante.id] : b.participantes.map((item) => item.id);
@@ -743,46 +941,57 @@ export function FechamentoBalancoReferencia({
             </div>
 
             <div
+              ref={scrollLancamentosRef}
+              data-dragging={arrastandoLancamentos}
               className="cotista-table-viewport"
               role="region"
               aria-label="Tabela de lançamentos do fechamento"
               tabIndex={0}
+              onPointerDown={iniciarArrasteLancamentos}
+              onClickCapture={(evento) => {
+                if (bloquearCliqueLancamentosRef.current && evento.detail > 0) {
+                  evento.preventDefault();
+                  evento.stopPropagation();
+                  bloquearCliqueLancamentosRef.current = false;
+                }
+              }}
             >
               <table className="cotista-grid-table" style={{ width: larguraTabelaLancamentos }}>
                 <colgroup>
-                  {LARGURAS_COLUNAS_LANCAMENTOS.map((largura, indice) => (
-                    <col key={indice} style={{ width: largura }} />
+                  {Object.entries(COLUNAS_LANCAMENTOS).map(([id, coluna]) => (
+                    <col key={id} style={{ width: larguraDaColuna(id, coluna.largura) }} />
                   ))}
                   {cotistas.map((cotista) => (
-                    <col key={cotista.id} style={{ width: LARGURA_COLUNA_COTISTA }} />
+                    <col
+                      key={cotista.id}
+                      style={{ width: larguraDaColuna(`cotista:${cotista.id}`, COLUNA_COTISTA.largura) }}
+                    />
                   ))}
                 </colgroup>
                 <thead>
                   <tr>
-                    <th scope="col" className="cotista-sticky-left">Data</th>
-                    <th scope="col">Doc</th>
-                    <th scope="col">Descrição</th>
-                    <th scope="col">Favorecido</th>
-                    <th scope="col">Categoria</th>
-                    <th scope="col">Tipo Rateio</th>
-                    <th scope="col" className="text-right">Valor pago</th>
-                    <th scope="col">Pago por</th>
+                    <th scope="col" className="cotista-sticky-left">{renderizarOrdenacao("data", "Data")}{renderizarRedimensionador("data", COLUNAS_LANCAMENTOS.data)}</th>
+                    <th scope="col">{renderizarOrdenacao("doc", "Doc")}{renderizarRedimensionador("doc", COLUNAS_LANCAMENTOS.doc)}</th>
+                    <th scope="col">{renderizarOrdenacao("descricao", "Descrição")}{renderizarRedimensionador("descricao", COLUNAS_LANCAMENTOS.descricao)}</th>
+                    <th scope="col">{renderizarOrdenacao("favorecido", "Favorecido")}{renderizarRedimensionador("favorecido", COLUNAS_LANCAMENTOS.favorecido)}</th>
+                    <th scope="col">{renderizarOrdenacao("categoria", "Categoria")}{renderizarRedimensionador("categoria", COLUNAS_LANCAMENTOS.categoria)}</th>
+                    <th scope="col">{renderizarOrdenacao("tipoRateio", "Tipo Rateio")}{renderizarRedimensionador("tipoRateio", COLUNAS_LANCAMENTOS.tipoRateio)}</th>
+                    <th scope="col" className="text-right">{renderizarOrdenacao("valorPago", "Valor pago")}{renderizarRedimensionador("valorPago", COLUNAS_LANCAMENTOS.valorPago)}</th>
+                    <th scope="col">{renderizarOrdenacao("pagoPor", "Pago por")}{renderizarRedimensionador("pagoPor", COLUNAS_LANCAMENTOS.pagoPor)}</th>
                     {cotistas.map((cotista, indice) => (
                       <th
                         key={cotista.id}
                         scope="col"
                         className={`is-cotista-col ${indice === 0 ? "is-cotista-first" : ""}`}
                       >
-                        <span className="cotista-th-title">
-                          <span>{cotista.nome}</span>
-                          <small>Rateio · % / valor</small>
-                        </span>
+                        {renderizarOrdenacao(`cotista:${cotista.id}`, cotista.nome, "Rateio · % / valor")}
+                        {renderizarRedimensionador(`cotista:${cotista.id}`, COLUNA_COTISTA)}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {lancamentosFiltrados.map((origem) => (
+                  {lancamentosExibidos.map((origem) => (
                     <tr key={origem.id} className="cotista-row">
                       <td className="cotista-sticky-left">
                         <div className="flex flex-col gap-0.5 font-mono text-[11.5px] text-slate-200">

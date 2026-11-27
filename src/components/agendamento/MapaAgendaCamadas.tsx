@@ -23,7 +23,7 @@ export function estiloMapaAgenda(modo: ModoMapaAgenda): StyleSpecification {
   return { version: 8, sources: { imagem: raster("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", "Imagens © Esri"), rotulos: raster("https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", "Rótulos © Esri") }, layers: [{ id: "satelite", type: "raster", source: "imagem" }, { id: "nomes", type: "raster", source: "rotulos" }] };
 }
 export function SeletorMapaAgenda({ modo, aoMudar }: { modo: ModoMapaAgenda; aoMudar: (m: ModoMapaAgenda) => void }) {
-  return <label className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-slate-950/80 px-2 py-1.5 text-[11px] text-white"><Layers3 size={13}/><select aria-label="Modo de visualização do mapa" value={modo} onChange={e => aoMudar(e.target.value as ModoMapaAgenda)} className="max-w-[200px] bg-slate-950 text-white outline-none">{modosMapaAgenda.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}</select></label>;
+  return <label className="mx-[5px] inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-slate-950/80 px-[7px] py-[11px] text-[11px] font-extralight text-white"><Layers3 size={13}/><select aria-label="Modo de visualização do mapa" value={modo} onChange={e => aoMudar(e.target.value as ModoMapaAgenda)} className="max-w-[200px] bg-[#e2e7e9] text-white outline-none">{modosMapaAgenda.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}</select></label>;
 }
 export function AvisoCartaAgenda({ modo, erro }: { modo: ModoMapaAgenda; erro?: boolean }) {
   if ((modo !== "alta" && modo !== "baixa") || !erro) return null;

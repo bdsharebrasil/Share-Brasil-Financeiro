@@ -14,8 +14,11 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   ChevronsUpDown,
   Columns2,
+  Eye,
   EyeOff,
   Filter,
   List,
@@ -35,7 +38,6 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { API_BASE } from "@/lib/api";
 import { buscarAeronavesShare } from "@/lib/colaborador-api";
 import { IconeAnexo } from "./IconeAnexo";
-import { ContaBancariaCell } from "./ContaBancariaCell";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
   buscarCaixaEmpresa,
@@ -194,7 +196,6 @@ function lerTexto(raw: Record<string, unknown>, ...chaves: string[]) {
   return typeof valor === "string" || typeof valor === "number" ? String(valor).trim() || null : null;
 }
 function urlSegura(valor: string) {
-  // Resolve caminhos internos pela API configurada e bloqueia protocolos executáveis.
   try {
     const valorLimpo = valor.trim();
     const resolvido = valorLimpo.startsWith("/") ? `${API_BASE}${valorLimpo}` : valorLimpo;
@@ -233,7 +234,7 @@ function Checkbox({
     <label className="erp-checkbox">
       <input ref={ref} type="checkbox" checked={marcado} disabled={desabilitado}
         aria-label={rotulo} onChange={aoMudar} />
-      <span aria-hidden="true">{parcial ? <span className="erp-checkbox-traco" /> : <Check size={12} strokeWidth={3} />}</span>
+      <span aria-hidden="true">{parcial ? <span className="erp-checkbox-traco" /> : <Check size={11} strokeWidth={3} />}</span>
     </label>
   );
 }
@@ -293,7 +294,6 @@ function CartaoAnexo({ anexo }: { anexo: AnexoLancamento }) {
   const href = recurso?.url;
   const titulo = anexo.nome || "Anexo";
   const nomeCompleto = `${titulo}${anexo.numero ? ` · ${anexo.numero}` : ""}`;
-
   const mime = recurso?.mime ?? "";
 
   return (
@@ -305,8 +305,8 @@ function CartaoAnexo({ anexo }: { anexo: AnexoLancamento }) {
         <IconeAnexo nome={titulo} />
         <span className="erp-anexo-nome">{nomeCompleto}</span>
         {falha
-          ? <button type="button" className="erp-anexo-tentar" aria-label={`Tentar novamente: ${titulo}`} title="Tentar novamente" onClick={() => setTentativa((valor) => valor + 1)}><RotateCw size={18} aria-hidden="true" /></button>
-          : <Loader2 size={18} className="animate-spin" aria-label={carregando ? "Carregando anexo" : "Preparando anexo"} />}
+          ? <button type="button" className="erp-anexo-tentar" aria-label={`Tentar novamente: ${titulo}`} title="Tentar novamente" onClick={() => setTentativa((valor) => valor + 1)}><RotateCw size={16} aria-hidden="true" /></button>
+          : <Loader2 size={16} className="animate-spin" aria-label={carregando ? "Carregando anexo" : "Preparando anexo"} />}
       </div>}
       {visualizando && href && <VisualizadorAnexo titulo={titulo} href={href} mime={mime} aoFechar={() => setVisualizando(false)} />}
     </article>
@@ -323,11 +323,12 @@ function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamen
     <div className="erp-detalhes">
       <dl className="erp-detalhes-campos">
         <div><dt>Categoria</dt><dd>{linha.categoria || "—"}</dd></div>
+        <div><dt>Vencimento</dt><dd>{dataOuTraco(linha.dataVencimento)}</dd></div>
         <div><dt>Favorecido</dt><dd>{linha.favorecidoPessoa || linha.favorecido || "—"}</dd></div>
         <div><dt>Nº do documento</dt><dd>{numeroDocumento || "—"}</dd></div>
         <div><dt>Nº do recibo</dt><dd>{numeroRecibo || "—"}</dd></div>
         <div><dt>Nº do demonstrativo</dt><dd>{numeroDemonstrativo || "—"}</dd></div>
-        <div><dt>Observações</dt><dd className="erp-observacoes">{dados.observacoes || "—"}</dd></div>
+        <div className="erp-detalhes-obs-wrap"><dt>Observações</dt><dd className="erp-observacoes">{dados.observacoes || "—"}</dd></div>
       </dl>
       <section className="erp-anexos" aria-label="Anexos do lançamento">
         <header className="erp-anexos-cabecalho"><strong>Anexos e documentos</strong><span>{anexos.length} {anexos.length === 1 ? "arquivo" : "arquivos"}</span></header>
@@ -340,20 +341,26 @@ function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamen
 
 function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
   switch (chave) {
-    case "data":
-      return <td key={chave} className="erp-td-data"><span>{dataOuTraco(linha.dataLancamento)}</span>{linha.dataVencimento && <span className="erp-texto-secundario">Venc. {dataOuTraco(linha.dataVencimento)}</span>}</td>;
+    case "data": {
+      const tituloData = linha.dataVencimento
+        ? `Emissão: ${dataOuTraco(linha.dataLancamento)} · Venc.: ${dataOuTraco(linha.dataVencimento)}`
+        : dataOuTraco(linha.dataLancamento);
+      return <td key={chave} className="erp-td-data" title={tituloData}>{dataOuTraco(linha.dataLancamento)}</td>;
+    }
     case "documento":
       return <td key={chave} className="erp-documento" title={linha.documento || undefined}>{linha.documento || "—"}</td>;
     case "aeronave":
-      return <td key={chave} title={linha.aeronave || undefined}>{linha.aeronave || "—"}</td>;
-    case "descricao":
-      return <td key={chave}><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.descricao}>{linha.descricao}</strong></div><span className="erp-texto-secundario" title={linha.categoria}>{linha.categoria || "—"}</span></td>;
+      return <td key={chave} className="erp-aeronave" title={linha.aeronave || undefined}>{linha.aeronave || "—"}</td>;
+    case "descricao": {
+      const tituloDesc = linha.categoria ? `${linha.descricao} (${linha.categoria})` : linha.descricao;
+      return <td key={chave} title={tituloDesc}><span className="erp-descricao">{linha.descricao}</span></td>;
+    }
     case "favorecido":
-      return <td key={chave} title={linha.favorecido}>{linha.favorecido || "—"}</td>;
+      return <td key={chave} title={linha.favorecido || undefined}>{linha.favorecido || "—"}</td>;
     case "fornecedor":
       return <td key={chave} title={linha.fornecedor || undefined}>{linha.fornecedor || "—"}</td>;
     case "contaBancaria":
-      return <ContaBancariaCell key={chave} contaBancaria={linha.contaBancaria} />;
+      return <td key={chave} title={linha.contaBancaria || undefined}>{linha.contaBancaria || "—"}</td>;
     case "situacao":
       return <td key={chave}><span className={`erp-status erp-status-${TONS[statusParaFiltro(linha)] ?? "cancelado"}`}>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</span></td>;
     case "valor":
@@ -391,7 +398,7 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
   const botaoPeriodoRef = useRef<HTMLButtonElement>(null);
   const dialogoPeriodoRef = useRef<HTMLDivElement>(null);
   const statusFiltroRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ pointerId: number; x: number; scrollLeft: number; dragged: boolean } | null>(null);
+  const colunasMenuRef = useRef<HTMLDivElement>(null);
   const stopDragRef = useRef<(() => void) | null>(null);
   const suppressClickRef = useRef(false);
   const pararResizeRef = useRef<(() => void) | null>(null);
@@ -442,7 +449,6 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
     () => contaBaixa ? contaAPagarDaLinha(contaBaixa, pagar.contas) : null,
     [contaBaixa, pagar.contas],
   );
-  const [arrastando, setArrastando] = useState(false);
   const [menuLinhaId, setMenuLinhaId] = useState<string | null>(null);
   const [abaSaida, setAbaSaida] = useState<"lancamentos" | "solicitacoes">("lancamentos");
   const [solicitacoesPendentes, setSolicitacoesPendentes] = useState(0);
@@ -451,7 +457,6 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
     setSolicitacoesPendentes(quantidade);
     if (quantidade === 0) setAbaSaida("lancamentos");
   }, []);
-
 
   useEffect(() => {
     let ativo = true;
@@ -511,6 +516,22 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
       document.removeEventListener("keydown", fecharEscape);
     };
   }, [seletorMesAberto]);
+
+  useEffect(() => {
+    if (!menuColunasAberto) return;
+    const fecharFora = (evento: PointerEvent) => {
+      if (evento.target instanceof Node && !colunasMenuRef.current?.contains(evento.target)) setMenuColunasAberto(false);
+    };
+    const fecharEscape = (evento: KeyboardEvent) => {
+      if (evento.key === "Escape") setMenuColunasAberto(false);
+    };
+    document.addEventListener("pointerdown", fecharFora);
+    document.addEventListener("keydown", fecharEscape);
+    return () => {
+      document.removeEventListener("pointerdown", fecharFora);
+      document.removeEventListener("keydown", fecharEscape);
+    };
+  }, [menuColunasAberto]);
 
   useEffect(() => {
     if (!statusFiltroAberto) return;
@@ -573,16 +594,16 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
   }
 
   const colunas = useMemo<Coluna[]>(() => [
-    { chave: "data", rotulo: "Data", largura: 118 },
-    { chave: "documento", rotulo: "DOC", largura: 124 },
-    { chave: "aeronave", rotulo: "Aeronave", largura: 112 },
-    { chave: "descricao", rotulo: "Descrição", largura: 250 },
+    { chave: "data", rotulo: "Data", largura: 96 },
+    { chave: "documento", rotulo: "DOC", largura: 106 },
+    { chave: "aeronave", rotulo: "Aeronave", largura: 94 },
+    { chave: "descricao", rotulo: "Descrição", largura: 220 },
     ...(ehEntrada
-      ? [{ chave: "favorecido" as const, rotulo: "Favorecido", largura: 200 }]
-      : [{ chave: "fornecedor" as const, rotulo: "Fornecedor", largura: 170 }]),
-    { chave: "contaBancaria", rotulo: "Conta", largura: 130 },
-    { chave: "situacao", rotulo: "Status", largura: 128 },
-    { chave: "valor", rotulo: "Valor", largura: 124 },
+      ? [{ chave: "favorecido" as const, rotulo: "Favorecido", largura: 170 }]
+      : [{ chave: "fornecedor" as const, rotulo: "Fornecedor", largura: 165 }]),
+    { chave: "contaBancaria", rotulo: "Conta", largura: 118 },
+    { chave: "situacao", rotulo: "Status", largura: 112 },
+    { chave: "valor", rotulo: "Valor", largura: 114 },
   ], [ehEntrada]);
 
   const colunasExibidas = useMemo<Coluna[]>(() => {
@@ -681,11 +702,10 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
     ? `${filtroInicial?.inicio ? dataOuTraco(filtroInicial.inicio) : "Início"} a ${filtroInicial?.fim ? dataOuTraco(filtroInicial.fim) : "hoje"}`
     : mesesSelecionados.length === 1 ? rotuloMes(mesesSelecionados[0]) : `${mesesSelecionados.length} meses selecionados`;
   const periodoImpressao = temPeriodoInicial ? periodo : [...mesesSelecionados].sort().map(rotuloMes).join(", ");
-  const filtrosAtivos = Number(Boolean(busca.trim())) + Number(situacaoFiltro !== "TODAS")
+  const filtrosAtivos = Number(situacaoFiltro !== "TODAS")
     + Number(caixaFiltro !== "TODOS") + Number(fluxoFiltro !== "TODOS")
     + Number(contaFiltro !== null) + Number(docFiltro !== null) + Number(modoData !== "EMISSAO");
 
-  // Se uma atualização reduzir o número de páginas, mantém a página válida.
   useEffect(() => { setPagina((atual) => Math.min(atual, paginas)); }, [paginas]);
 
   function alternarColuna(chave: ChaveColuna) {
@@ -814,7 +834,7 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
     const inicio = evento.clientX;
     const escala = zoom / 100;
     const larguraInicial = cabecalho.getBoundingClientRect().width / escala;
-    const mover = (e: PointerEvent) => setLarguras((atuais) => ({ ...atuais, [chave]: Math.max(110, larguraInicial + (e.clientX - inicio) / escala) }));
+    const mover = (e: PointerEvent) => setLarguras((atuais) => ({ ...atuais, [chave]: Math.max(84, larguraInicial + (e.clientX - inicio) / escala) }));
     const parar = () => {
       window.removeEventListener("pointermove", mover);
       window.removeEventListener("pointerup", parar);
@@ -826,6 +846,7 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
     window.addEventListener("pointerup", parar);
     window.addEventListener("pointercancel", parar);
   }
+
   function iniciarArrasteTabela(evento: ReactPointerEvent<HTMLDivElement>) {
     if (!evento.isPrimary || evento.button !== 0 || evento.pointerType === "touch") return;
     if (evento.target instanceof Element && evento.target.closest("button, a, input, select, textarea, .erp-redimensionar")) return;
@@ -879,69 +900,136 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
       </div>}
       {(ehEntrada || abaSaida === "lancamentos") && <div className="erp-tela">
         <header className="erp-cabecalho">
-          <div className="erp-titulo"><h2 id={`${id}-titulo`}>{titulo}</h2></div>
+          <div className="erp-titulo">
+            <h2 id={`${id}-titulo`}>{titulo}</h2>
+          </div>
           <div className="erp-cabecalho-acoes">
-            <div className="erp-resumo"><span>{selecionadosVisiveis.length ? "Total selecionado" : "Total listado"}</span><strong>{carregando ? "—" : formatarMoeda(totalRelatorio)}</strong></div>
-            <button type="button" className="erp-btn" disabled={carregando || !filtrados.length} onClick={() => window.print()}><Printer size={17} aria-hidden="true" />Imprimir</button>
+            <div className="erp-periodo" ref={periodoRef}>
+              {!temPeriodoInicial && <button type="button" ref={botaoPeriodoRef} className="erp-btn erp-btn-periodo" aria-expanded={seletorMesAberto}
+                aria-haspopup="dialog" aria-controls={`${id}-meses`} onClick={() => setSeletorMesAberto((atual) => !atual)}>
+                Mês Atual<ChevronDown size={12} aria-hidden="true" />
+              </button>}
+              <div className="erp-navegacao-mes">
+                {!temPeriodoInicial && <button type="button" className="erp-btn erp-btn-icone" aria-label="Mês anterior" onClick={() => mudarMes(-1)}><ChevronLeft size={15} /></button>}
+                <span className="erp-rotulo-periodo">{periodo}</span>
+                {!temPeriodoInicial && <button type="button" className="erp-btn erp-btn-icone" aria-label="Próximo mês" onClick={() => mudarMes(1)}><ChevronRight size={15} /></button>}
+              </div>
+              {seletorMesAberto && !temPeriodoInicial && (
+                <div id={`${id}-meses`} ref={dialogoPeriodoRef} className="erp-seletor-mes" role="dialog" aria-label="Selecionar meses">
+                  <div className="erp-seletor-cabecalho">
+                    <button type="button" className="erp-btn erp-btn-icone" aria-label="Ano anterior" onClick={() => setMes(`${anoSeletor - 1}-${mes.slice(5)}`)}><ChevronLeft size={15} /></button>
+                    <strong>{anoSeletor}</strong>
+                    <button type="button" className="erp-btn erp-btn-icone" aria-label="Próximo ano" onClick={() => setMes(`${anoSeletor + 1}-${mes.slice(5)}`)}><ChevronRight size={15} /></button>
+                  </div>
+                  <div className="erp-meses">{mesesDoAno.map((valor) => (
+                    <button type="button" key={valor} aria-pressed={mesesSelecionados.includes(valor)} onClick={() => alternarMes(valor)}>{nomeMes(valor, "short").replace(".", "")}</button>
+                  ))}</div>
+                  <div className="erp-seletor-rodape"><span>Selecione um ou mais meses.</span><button type="button" className="erp-btn" onClick={irParaMesAtual}>Mês atual</button></div>
+                </div>
+              )}
+            </div>
+            <div className="erp-resumo">
+              <span>{selecionadosVisiveis.length ? "Total selecionado" : "Total listado"}</span>
+              <strong>{carregando ? "—" : formatarMoeda(totalRelatorio)}</strong>
+            </div>
           </div>
         </header>
 
         <div className="erp-toolbar" role="group" aria-label="Ações dos lançamentos">
           <div className="erp-acoes">
-            {!ehHolding && <button type="button" className="erp-btn erp-btn-primario" onClick={() => setNovo(true)}><Plus size={17} aria-hidden="true" />Novo</button>}
+            <label className="erp-busca-inline">
+              <span className="erp-sr-only">Buscar lançamento</span>
+              <Search size={14} aria-hidden="true" />
+              <input
+                type="search"
+                placeholder="Buscar lançamento..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+              {busca && (
+                <button type="button" className="erp-busca-limpar" aria-label="Limpar busca" onClick={() => setBusca("")}>
+                  <X size={12} />
+                </button>
+              )}
+            </label>
+            {!ehHolding && (
+              <button type="button" className="erp-btn erp-btn-primario" onClick={() => setNovo(true)}>
+                <Plus size={15} aria-hidden="true" />Novo
+              </button>
+            )}
             <button type="button" className={`erp-btn ${mostrarFiltros ? "erp-btn-ativo" : ""}`} aria-expanded={mostrarFiltros}
               aria-controls={`${id}-filtros`} onClick={() => setMostrarFiltros((atual) => !atual)}>
-              <Filter size={17} aria-hidden="true" />Filtrar{filtrosAtivos > 0 && <span className="erp-contador">{filtrosAtivos}</span>}
+              <Filter size={14} aria-hidden="true" />Filtrar{filtrosAtivos > 0 && <span className="erp-contador">{filtrosAtivos}</span>}
             </button>
-            <span className="erp-divisor" aria-hidden="true" />
-            <button type="button" className="erp-btn erp-btn-texto" disabled={carregando || !linhas.length} onClick={alternarTodas}>
-              <List size={18} aria-hidden="true" />{todasExpandidas ? "Recolher todas" : "Expandir todas"}
+            <button type="button" className="erp-btn erp-btn-sutis" disabled={carregando || !linhas.length} onClick={alternarTodas} title={todasExpandidas ? "Recolher todas" : "Expandir todas"}>
+              <List size={14} aria-hidden="true" />{todasExpandidas ? "Recolher" : "Expandir"}
             </button>
-            <span className="erp-divisor" aria-hidden="true" />
-            <button type="button" className="erp-btn erp-btn-texto" onClick={() => { setLarguras({}); setOrdemColunas([]); setColunasOcultas([]); }}><Columns2 size={17} aria-hidden="true" />Restaurar colunas</button>
-            <div className="erp-colunas-ancora">
-              <button type="button" className="erp-btn erp-btn-texto" aria-expanded={menuColunasAberto} aria-controls={`${id}-colunas`}
-                onClick={() => setMenuColunasAberto((atual) => !atual)}><EyeOff size={17} aria-hidden="true" />Ocultar colunas</button>
+            <button type="button" className="erp-btn erp-btn-sutis" onClick={() => { setLarguras({}); setOrdemColunas([]); setColunasOcultas([]); }} title="Restaurar colunas">
+              <Columns2 size={14} aria-hidden="true" />Restaurar
+            </button>
+            <ControleZoomTabela zoom={zoom} alterar={alterarZoom} restaurar={() => definirZoom(100)} />
+          </div>
+
+          <div className="erp-toolbar-direita">
+            <div className="erp-colunas-ancora" ref={colunasMenuRef}>
+              <button type="button" className={`erp-btn ${menuColunasAberto ? "erp-btn-ativo" : ""}`} aria-expanded={menuColunasAberto} aria-controls={`${id}-colunas`}
+                onClick={() => setMenuColunasAberto((atual) => !atual)}>
+                <List size={14} aria-hidden="true" />Colunas
+              </button>
               {menuColunasAberto && (
-                <div className="erp-colunas-lista" id={`${id}-colunas`} role="listbox" aria-multiselectable="true" aria-label="Colunas visíveis">
+                <div className="erp-colunas-lista" id={`${id}-colunas`} role="listbox" aria-multiselectable="true" aria-label="Exibir/ocultar colunas">
                   {colunas.map((coluna) => {
                     const visivel = !colunasOcultas.includes(coluna.chave);
-                    return <button type="button" key={coluna.chave} role="option" aria-selected={visivel}
-                      disabled={visivel && colunasExibidas.length === 1} onClick={() => alternarColuna(coluna.chave)}>
-                      <span className="erp-coluna-marca" aria-hidden="true">{visivel && <Check size={11} />}</span>
-                      {coluna.rotulo}
-                    </button>;
+                    return (
+                      <button
+                        type="button"
+                        key={coluna.chave}
+                        role="option"
+                        aria-selected={visivel}
+                        disabled={visivel && colunasExibidas.length === 1}
+                        onClick={() => alternarColuna(coluna.chave)}
+                      >
+                        <span className="erp-coluna-rotulo">{coluna.rotulo}</span>
+                        <span className="erp-coluna-olho" aria-hidden="true">
+                          {visivel ? <Eye size={14} /> : <EyeOff size={14} />}
+                        </span>
+                      </button>
+                    );
                   })}
                 </div>
               )}
             </div>
-            <span className="erp-divisor" aria-hidden="true" />
-            <ControleZoomTabela zoom={zoom} alterar={alterarZoom} restaurar={() => definirZoom(100)} />
-          </div>
 
-          <div className="erp-periodo" ref={periodoRef}>
-            {!temPeriodoInicial && <button type="button" ref={botaoPeriodoRef} className="erp-btn" aria-expanded={seletorMesAberto}
-              aria-haspopup="dialog" aria-controls={`${id}-meses`} onClick={() => setSeletorMesAberto((atual) => !atual)}>
-              Mês Atual<ChevronDown size={12} aria-hidden="true" />
-            </button>}
-            <div className="erp-navegacao-mes">
-              {!temPeriodoInicial && <button type="button" className="erp-btn erp-btn-icone" aria-label="Mês anterior" onClick={() => mudarMes(-1)}><ChevronLeft size={18} /></button>}
-              <span className="erp-rotulo-periodo">{periodo}</span>
-              {!temPeriodoInicial && <button type="button" className="erp-btn erp-btn-icone" aria-label="Próximo mês" onClick={() => mudarMes(1)}><ChevronRight size={18} /></button>}
-            </div>
-            {seletorMesAberto && !temPeriodoInicial && (
-              <div id={`${id}-meses`} ref={dialogoPeriodoRef} className="erp-seletor-mes" role="dialog" aria-label="Selecionar meses">
-                <div className="erp-seletor-cabecalho">
-                  <button type="button" className="erp-btn erp-btn-icone" aria-label="Ano anterior" onClick={() => setMes(`${anoSeletor - 1}-${mes.slice(5)}`)}><ChevronLeft size={16} /></button>
-                  <strong>{anoSeletor}</strong>
-                  <button type="button" className="erp-btn erp-btn-icone" aria-label="Próximo ano" onClick={() => setMes(`${anoSeletor + 1}-${mes.slice(5)}`)}><ChevronRight size={16} /></button>
-                </div>
-                <div className="erp-meses">{mesesDoAno.map((valor) => (
-                  <button type="button" key={valor} aria-pressed={mesesSelecionados.includes(valor)} onClick={() => alternarMes(valor)}>{nomeMes(valor, "short").replace(".", "")}</button>
-                ))}</div>
-                <div className="erp-seletor-rodape"><span>Selecione um ou mais meses.</span><button type="button" className="erp-btn" onClick={irParaMesAtual}>Mês atual</button></div>
+            <button type="button" className="erp-btn" disabled={carregando || !filtrados.length} onClick={() => window.print()}>
+              <Printer size={14} aria-hidden="true" />Imprimir
+            </button>
+
+            <div className="erp-paginacao-topo" aria-label="Paginação">
+              <span className="erp-paginacao-resumo">
+                {filtrados.length ? `Exibindo ${(paginaAtual - 1) * porPagina + 1} a ${Math.min(paginaAtual * porPagina, filtrados.length)} de ${filtrados.length}` : "0 registros"}
+              </span>
+              <div className="erp-paginacao-controles">
+                <button type="button" className="erp-pagina-btn" aria-label="Primeira página" disabled={paginaAtual <= 1} onClick={() => setPagina(1)}>
+                  <ChevronsLeft size={14} />
+                </button>
+                <button type="button" className="erp-pagina-btn" aria-label="Página anterior" disabled={paginaAtual <= 1} onClick={() => setPagina(paginaAtual - 1)}>
+                  <ChevronLeft size={14} />
+                </button>
+                <button type="button" className="erp-pagina-btn" aria-label="Próxima página" disabled={paginaAtual >= paginas} onClick={() => setPagina(paginaAtual + 1)}>
+                  <ChevronRight size={14} />
+                </button>
+                <button type="button" className="erp-pagina-btn" aria-label="Última página" disabled={paginaAtual >= paginas} onClick={() => setPagina(paginas)}>
+                  <ChevronsRight size={14} />
+                </button>
+                <label className="erp-por-pagina">
+                  <span className="erp-sr-only">Linhas por página</span>
+                  <select value={porPagina} onChange={(e) => setPorPagina(Number(e.target.value))}>
+                    {[10, 25, 50, 100].map((quantidade) => <option key={quantidade} value={quantidade}>{quantidade}</option>)}
+                  </select>
+                  <ChevronDown size={11} aria-hidden="true" />
+                </label>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
@@ -952,21 +1040,18 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
               DAR BAIXA ({baixaveisSelecionados.length})
             </button>
             <button type="button" className="erp-btn erp-btn-perigo" disabled={!excluiveisSelecionados.length} onClick={() => void excluirSelecionados()}>
-              <Trash2 size={16} aria-hidden="true" />EXCLUIR ({excluiveisSelecionados.length})
+              <Trash2 size={14} aria-hidden="true" />EXCLUIR ({excluiveisSelecionados.length})
             </button>
           </div>
         )}
         {mostrarFiltros && <div className="erp-filtros" id={`${id}-filtros`}>
-          <label className="erp-busca"><span className="erp-sr-only">Buscar lançamento</span><Search size={16} aria-hidden="true" />
-            <input type="search" placeholder="Buscar lançamento..." value={busca} onChange={(e) => setBusca(e.target.value)} />
-          </label>
           <label><span className="erp-sr-only">Caixa</span><select value={caixaFiltro} onChange={(e) => setCaixaFiltro(e.target.value)}>
             <option value="TODOS">Todos os caixas</option><option value="SHARE">Share</option><option value="CLIENTE">Cliente</option>{ehHolding && <option value="HOLDING">Holding</option>}
           </select></label>
           <label><span className="erp-sr-only">Fluxo</span><select value={fluxoFiltro} onChange={(e) => setFluxoFiltro(e.target.value as "TODOS" | FluxoLinha)}>
             <option value="TODOS">Todos os fluxos</option>{fluxosFiltro.map((item) => <option key={item} value={item}>{item}</option>)}
           </select></label>
-          <button type="button" className="erp-btn erp-btn-texto" onClick={limparFiltros}><X size={15} aria-hidden="true" />Limpar</button>
+          <button type="button" className="erp-btn erp-btn-sutis" onClick={limparFiltros}><X size={14} aria-hidden="true" />Limpar filtros</button>
         </div>}
 
         {erro && <div className="erp-erro" role="alert"><span>{String(erro)}</span><button type="button" className="erp-btn" onClick={() => void recarregar()}>Tentar novamente</button></div>}
@@ -988,14 +1073,19 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
         >
           <table className="erp-tabela" style={{ zoom: zoom / 100 }}>
             <caption className="erp-sr-only">{titulo} — {periodo}</caption>
-            <colgroup><col style={{ width: 110 }} />{colunasExibidas.map((coluna) => (
-              <col key={coluna.chave} style={{ width: larguras[coluna.chave] ?? coluna.largura }} />
-            ))}</colgroup>
+            <colgroup>
+              <col style={{ width: 82 }} />
+              {colunasExibidas.map((coluna) => (
+                <col key={coluna.chave} style={{ width: larguras[coluna.chave] ?? coluna.largura }} />
+              ))}
+            </colgroup>
             <thead><tr>
-              <th scope="col"><div className="erp-celula-selecao erp-selecao-cabecalho">
-                <Checkbox marcado={todasSelecionadas} parcial={algumasSelecionadas && !todasSelecionadas}
-                  desabilitado={carregando || !linhas.length} rotulo="Selecionar todos desta página" aoMudar={alternarPagina} />
-              </div></th>
+              <th scope="col" className="erp-th-acoes">
+                <div className="erp-celula-selecao">
+                  <Checkbox marcado={todasSelecionadas} parcial={algumasSelecionadas && !todasSelecionadas}
+                    desabilitado={carregando || !linhas.length} rotulo="Selecionar todos desta página" aoMudar={alternarPagina} />
+                </div>
+              </th>
               {colunasExibidas.map((coluna) => <th scope="col" key={coluna.chave} {...destinoColuna(coluna.chave)}
                 className={[coluna.chave === "situacao" ? "erp-th-status" : "", colunaArrastada === coluna.chave ? "erp-th-arrastada" : ""].filter(Boolean).join(" ") || undefined}
                 aria-sort={ordenacao.chave === coluna.chave ? ordenacao.crescente ? "ascending" : "descending" : "none"}>
@@ -1011,7 +1101,7 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
                         aria-expanded={statusFiltroAberto}
                         onClick={() => setStatusFiltroAberto((aberto) => !aberto)}
                       >
-                        <Filter size={13} aria-hidden="true" />
+                        <Filter size={12} aria-hidden="true" />
                       </button>
                       {statusFiltroAberto && (
                         <div className="erp-status-filtro-menu" role="dialog" aria-label="Filtrar por status">
@@ -1025,7 +1115,7 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
                       )}
                     </div>
                     <button type="button" {...arrastoColuna(coluna.chave)} className="erp-ordenar" onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
-                      {coluna.rotulo}<ChevronsUpDown size={12} aria-hidden="true" />
+                      <span>{coluna.rotulo}</span><ChevronsUpDown size={11} aria-hidden="true" />
                     </button>
                   </div>
                 ) : ehColunaFiltravel(coluna.chave) ? (
@@ -1040,7 +1130,7 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
                         aria-expanded={colunaFiltroAberta === coluna.chave}
                         onClick={() => setColunaFiltroAberta((atual) => (atual === coluna.chave ? null : coluna.chave))}
                       >
-                        <Filter size={13} aria-hidden="true" />
+                        <Filter size={12} aria-hidden="true" />
                       </button>
                       {colunaFiltroAberta === coluna.chave && (
                         <div className="erp-status-filtro-menu" role="dialog" aria-label={`Filtrar por ${TITULOS_FILTRO_COLUNA[coluna.chave]}`}>
@@ -1053,19 +1143,19 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
                       )}
                     </div>
                     <button type="button" {...arrastoColuna(coluna.chave)} className="erp-ordenar" onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
-                      {coluna.rotulo}<ChevronsUpDown size={12} aria-hidden="true" />
+                      <span>{coluna.rotulo}</span><ChevronsUpDown size={11} aria-hidden="true" />
                     </button>
                   </div>
                 ) : (
-                  <button type="button" {...arrastoColuna(coluna.chave)} className="erp-ordenar" onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
-                    {coluna.rotulo}<ChevronsUpDown size={12} aria-hidden="true" />
+                  <button type="button" {...arrastoColuna(coluna.chave)} className={`erp-ordenar ${coluna.chave === "valor" ? "erp-ordenar-direita" : ""}`} onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
+                    <span>{coluna.rotulo}</span><ChevronsUpDown size={11} aria-hidden="true" />
                   </button>
                 )}
                 <span className="erp-redimensionar" onPointerDown={(e) => iniciarResize(e, coluna.chave)} aria-hidden="true" title="Arraste para ajustar a coluna" />
               </th>)}
             </tr></thead>
             <tbody>
-              {carregando ? <tr><td colSpan={colunasExibidas.length + 1} className="erp-estado"><Loader2 size={18} className="erp-girando" aria-hidden="true" />Carregando lançamentos...</td></tr>
+              {carregando ? <tr><td colSpan={colunasExibidas.length + 1} className="erp-estado"><Loader2 size={16} className="erp-girando" aria-hidden="true" />Carregando lançamentos...</td></tr>
                 : linhas.length ? linhas.map((linha) => {
                   const aberta = expansao.has(linha.id);
                   const indiceLinha = lancamentos.findIndex((item) => item.id === linha.id);
@@ -1077,11 +1167,11 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
                       <td className="erp-td-acoes" onClick={(e) => e.stopPropagation()}><div className="erp-celula-selecao">
                         <button type="button" className="erp-expandir" aria-label={`${aberta ? "Recolher" : "Expandir"} ${linha.descricao}`}
                           aria-expanded={aberta} aria-controls={aberta ? detalheId : undefined} onClick={() => alternarExpansao(linha.id)}>
-                          <ChevronRight size={15} aria-hidden="true" />
+                          <ChevronRight size={14} aria-hidden="true" />
                         </button>
                         <Checkbox marcado={selecao.has(linha.id)} rotulo={`Selecionar ${linha.descricao}`} aoMudar={() => alternarSelecao(linha.id)} />
                         <DropdownMenu open={menuLinhaId === linha.id} onOpenChange={(aberto) => setMenuLinhaId(aberto ? linha.id : null)} modal={false}>
-                          <DropdownMenuTrigger asChild><button type="button" className="erp-botao-menu" aria-label={`Ações de ${linha.descricao}`}><MoreVertical size={16} aria-hidden="true" /></button></DropdownMenuTrigger>
+                          <DropdownMenuTrigger asChild><button type="button" className="erp-botao-menu" aria-label={`Ações de ${linha.descricao}`}><MoreVertical size={14} aria-hidden="true" /></button></DropdownMenuTrigger>
                           <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenuItem disabled={ehHolding} onSelect={() => editarLinha(linha)}><Pencil size={14} /> Editar</DropdownMenuItem>
                             <DropdownMenuItem disabled={!podeBaixar(linha)} onSelect={() => setContaBaixa(linha)}>Dar baixa</DropdownMenuItem>
@@ -1103,16 +1193,15 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
         </div>
 
         <footer className="erp-rodape">
-          <div className="erp-rodape-info"><span>{selecionadosVisiveis.length} {selecionadosVisiveis.length === 1 ? "selecionado" : "selecionados"}</span>
-            <span className="erp-barra" aria-hidden="true">|</span><span>{filtrados.length} registros</span><span className="erp-barra" aria-hidden="true">|</span>
-            <label className="erp-por-pagina"><span className="erp-sr-only">Linhas por página</span><select value={porPagina} onChange={(e) => setPorPagina(Number(e.target.value))}>
-              {[10, 25, 50, 100].map((quantidade) => <option key={quantidade} value={quantidade}>{quantidade} linhas por página</option>)}
-            </select><ChevronDown size={12} aria-hidden="true" /></label>
+          <div className="erp-rodape-info">
+            <span>{selecionadosVisiveis.length} {selecionadosVisiveis.length === 1 ? "selecionado" : "selecionados"}</span>
+            <span className="erp-barra" aria-hidden="true">|</span>
+            <span>{filtrados.length} registros</span>
           </div>
-          <div className="erp-paginacao"><span>{filtrados.length ? `${(paginaAtual - 1) * porPagina + 1}–${Math.min(paginaAtual * porPagina, filtrados.length)} de ${filtrados.length}` : "0 itens"}</span>
-            <button type="button" className="erp-pagina-btn" aria-label="Página anterior" disabled={paginaAtual <= 1} onClick={() => setPagina(paginaAtual - 1)}><ChevronLeft size={16} /></button>
-            <span aria-live="polite">{paginaAtual} / {paginas}</span>
-            <button type="button" className="erp-pagina-btn" aria-label="Próxima página" disabled={paginaAtual >= paginas} onClick={() => setPagina(paginaAtual + 1)}><ChevronRight size={16} /></button>
+          <div className="erp-paginacao">
+            <span>Página {paginaAtual} de {paginas}</span>
+            <button type="button" className="erp-pagina-btn" aria-label="Página anterior" disabled={paginaAtual <= 1} onClick={() => setPagina(paginaAtual - 1)}><ChevronLeft size={14} /></button>
+            <button type="button" className="erp-pagina-btn" aria-label="Próxima página" disabled={paginaAtual >= paginas} onClick={() => setPagina(paginaAtual + 1)}><ChevronRight size={14} /></button>
           </div>
         </footer>
       </div>}
@@ -1158,21 +1247,50 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
   );
 }
 
-// CSS isolado por prefixo. O componente não depende das cores do tema Tailwind.
+// CSS isolado por prefixo com estética dark slate compacta e padronizada.
 export const ESTILOS_FINANCEIRO = `
 .erp-financeiro {
-  --erp-bg: var(--light-canvas, #06080f); --erp-panel: var(--light-surface, #13191f); --erp-border: var(--light-line, #27313b);
-  --erp-text: var(--light-text, #e7edf6); --erp-muted: var(--light-muted, #a6b5c9); --erp-blue: var(--light-info, #0798ff); --erp-total: var(--light-success, #2ed48d);
-  --erp-accent: var(--light-info, #1f8fd6); --erp-accent-bg: var(--light-info-soft, rgba(31, 143, 214, 0.12)); --erp-accent-border: var(--light-line, rgba(31, 143, 214, 0.25));
-  --erp-success: var(--light-success, #3fb27f); --erp-success-bg: var(--light-success-soft, rgba(63, 178, 127, 0.12)); --erp-success-border: var(--light-success-line, rgba(63, 178, 127, 0.25));
-  --erp-danger: var(--light-danger, #f53228e0); --erp-danger-bg: var(--light-danger-soft, rgba(245, 50, 40, 0.12)); --erp-danger-border: var(--light-danger-line, rgba(245, 50, 40, 0.25));
-  --erp-warning: var(--light-warning, #eab54b); --erp-warning-bg: var(--light-warning-soft, rgba(234, 181, 75, 0.12)); --erp-warning-border: var(--light-warning-line, rgba(234, 181, 75, 0.25));
-  --erp-neutral: var(--light-muted, #9aa8b9); --erp-neutral-bg: var(--light-surface, rgba(101, 115, 134, 0.14)); --erp-neutral-border: var(--light-line, rgba(101, 115, 134, 0.3));
-  width: 100%; min-width: 0; margin: 0; padding: 12px 14px 8px; color: var(--erp-text); color-scheme: var(--app-color-scheme, dark);
-  background: radial-gradient(ellipse at 38% 20%, var(--light-surface, #17202955), transparent 70%), var(--erp-bg);
+  --erp-bg: var(--light-canvas, #111827);
+  --erp-panel: var(--light-surface, #161f30);
+  --erp-head: var(--light-soft, #0d131f);
+  --erp-row-odd: var(--light-surface, #141c2b);
+  --erp-row-even: var(--light-surface, #182132);
+  --erp-row-hover: var(--light-soft, #1f2b40);
+  --erp-border: var(--light-line, rgba(148, 163, 184, 0.14));
+  --erp-border-strong: var(--light-line, rgba(148, 163, 184, 0.24));
+  --erp-text: var(--light-text, #e2e8f0);
+  --erp-muted: var(--light-muted, #94a3b8);
+  --erp-blue: var(--light-info, #1d9bf0);
+  --erp-total: var(--light-success, #34d399);
+  --erp-accent: var(--light-info, #38bdf8);
+  --erp-accent-bg: var(--light-info-soft, rgba(56, 189, 248, 0.12));
+  --erp-accent-border: var(--light-line, rgba(56, 189, 248, 0.28));
+  --erp-success: var(--light-success, #34d399);
+  --erp-success-bg: var(--light-success-soft, rgba(52, 211, 153, 0.12));
+  --erp-success-border: var(--light-success-line, rgba(52, 211, 153, 0.26));
+  --erp-danger: var(--light-danger, #f87171);
+  --erp-danger-bg: var(--light-danger-soft, rgba(248, 113, 113, 0.12));
+  --erp-danger-border: var(--light-danger-line, rgba(248, 113, 113, 0.26));
+  --erp-warning: var(--light-warning, #fbbf24);
+  --erp-warning-bg: var(--light-warning-soft, rgba(251, 191, 36, 0.12));
+  --erp-warning-border: var(--light-warning-line, rgba(251, 191, 36, 0.26));
+  --erp-neutral: var(--light-muted, #94a3b8);
+  --erp-neutral-bg: var(--light-surface, rgba(148, 163, 184, 0.12));
+  --erp-neutral-border: var(--light-line, rgba(148, 163, 184, 0.22));
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 14px 16px 10px;
+  color: var(--erp-text);
+  color-scheme: var(--app-color-scheme, dark);
+  background: var(--erp-bg);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 13px; line-height: 1.35; border: 1px solid var(--light-line, #202a34); border-radius: 10px; -webkit-font-smoothing: antialiased;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+  font-size: 12.5px;
+  line-height: 1.35;
+  border: 1px solid var(--erp-border);
+  border-radius: 10px;
+  -webkit-font-smoothing: antialiased;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
 }
 .erp-financeiro.erp-saida { --erp-total: var(--light-danger, #fb7185); }
 .erp-financeiro *, .erp-financeiro *::before, .erp-financeiro *::after { box-sizing: border-box; }
@@ -1180,196 +1298,570 @@ export const ESTILOS_FINANCEIRO = `
 .erp-financeiro button { cursor: pointer; }
 .erp-financeiro button:disabled { opacity: .42; cursor: not-allowed; }
 .erp-financeiro button:focus-visible, .erp-financeiro a:focus-visible, .erp-financeiro input:focus-visible,
-.erp-financeiro select:focus-visible, .erp-financeiro [tabindex]:focus-visible { outline: 2px solid #39aaff; outline-offset: 3px; }
-.erp-financeiro .erp-tela { margin: 0; padding: 4px 0; }
-.erp-financeiro .erp-abas { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; padding: 4px; border: 1px solid var(--light-line, #27313b); border-radius: 8px; background: var(--light-soft, #0d141c); }
-.erp-financeiro .erp-abas button { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 12px; border: 1px solid transparent; border-radius: 5px; color: var(--erp-muted); background: transparent; font-size: 11px; font-weight: 600; }
-.erp-financeiro .erp-abas button:hover, .erp-financeiro .erp-abas button.ativo { color: var(--erp-text); border-color: var(--light-line, #078fe6); background: var(--light-info-soft, #078fe61a); }
-.erp-financeiro .erp-abas button span { min-width: 18px; padding: 1px 5px; border-radius: 9px; color: #fff; background: var(--light-danger, #e05263); font-size: 10px; text-align: center; }
-.erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 8px; padding: 0 2px; }
-.erp-financeiro .erp-titulo { margin: 0; padding: 0; }
-.erp-financeiro .erp-cabecalho h2 { padding: 0; margin: 0; font-size: 20px; font-weight: 600; line-height: 1.2; border: 0; }
-.erp-financeiro h2 { color: var(--light-text, #f5f7fc); margin: 0; font-size: 22px; line-height: 1.25; font-weight: 700; letter-spacing: -.25px; }
-.erp-financeiro .erp-cabecalho-acoes { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0; }
-.erp-financeiro .erp-resumo { min-width: 116px; margin: 3px; padding: 5px 23px; font-size: 11px; line-height: 16.2px; text-align: right; white-space: nowrap; border: 1px solid var(--light-line, #263744); border-radius: 10px; background: linear-gradient(135deg, var(--light-surface, #11202a), var(--light-surface, #111820)); }
-.erp-financeiro .erp-resumo > span { display: block; color: var(--erp-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .55px; margin-bottom: 2px; }
-.erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; padding: 7px 8px; font-size: 11px; line-height: 1.2; font-weight: 400; border: 1px solid var(--light-line, rgba(39, 49, 59, 0.5)); border-radius: 8px; overflow: visible; background: linear-gradient(145deg, var(--light-soft, #0d141c), var(--light-soft, #090d14)); }
-.erp-financeiro .erp-acoes { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; line-height: 1.2; }
-.erp-financeiro .erp-colunas-ancora { position: relative; display: inline-flex; }
-.erp-financeiro .erp-colunas-lista { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; display: flex; flex-direction: column; width: max-content; max-width: min(260px, 100%); max-height: 260px; overflow-y: auto; padding: 4px; border: 1px solid var(--light-line, #394856); border-radius: 5px; background: var(--light-surface, #171f28); box-shadow: 0 12px 30px #0009; }
-.erp-financeiro .erp-colunas-lista button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; padding: 5px 8px; border: 0; border-radius: 3px; background: transparent; color: var(--light-muted, #b7c5d5); font-size: 11px; text-align: left; cursor: pointer; }
-.erp-financeiro .erp-colunas-lista button:hover { background: var(--light-info-soft, #159dff22); color: var(--light-info, #61bbff); }
-.erp-financeiro .erp-colunas-lista button[aria-selected="true"] { color: var(--light-info, #61bbff); }
-.erp-financeiro .erp-colunas-lista button:disabled { cursor: not-allowed; opacity: .6; }
-.erp-financeiro .erp-coluna-marca { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; flex-shrink: 0; border: 1px solid var(--light-line, #394856); border-radius: 3px; }
-.erp-financeiro .erp-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 9px; height: 35px; padding: 0 13px; color: var(--erp-text); background: linear-gradient(var(--light-surface, #17202844), var(--light-surface, #0c111655)); border: 1px solid var(--light-line, #34414e); border-radius: 4px; white-space: nowrap; box-shadow: inset 0 1px #ffffff03; transition: background .15s, border-color .15s; }
-.erp-financeiro .erp-btn:hover:not(:disabled) { background: var(--light-soft, #202c37); border-color: var(--light-line, #53667a); }
+.erp-financeiro select:focus-visible, .erp-financeiro [tabindex]:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+.erp-financeiro .erp-tela { margin: 0; padding: 0; }
+
+/* Abas */
+.erp-financeiro .erp-abas { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 10px; padding: 4px; border: 1px solid var(--erp-border); border-radius: 7px; background: var(--erp-head); }
+.erp-financeiro .erp-abas button { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 0 12px; border: 1px solid transparent; border-radius: 5px; color: var(--erp-muted); background: transparent; font-size: 11.5px; font-weight: 600; }
+.erp-financeiro .erp-abas button:hover, .erp-financeiro .erp-abas button.ativo { color: var(--erp-text); border-color: var(--erp-accent-border); background: var(--erp-accent-bg); }
+.erp-financeiro .erp-abas button span { min-width: 18px; padding: 1px 5px; border-radius: 9px; color: #fff; background: #e11d48; font-size: 10px; text-align: center; }
+
+/* Cabeçalho */
+.erp-financeiro .erp-cabecalho { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 10px; }
+.erp-financeiro .erp-titulo h2 { color: var(--light-text, #f8fafc); margin: 0; font-size: 18px; line-height: 1.25; font-weight: 700; letter-spacing: -.01em; border: 0; padding: 0; }
+.erp-financeiro .erp-cabecalho-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.erp-financeiro .erp-resumo { display: flex; align-items: baseline; gap: 8px; padding: 5px 12px; border: 1px solid var(--erp-border); border-radius: 6px; background: var(--erp-panel); white-space: nowrap; }
+.erp-financeiro .erp-resumo > span { color: var(--erp-muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; }
+.erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Toolbar principal estilo referência */
+.erp-financeiro .erp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+.erp-financeiro .erp-acoes,
+.erp-financeiro .erp-toolbar-direita {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Busca inline na toolbar */
+.erp-financeiro .erp-busca-inline {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 210px;
+}
+.erp-financeiro .erp-busca-inline > svg {
+  position: absolute;
+  left: 10px;
+  color: var(--erp-muted);
+  pointer-events: none;
+}
+.erp-financeiro .erp-busca-inline input {
+  width: 100%;
+  height: 32px;
+  padding: 0 26px 0 30px;
+  color: var(--erp-text);
+  background: var(--erp-panel);
+  border: 1px solid var(--erp-border-strong);
+  border-radius: 5px;
+  font-size: 12px;
+  transition: border-color .15s, background .15s;
+}
+.erp-financeiro .erp-busca-inline input::placeholder { color: var(--erp-muted); }
+.erp-financeiro .erp-busca-inline input:focus { border-color: var(--erp-blue); background: #192336; outline: none; }
+.erp-financeiro .erp-busca-limpar {
+  position: absolute;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  color: var(--erp-muted);
+  background: transparent;
+}
+.erp-financeiro .erp-busca-limpar:hover { color: var(--erp-text); background: rgba(255,255,255,.08); }
+
+/* Botões compactos padronizados */
+.erp-financeiro .erp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 6px;
+  height: 32px;
+  padding: 0 11px;
+  color: var(--erp-text);
+  background: var(--erp-panel);
+  border: 1px solid var(--erp-border-strong);
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background .15s, border-color .15s;
+}
+.erp-financeiro .erp-btn:hover:not(:disabled) {
+  background: var(--erp-row-hover);
+  border-color: rgba(148, 163, 184, 0.42);
+}
 .erp-financeiro .erp-btn > svg { flex-shrink: 0; }
-.erp-financeiro .erp-btn-primario { margin: 0 2px; padding: 0 17px; background: rgba(7, 46, 97, 1); border-color: var(--light-line, rgba(3, 85, 139, 1)); border-width: 1px; box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0.133); color: #fff; }
-.erp-financeiro .erp-btn-primario:hover:not(:disabled) { background: #1aa8ff; border-color: var(--light-line, #4dbaff); }
-.erp-financeiro .erp-btn-texto { border-color: transparent; background: transparent; box-shadow: none; padding: 0 10px; }
-.erp-financeiro .erp-btn-perigo { color: var(--erp-danger); border-color: var(--erp-danger-border); background: var(--erp-danger-bg); }
-.erp-financeiro .erp-barra-selecao { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; padding: 7px 8px; border: 1px solid var(--erp-accent-border); border-radius: 8px; background: var(--erp-accent-bg); }
-.erp-financeiro .erp-barra-selecao > span { margin-right: auto; padding-left: 4px; color: var(--erp-text); font-size: 12px; font-weight: 600; }
-.erp-financeiro .erp-btn-ativo { border-color: var(--light-line, #078fe6); background: var(--light-info-soft, #078fe61a); }
-.erp-financeiro .erp-btn-icone { width: 38px; padding: 0; }
-.erp-financeiro .erp-divisor { width: 1px; height: 34px; background: var(--erp-border); margin: 0 2px; }
-.erp-financeiro .erp-contador { background: #078fe6; border-radius: 9px; padding: 0 5px; color: white; font-size: 10px; }
-.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 10px; margin: 0; padding: 2px 0; line-height: 1.2; font-weight: 400; }
-.erp-financeiro .erp-periodo > .erp-btn { border-radius: 12px; overflow: hidden; }
-.erp-financeiro .erp-navegacao-mes { display: flex; align-items: center; gap: 7px; }
-.erp-financeiro .erp-rotulo-periodo { display: block; min-width: 108px; text-align: center; white-space: nowrap; padding: 0 4px; }
-.erp-financeiro .erp-seletor-mes { position: absolute; z-index: 30; top: calc(100% + 10px); right: 0; width: 290px; padding: 12px; border: 1px solid var(--light-line, #394856); border-radius: 7px; background: var(--light-surface, #171f28); box-shadow: 0 16px 40px #0008; }
+.erp-financeiro .erp-btn-primario {
+  padding: 0 13px;
+  background: #1d9bf0;
+  border-color: #1d9bf0;
+  color: #ffffff;
+  font-weight: 600;
+}
+.erp-financeiro .erp-btn-primario:hover:not(:disabled) {
+  background: #0ea5e9;
+  border-color: #38bdf8;
+}
+.erp-financeiro .erp-btn-sutis {
+  background: transparent;
+  border-color: var(--erp-border);
+  color: var(--erp-muted);
+  padding: 0 9px;
+}
+.erp-financeiro .erp-btn-sutis:hover:not(:disabled) {
+  color: var(--erp-text);
+  background: var(--erp-panel);
+}
+.erp-financeiro .erp-btn-perigo {
+  color: var(--erp-danger);
+  border-color: var(--erp-danger-border);
+  background: var(--erp-danger-bg);
+}
+.erp-financeiro .erp-btn-ativo {
+  border-color: var(--erp-blue);
+  background: var(--erp-accent-bg);
+  color: #7dd3fc;
+}
+.erp-financeiro .erp-btn-icone { width: 30px; padding: 0; }
+.erp-financeiro .erp-contador {
+  background: var(--erp-blue);
+  border-radius: 9px;
+  padding: 0 5px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Dropdown de Colunas igual à imagem de referência */
+.erp-financeiro .erp-colunas-ancora { position: relative; display: inline-flex; }
+.erp-financeiro .erp-colunas-lista {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  width: 215px;
+  max-height: 310px;
+  overflow-y: auto;
+  padding: 2px 0;
+  border: 1px solid var(--erp-border-strong);
+  border-radius: 6px;
+  background: #151e2e;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55);
+}
+.erp-financeiro .erp-colunas-lista button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 12px;
+  text-align: left;
+  transition: background .12s;
+}
+.erp-financeiro .erp-colunas-lista button:last-child { border-bottom: 0; }
+.erp-financeiro .erp-colunas-lista button:hover:not(:disabled) {
+  background: rgba(29, 155, 240, 0.14);
+}
+.erp-financeiro .erp-colunas-lista button[aria-selected="false"] {
+  color: #64748b;
+}
+.erp-financeiro .erp-coluna-rotulo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.erp-financeiro .erp-coluna-olho {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #1d9bf0;
+}
+.erp-financeiro .erp-colunas-lista button[aria-selected="false"] .erp-coluna-olho {
+  color: #64748b;
+}
+
+/* Paginação superior compacta igual à imagem de referência */
+.erp-financeiro .erp-paginacao-topo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 4px;
+  color: var(--erp-muted);
+  font-size: 11.5px;
+}
+.erp-financeiro .erp-paginacao-resumo { white-space: nowrap; }
+.erp-financeiro .erp-paginacao-controles {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.erp-financeiro .erp-pagina-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--erp-text);
+}
+.erp-financeiro .erp-pagina-btn:hover:not(:disabled) {
+  background: var(--erp-row-hover);
+}
+.erp-financeiro .erp-por-pagina {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+}
+.erp-financeiro .erp-por-pagina select {
+  appearance: none;
+  height: 26px;
+  border: 1px solid var(--erp-border);
+  border-radius: 4px;
+  padding: 0 20px 0 8px;
+  background: var(--erp-panel);
+  color: var(--erp-text);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.erp-financeiro select option { color: var(--erp-text); background: #162032; }
+.erp-financeiro .erp-por-pagina > svg {
+  position: absolute;
+  right: 6px;
+  color: var(--erp-muted);
+  pointer-events: none;
+}
+
+/* Seletor de Período */
+.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 6px; }
+.erp-financeiro .erp-navegacao-mes { display: flex; align-items: center; gap: 4px; }
+.erp-financeiro .erp-rotulo-periodo { display: block; min-width: 104px; text-align: center; white-space: nowrap; font-size: 12px; font-weight: 600; color: var(--erp-text); }
+.erp-financeiro .erp-seletor-mes { position: absolute; z-index: 40; top: calc(100% + 8px); right: 0; width: 276px; padding: 12px; border: 1px solid var(--erp-border-strong); border-radius: 7px; background: #151e2e; box-shadow: 0 16px 38px rgba(0,0,0,.55); }
 .erp-financeiro .erp-seletor-cabecalho { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.erp-financeiro .erp-meses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
-.erp-financeiro .erp-meses button { height: 34px; color: var(--erp-muted); border: 1px solid var(--light-line, #33404e); border-radius: 4px; background: var(--light-surface, #10171e); text-transform: capitalize; }
-.erp-financeiro .erp-meses button:hover { background: var(--light-soft, #253344); }
-.erp-financeiro .erp-meses button[aria-pressed="true"] { color: #fff; border-color: var(--light-line, #169efd); background: #078fe644; }
-.erp-financeiro .erp-seletor-rodape { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
+.erp-financeiro .erp-meses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.erp-financeiro .erp-meses button { height: 32px; color: var(--erp-muted); border: 1px solid var(--erp-border); border-radius: 4px; background: var(--erp-row-odd); text-transform: capitalize; font-size: 12px; }
+.erp-financeiro .erp-meses button:hover { background: var(--erp-row-hover); color: var(--erp-text); }
+.erp-financeiro .erp-meses button[aria-pressed="true"] { color: #fff; border-color: var(--erp-blue); background: rgba(29, 155, 240, 0.25); }
+.erp-financeiro .erp-seletor-rodape { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
 .erp-financeiro .erp-seletor-rodape > span { color: var(--erp-muted); font-size: 11px; }
-.erp-financeiro .erp-seletor-rodape .erp-btn { height: 30px; padding: 0 9px; font-size: 11px; }
-.erp-financeiro .erp-filtros { display: grid; grid-template-columns: minmax(220px, 1.5fr) repeat(2, minmax(140px, 1fr)) auto; gap: 9px; padding: 10px; margin: 7px 0; background: var(--erp-panel); border: 1px solid var(--erp-border); border-radius: 4px; }
-.erp-financeiro .erp-filtros label { min-width: 0; }
-.erp-financeiro .erp-filtros input, .erp-financeiro .erp-filtros select { width: 100%; height: 35px; background: var(--light-surface, #0f151c); color: var(--erp-text); border: 1px solid var(--light-line, #34414e); border-radius: 4px; padding: 0 10px; }
-.erp-financeiro .erp-filtros input::placeholder { color: var(--light-muted, #8c9bae); }
-.erp-financeiro .erp-busca { position: relative; }
-.erp-financeiro .erp-busca > svg { position: absolute; top: 10px; left: 11px; color: var(--erp-muted); }
-.erp-financeiro .erp-busca input { padding-left: 35px; }
-.erp-financeiro .erp-erro { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; padding: 10px 12px; border: 1px solid var(--light-danger-line, #a83b4b); border-radius: 4px; color: var(--light-danger, #ffb7bf); background: var(--light-danger-soft, #7b263322); }
-.erp-financeiro .erp-tabela-container { overflow-x: auto; border: 1px solid var(--light-line, #2b3743); border-radius: 12px; background: var(--light-surface, #0d131a); box-shadow: 0 8px 24px #0002; scrollbar-color: #3c4b5d #10151a; cursor: grab; }
-.erp-financeiro .erp-tabela-container.erp-arrastando, .erp-financeiro .erp-tabela-container.erp-arrastando * { cursor: grabbing !important; user-select: none; }
-.erp-financeiro .erp-tabela { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; text-align: left; color: var(--erp-text); }
-.erp-financeiro .erp-tabela thead { background: linear-gradient(var(--light-soft, #1a2732), var(--light-soft, #131c25)); }
-.erp-financeiro .erp-tabela th { position: relative; height: 34px; padding: 0 10px; border-bottom: 1px solid var(--light-line, #344352); border-right: 1px solid var(--light-line, #27313b66); font-weight: 600; }
-.erp-financeiro .erp-tabela th.erp-th-status { height: 42px; padding: 0 8px; }
-.erp-financeiro .erp-tabela th:first-child { padding: 0; }
-.erp-financeiro .erp-ordenar { display: flex; align-items: center; justify-content: space-between; gap: 5px; width: 100%; height: 40px; padding: 0; border: 0; background: transparent; color: var(--light-text, #c5d5ea); font-size: 10px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase; text-align: left; }
-.erp-financeiro .erp-status-th-conteudo { display: flex; align-items: center; gap: 5px; }
-.erp-financeiro .erp-status-th-conteudo .erp-ordenar { flex: 1; }
+.erp-financeiro .erp-seletor-rodape .erp-btn { height: 28px; padding: 0 9px; font-size: 11px; }
+
+/* Barra de seleção múltipla e filtros extras */
+.erp-financeiro .erp-barra-selecao { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; padding: 6px 10px; border: 1px solid var(--erp-accent-border); border-radius: 6px; background: var(--erp-accent-bg); }
+.erp-financeiro .erp-barra-selecao > span { margin-right: auto; color: var(--erp-text); font-size: 12px; font-weight: 600; }
+.erp-financeiro .erp-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; margin: 0 0 8px; background: var(--erp-panel); border: 1px solid var(--erp-border); border-radius: 6px; }
+.erp-financeiro .erp-filtros label { min-width: 170px; }
+.erp-financeiro .erp-filtros select { width: 100%; height: 32px; background: var(--erp-head); color: var(--erp-text); border: 1px solid var(--erp-border-strong); border-radius: 5px; padding: 0 10px; font-size: 12px; }
+.erp-financeiro .erp-erro { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; padding: 9px 12px; border: 1px solid var(--erp-danger-border); border-radius: 6px; color: var(--erp-danger); background: var(--erp-danger-bg); }
+
+/* Tabela compacta estilo referência */
+.erp-financeiro .erp-tabela-container {
+  overflow-x: auto;
+  border: 1px solid var(--erp-border);
+  border-radius: 7px;
+  background: var(--erp-row-odd);
+  scrollbar-color: #334155 #0f172a;
+  cursor: grab;
+}
+.erp-financeiro .erp-tabela-container.erp-arrastando,
+.erp-financeiro .erp-tabela-container.erp-arrastando * { cursor: grabbing !important; user-select: none; }
+.erp-financeiro .erp-tabela {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  text-align: left;
+  color: var(--erp-text);
+}
+.erp-financeiro .erp-tabela thead { background: var(--erp-head); }
+.erp-financeiro .erp-tabela th {
+  position: relative;
+  height: 36px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--erp-border-strong);
+  border-right: 1px solid rgba(148, 163, 184, 0.08);
+  font-weight: 600;
+  vertical-align: middle;
+}
+.erp-financeiro .erp-tabela th.erp-th-acoes { padding: 0 8px; text-align: center; }
+.erp-financeiro .erp-tabela th:last-child,
+.erp-financeiro .erp-tabela td:last-child { border-right: 0; }
+
+.erp-financeiro .erp-ordenar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  width: 100%;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #f1f5f9;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  text-align: left;
+}
+.erp-financeiro .erp-ordenar > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.erp-financeiro .erp-ordenar > svg { color: var(--erp-muted); flex-shrink: 0; }
+.erp-financeiro .erp-status-th-conteudo { display: flex; align-items: center; gap: 4px; }
+.erp-financeiro .erp-status-th-conteudo .erp-ordenar { flex: 1; min-width: 0; }
 .erp-financeiro .erp-status-filtro-anchor { position: relative; z-index: 20; flex: 0 0 auto; }
-.erp-financeiro .erp-status-filtro-trigger { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 3px; background: transparent; color: var(--light-info, #159dff); cursor: pointer; }
-.erp-financeiro .erp-status-filtro-trigger:hover, .erp-financeiro .erp-status-filtro-trigger.erp-status-filtro-ativo { background: var(--light-info-soft, #159dff22); color: var(--light-info, #49b3ff); }
-.erp-financeiro .erp-status-filtro-menu { position: absolute; top: calc(100% + 5px); left: 0; z-index: 50; width: 190px; max-height: 250px; overflow-y: auto; padding: 4px; border: 1px solid var(--light-line, #394856); border-radius: 5px; background: var(--light-surface, #171f28); box-shadow: 0 12px 30px #0009; }
-.erp-financeiro .erp-status-filtro-menu button { display: block; width: 100%; min-height: 28px; padding: 5px 8px; border: 0; border-radius: 3px; background: transparent; color: var(--light-muted, #b7c5d5); font-size: 10px; text-align: left; cursor: pointer; }
-.erp-financeiro .erp-status-filtro-menu button:hover, .erp-financeiro .erp-status-filtro-menu button[aria-pressed="true"] { background: #159dff22; color: var(--light-info, #61bbff); }
-.erp-financeiro .erp-ordenar > svg { color: var(--light-muted, #a6bbd4); }
-.erp-financeiro .erp-redimensionar { position: absolute; right: -3px; top: 0; bottom: 0; z-index: 1; width: 7px; cursor: col-resize; touch-action: none; }
-.erp-financeiro .erp-redimensionar:hover { background: var(--light-info-soft, #159cff66); }
-.erp-financeiro .erp-tabela td { padding: 5px 10px; border-bottom: 1px solid var(--light-line, #27313b99); border-right: 1px solid var(--light-line, #27313b55); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.erp-financeiro .erp-tabela th:last-child, .erp-financeiro .erp-tabela td:last-child { border-right: 0; }
-.erp-financeiro .erp-linha { height: 40px; cursor: pointer; background: var(--light-surface, #10171e); transition: background .15s ease; }
-.erp-financeiro .erp-linha:nth-child(even) { background: var(--light-surface, #131b23); }
-.erp-financeiro .erp-linha:hover { background: var(--light-soft, #1b2935); }
-.erp-financeiro .erp-linha.erp-linha-selecionada { background: var(--light-surface, #27313c88); }
-.erp-financeiro .erp-linha.erp-linha-aberta { background: var(--light-surface, #0a1015); }
-.erp-financeiro .erp-linha.erp-linha-aberta > td { background: var(--light-surface, #0a1015); box-shadow: inset 0 1px 0 #ffffff1a, inset 0 -1px 0 #00000099; }
-.erp-financeiro .erp-descricao-cabecalho { display: flex; align-items: center; min-width: 0; gap: 8px; }
-.erp-financeiro .erp-descricao { display: block; min-width: 0; flex: 1; font-size: 13px; line-height: 17px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
-.erp-financeiro .erp-texto-secundario { display: block; margin-top: 7px; margin-bottom: 7px; color: var(--erp-muted); font-size: 12px; line-height: 15px; overflow: hidden; text-overflow: ellipsis; }
-.erp-financeiro .erp-tabela .erp-documento { color: var(--light-muted, #b3c2d8); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
-.erp-financeiro .erp-celula-selecao { display: flex; align-items: center; justify-content: space-between; gap: 13px; }
-.erp-financeiro .erp-tabela td:first-child { padding-left: 8px; padding-right: 16px; }
-.erp-financeiro .erp-tabela td.erp-td-data { padding-top: 13px; padding-bottom: 13px; }
-.erp-financeiro .erp-selecao-cabecalho { justify-content: flex-end; padding-right: 16px; margin-left: 40px; margin-right: 40px; }
-.erp-financeiro .erp-tabela thead th { margin-left: 0; margin-right: 0; }
-.erp-financeiro .erp-tabela col:first-child { margin-left: -5px; margin-right: -5px; padding-left: 0; padding-right: 0; min-height: 0; font-size: 11px; line-height: 8.2px; font-weight: 300; }
-.erp-financeiro .erp-expandir { display: flex; align-items: center; justify-content: center; width: 20px; height: 27px; flex-shrink: 0; padding: 0; border: 0; color: var(--light-text, #d6e2ee); background: transparent; }
+.erp-financeiro .erp-status-filtro-trigger { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 3px; background: transparent; color: var(--erp-muted); }
+.erp-financeiro .erp-status-filtro-trigger:hover, .erp-financeiro .erp-status-filtro-trigger.erp-status-filtro-ativo { background: var(--erp-accent-bg); color: var(--erp-blue); }
+.erp-financeiro .erp-status-filtro-menu { position: absolute; top: calc(100% + 5px); left: 0; z-index: 50; width: 185px; max-height: 240px; overflow-y: auto; padding: 4px; border: 1px solid var(--erp-border-strong); border-radius: 6px; background: #151e2e; box-shadow: 0 12px 28px rgba(0,0,0,.55); }
+.erp-financeiro .erp-status-filtro-menu button { display: block; width: 100%; min-height: 27px; padding: 4px 8px; border: 0; border-radius: 4px; background: transparent; color: var(--erp-muted); font-size: 11px; text-align: left; }
+.erp-financeiro .erp-status-filtro-menu button:hover, .erp-financeiro .erp-status-filtro-menu button[aria-pressed="true"] { background: rgba(29, 155, 240, 0.16); color: #7dd3fc; }
+
+.erp-financeiro .erp-redimensionar { position: absolute; right: -3px; top: 0; bottom: 0; z-index: 1; width: 6px; cursor: col-resize; touch-action: none; }
+.erp-financeiro .erp-redimensionar:hover { background: rgba(56, 189, 248, 0.45); }
+
+/* Células compactas de 1 linha */
+.erp-financeiro .erp-tabela td {
+  height: 36px;
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  border-right: 1px solid rgba(148, 163, 184, 0.08);
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+.erp-financeiro .erp-linha {
+  height: 36px;
+  cursor: pointer;
+  background: var(--erp-row-odd);
+  transition: background .12s ease;
+}
+.erp-financeiro .erp-linha:nth-child(even) { background: var(--erp-row-even); }
+.erp-financeiro .erp-linha:hover { background: var(--erp-row-hover); }
+.erp-financeiro .erp-linha.erp-linha-selecionada { background: rgba(29, 155, 240, 0.14); }
+.erp-financeiro .erp-linha.erp-linha-aberta { background: #0f172a; }
+.erp-financeiro .erp-linha.erp-linha-aberta > td { background: #0f172a; }
+
+.erp-financeiro .erp-descricao {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: #f1f5f9;
+}
+.erp-financeiro .erp-td-data {
+  color: var(--erp-muted);
+  font-variant-numeric: tabular-nums;
+}
+.erp-financeiro .erp-tabela .erp-documento {
+  color: var(--erp-muted);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+}
+.erp-financeiro .erp-aeronave {
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+/* Coluna de ações / checkbox alinhada */
+.erp-financeiro .erp-tabela td.erp-td-acoes {
+  padding: 0 6px;
+  overflow: visible;
+}
+.erp-financeiro .erp-celula-selecao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.erp-financeiro .erp-expandir {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 24px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  color: var(--erp-muted);
+  background: transparent;
+}
+.erp-financeiro .erp-expandir:hover { color: var(--erp-text); }
 .erp-financeiro .erp-expandir svg { transition: transform .15s; }
 .erp-financeiro .erp-expandir[aria-expanded="true"] svg { transform: rotate(90deg); }
-.erp-financeiro .erp-checkbox { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; flex-shrink: 0; cursor: pointer; }
+
+.erp-financeiro .erp-checkbox { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
 .erp-financeiro .erp-checkbox input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
-.erp-financeiro .erp-checkbox > span { display: flex; align-items: center; justify-content: center; width: 17px; height: 17px; border: 1px solid var(--light-line, #9cafc5); border-radius: 3px; color: transparent; background: var(--light-surface, #10151a); box-shadow: 0 1px 2px #0009, inset 0 0 0 2px #ffffff04; }
-.erp-financeiro .erp-checkbox input:checked + span, .erp-financeiro .erp-checkbox input:indeterminate + span { color: var(--light-text, #fff); border-color: var(--light-line, #0798ff); background: linear-gradient(var(--light-info-soft, #06a4ff), var(--light-info-soft, #0787e8)); }
-.erp-financeiro .erp-checkbox input:focus-visible + span { outline: 2px solid #5ebdff; outline-offset: 3px; }
-.erp-financeiro .erp-checkbox input:disabled + span { opacity: .4; }
-.erp-financeiro .erp-checkbox-traco { width: 9px; height: 2px; background: currentColor; }
-.erp-financeiro .erp-status { display: inline-flex; justify-content: center; align-items: center; min-width: 71px; max-width: 100%; min-height: 24px; border: 1px solid transparent; border-radius: 4px; padding: 2px 9px; font-size: 11px; font-weight: 700; line-height: 16px; }
+.erp-financeiro .erp-checkbox > span { display: flex; align-items: center; justify-content: center; width: 15px; height: 15px; border: 1px solid #475569; border-radius: 3px; color: transparent; background: #0f172a; }
+.erp-financeiro .erp-checkbox input:checked + span, .erp-financeiro .erp-checkbox input:indeterminate + span { color: #fff; border-color: var(--erp-blue); background: var(--erp-blue); }
+.erp-financeiro .erp-checkbox-traco { width: 8px; height: 2px; background: currentColor; }
+
+.erp-financeiro .erp-botao-menu { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 24px; padding: 0; border: 0; border-radius: 4px; color: var(--erp-muted); background: transparent; }
+.erp-financeiro .erp-botao-menu:hover { color: var(--erp-text); background: rgba(255,255,255,.08); }
+
+/* Badges de status compactos */
+.erp-financeiro .erp-status {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 100%;
+  height: 21px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .erp-financeiro .erp-status-sucesso { color: var(--erp-success); background: var(--erp-success-bg); border-color: var(--erp-success-border); }
 .erp-financeiro .erp-status-pendente { color: var(--erp-warning); background: var(--erp-warning-bg); border-color: var(--erp-warning-border); }
 .erp-financeiro .erp-status-atrasado { color: var(--erp-danger); background: var(--erp-danger-bg); border-color: var(--erp-danger-border); }
 .erp-financeiro .erp-status-aguardando { color: var(--erp-accent); background: var(--erp-accent-bg); border-color: var(--erp-accent-border); }
 .erp-financeiro .erp-status-cancelado { color: var(--erp-neutral); background: var(--erp-neutral-bg); border-color: var(--erp-neutral-border); }
-.erp-financeiro .erp-valor { text-align: right; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.erp-financeiro .erp-linha-detalhes > td { padding: 0 !important; white-space: normal; background: var(--light-surface, #0e151c); }
-.erp-financeiro .erp-detalhes { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(360px, 1.6fr); gap: 12px; margin: -10px -14px; padding: 14px 18px 19px 6px; border-top: 1px solid var(--light-line, #263542); }
-.erp-financeiro .erp-detalhes-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 12px; min-width: 0; margin: 0 22px; padding: 14px 31px; border: 1px solid var(--light-line, #273744); border-radius: 10px; background: var(--light-surface, #121b24); }
+
+.erp-financeiro .erp-valor {
+  text-align: right;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #f8fafc;
+}
+
+/* Linha expandida (Detalhes e Anexos) sem margens negativas */
+.erp-financeiro .erp-linha-detalhes > td { padding: 0 !important; white-space: normal; background: #0d1422; height: auto; }
+.erp-financeiro .erp-detalhes {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.4fr);
+  gap: 12px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--erp-border);
+}
+.erp-financeiro .erp-detalhes-campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 10px 14px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--erp-border);
+  border-radius: 7px;
+  background: var(--erp-panel);
+}
 .erp-financeiro .erp-detalhes-campos > div { min-width: 0; }
-.erp-financeiro .erp-detalhes dt { margin-bottom: 3px; color: var(--erp-muted); font-size: 11px; line-height: 16px; }
-.erp-financeiro .erp-detalhes dd { margin: 0; color: var(--erp-text); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }
+.erp-financeiro .erp-detalhes-obs-wrap { grid-column: 1 / -1; }
+.erp-financeiro .erp-detalhes dt { margin-bottom: 2px; color: var(--erp-muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .03em; }
+.erp-financeiro .erp-detalhes dd { margin: 0; color: var(--erp-text); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
 .erp-financeiro .erp-observacoes { white-space: pre-wrap; }
-.erp-financeiro .erp-anexos { min-width: 0; margin: 0 -17px; padding: 10px 22px; border: 1px solid var(--light-line, #273744); border-radius: 10px; background: var(--light-surface, #121b24); }
-.erp-financeiro .erp-anexos-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; color: var(--light-text, #e7edf6); font-size: 12px; }
-.erp-financeiro .erp-anexos-cabecalho span { color: var(--erp-muted); font-size: 10px; }
-.erp-financeiro .erp-anexos-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 9px; }
-.erp-financeiro .erp-anexo-card { min-width: 0; overflow: hidden; border: 1px solid var(--light-line, #2a3946); border-radius: 9px; background: var(--light-surface, #0d151d); transition: border-color .15s, transform .15s; }
-.erp-financeiro .erp-anexo-card:hover { border-color: var(--light-line, #2787bc); transform: translateY(-1px); }
-.erp-financeiro .erp-anexo-link, .erp-financeiro .erp-anexo-indisponivel { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; height: 54px; margin: 2px 0; padding: 5px 12px; border: 0; background: transparent; color: var(--light-info, #7acaff); font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.erp-financeiro .erp-anexos {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--erp-border);
+  border-radius: 7px;
+  background: var(--erp-panel);
+}
+.erp-financeiro .erp-anexos-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; color: var(--erp-text); font-size: 12px; }
+.erp-financeiro .erp-anexos-cabecalho span { color: var(--erp-muted); font-size: 11px; }
+.erp-financeiro .erp-anexos-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.erp-financeiro .erp-anexo-card { min-width: 0; overflow: hidden; border: 1px solid var(--erp-border-strong); border-radius: 6px; background: var(--erp-head); transition: border-color .15s; }
+.erp-financeiro .erp-anexo-card:hover { border-color: var(--erp-blue); }
+.erp-financeiro .erp-anexo-link, .erp-financeiro .erp-anexo-indisponivel { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; height: 42px; padding: 4px 10px; border: 0; background: transparent; color: #7dd3fc; font: inherit; text-align: left; text-decoration: none; }
 .erp-financeiro .erp-anexo-link svg, .erp-financeiro .erp-anexo-indisponivel svg { flex: 0 0 auto; }
-.erp-financeiro .erp-anexo-indisponivel { color: var(--light-muted, #91a4b8); cursor: default; }
-.erp-financeiro .erp-anexo-nome { min-width: 0; overflow: hidden; color: var(--light-text, #e7edf6); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.erp-financeiro .erp-anexo-indisponivel { color: var(--erp-muted); cursor: default; }
+.erp-financeiro .erp-anexo-nome { min-width: 0; overflow: hidden; color: var(--erp-text); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .erp-financeiro .erp-th-arrastada { opacity: .45; }
 .erp-financeiro .erp-ordenar[draggable="true"] { cursor: grab; }
-.erp-financeiro .erp-anexo-tentar { display: inline-flex; padding: 0; border: 0; color: var(--light-info, #80cfff); background: transparent; }
-.erp-financeiro .erp-anexos-vazio { margin: 0; padding: 10px 2px 2px; color: var(--erp-muted); font-size: 11px; }
-.erp-financeiro .erp-tabela td.erp-td-acoes { overflow: visible; }
-.erp-financeiro .erp-botao-menu { display: flex; align-items: center; justify-content: center; width: 24px; height: 27px; padding: 0; border: 0; border-radius: 3px; color: var(--light-text, #d6e2ee); background: transparent; }
-.erp-financeiro .erp-botao-menu:hover { background: var(--light-soft, #27313c); }
-.erp-financeiro .erp-tabela tfoot { background: var(--light-surface, #18202988); }
-.erp-financeiro .erp-tabela tfoot td { height: 25px; padding: 3px 10px; border-bottom: 0; border-top: 1px solid var(--erp-border); font-size: 11px; font-weight: 700; letter-spacing: .2px; }
-.erp-financeiro .erp-tabela tfoot .erp-total-rodape { color: var(--erp-total); text-align: right; padding-right: 16px; font-size: 14px; font-variant-numeric: tabular-nums; }
-.erp-financeiro .erp-tabela .erp-estado { text-align: center; padding: 45px 16px; color: var(--erp-muted); }
+.erp-financeiro .erp-anexo-tentar { display: inline-flex; padding: 0; border: 0; color: #7dd3fc; background: transparent; }
+.erp-financeiro .erp-anexos-vazio { margin: 0; padding: 6px 0; color: var(--erp-muted); font-size: 11.5px; }
+
+/* Rodapé da tabela */
+.erp-financeiro .erp-tabela tfoot { background: var(--erp-head); }
+.erp-financeiro .erp-tabela tfoot td {
+  height: 32px;
+  padding: 4px 10px;
+  border-bottom: 0;
+  border-top: 1px solid var(--erp-border-strong);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  color: var(--erp-muted);
+}
+.erp-financeiro .erp-tabela tfoot .erp-total-rodape {
+  color: var(--erp-total);
+  text-align: right;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.erp-financeiro .erp-tabela .erp-estado { text-align: center; padding: 36px 16px; color: var(--erp-muted); height: auto; }
 .erp-financeiro .erp-estado > svg { display: inline-block; vertical-align: middle; margin-right: 8px; }
-.erp-financeiro .erp-rodape { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: 8px 9px; padding-top: 9px; color: var(--light-muted, #b5c3d8); font-size: 11px; font-weight: 300; }
-.erp-financeiro .erp-rodape-info, .erp-financeiro .erp-paginacao { display: flex; align-items: center; gap: 12px; }
-.erp-financeiro .erp-rodape-info { margin: 5px -3px; padding: 2px 11px; font-size: 11px; font-weight: 300; line-height: 16px; }
-.erp-financeiro .erp-barra { color: var(--light-muted, #7c8b9d); }
-.erp-financeiro .erp-por-pagina { position: relative; display: inline-flex; align-items: center; padding-top: 0; padding-bottom: 0; font-size: 9px; font-weight: 300; }
-.erp-financeiro .erp-por-pagina select { appearance: none; border: 0; border-radius: 3px; padding: 3px 17px 3px 0; background: transparent; color: var(--light-muted, #b5c3d8); cursor: pointer; }
-.erp-financeiro select option { color: var(--erp-text); background: var(--light-surface, #16202a); }
-.erp-financeiro .erp-por-pagina > svg { position: absolute; right: 0; pointer-events: none; }
-.erp-financeiro .erp-paginacao { gap: 9px; }
-.erp-financeiro .erp-paginacao > span:first-child { color: var(--light-muted, #91a3ba); font-size: 11px; margin-right: 5px; }
-.erp-financeiro .erp-pagina-btn { display: flex; align-items: center; justify-content: center; width: 22px; height: 23px; padding: 0; border: 0; background: transparent; color: var(--light-muted, #b7c8dc); }
+
+/* Rodapé inferior */
+.erp-financeiro .erp-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 2px 4px;
+  color: var(--erp-muted);
+  font-size: 11.5px;
+}
+.erp-financeiro .erp-rodape-info, .erp-financeiro .erp-paginacao { display: flex; align-items: center; gap: 8px; }
+.erp-financeiro .erp-barra { color: rgba(148, 163, 184, 0.35); }
 .erp-financeiro .erp-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .erp-financeiro .erp-relatorio-impressao { display: none; }
 .erp-financeiro .erp-girando { animation: erp-girar 1s linear infinite; }
 @keyframes erp-girar { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .erp-financeiro *, .erp-financeiro *::before, .erp-financeiro *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; } }
-@media (max-width: 1100px) {
-  .erp-financeiro .erp-toolbar { gap: 8px; }
-  .erp-financeiro .erp-periodo { margin-left: 0; }
-  .erp-financeiro .erp-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .erp-financeiro .erp-detalhes { grid-template-columns: minmax(180px, .8fr) minmax(0, 1.4fr); padding-left: 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .erp-financeiro *, .erp-financeiro *::before, .erp-financeiro *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
 }
-@media (max-width: 600px) {
-  .erp-financeiro { padding: 10px 8px; }
-  .erp-financeiro .erp-cabecalho { padding: 0; align-items: center; }
-  .erp-financeiro h2 { font-size: 19px; }
-  .erp-financeiro .erp-resumo strong { font-size: 16px; }
-  .erp-financeiro .erp-acoes { gap: 7px; }
-  .erp-financeiro .erp-divisor { display: none; }
-  .erp-financeiro .erp-btn { padding: 0 10px; font-size: 12px; gap: 6px; }
-  .erp-financeiro .erp-btn-icone { width: 32px; padding: 0; }
-  .erp-financeiro .erp-periodo { width: 100%; justify-content: space-between; gap: 5px; }
-  .erp-financeiro .erp-navegacao-mes { gap: 3px; }
-  .erp-financeiro .erp-rotulo-periodo { min-width: 105px; font-size: 12px; }
-  .erp-financeiro .erp-filtros { grid-template-columns: minmax(0, 1fr); }
-  .erp-financeiro .erp-detalhes { grid-template-columns: minmax(0, 1fr); padding: 12px; }
-  .erp-financeiro .erp-detalhes-campos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .erp-financeiro .erp-rodape { font-size: 11px; }
-  .erp-financeiro .erp-rodape-info { gap: 7px; flex-wrap: wrap; }
-  .erp-financeiro .erp-paginacao { margin-left: auto; }
+@media (max-width: 1100px) {
+  .erp-financeiro .erp-detalhes { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .erp-financeiro { padding: 10px; }
+  .erp-financeiro .erp-busca-inline { width: 100%; }
+  .erp-financeiro .erp-acoes, .erp-financeiro .erp-toolbar-direita { width: 100%; justify-content: space-between; }
+  .erp-financeiro .erp-detalhes-campos { grid-template-columns: minmax(0, 1fr); }
 }
 @media print {
   body:has(.erp-financeiro) * { visibility: hidden !important; }
   .erp-financeiro .erp-tela { display: none !important; }
   .erp-financeiro .erp-relatorio-impressao, .erp-financeiro .erp-relatorio-impressao * { visibility: visible !important; }
-  .erp-financeiro .erp-relatorio-impressao { display: block !important; position: absolute; inset: 0 auto auto 0; width: 100%; color: var(--light-muted, #000); background: var(--light-surface, #fff); font: 11px Arial, sans-serif; }
+  .erp-financeiro .erp-relatorio-impressao { display: block !important; position: absolute; inset: 0 auto auto 0; width: 100%; color: #000; background: #fff; font: 11px Arial, sans-serif; }
   .erp-financeiro .erp-relatorio-impressao h1 { margin: 0 0 12px; font-size: 18px; }
   .erp-financeiro .erp-relatorio-impressao p { margin: 4px 0; }
   .erp-financeiro .erp-relatorio-impressao table { width: 100%; margin-top: 14px; border-collapse: collapse; }
-  .erp-financeiro .erp-relatorio-impressao th, .erp-financeiro .erp-relatorio-impressao td { padding: 5px 6px; border-bottom: 1px solid var(--light-line, #ccc); text-align: left; }
+  .erp-financeiro .erp-relatorio-impressao th, .erp-financeiro .erp-relatorio-impressao td { padding: 5px 6px; border-bottom: 1px solid #ccc; text-align: left; }
   .erp-financeiro .erp-relatorio-impressao .erp-direita { text-align: right; white-space: nowrap; }
   .erp-financeiro .erp-relatorio-impressao tfoot { font-weight: 700; }
   .erp-financeiro .erp-relatorio-impressao tr { break-inside: avoid; }

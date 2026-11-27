@@ -10,22 +10,25 @@ html .financeiro-profissional .cotista-contexto {
   border-color: var(--fin-border);
 }
 html .financeiro-profissional .cotista-navegacao {
-  display: flex; align-items: center; gap: 16px; margin: 0 0 20px; padding: 0;
+  display: flex; align-items: center; gap: 16px; margin: 2px 0; padding: 0;
 }
 html .financeiro-profissional .financeiro-tabs {
-  justify-content: flex-start; gap: 4px; padding: 4px;
-  min-height: 44px; border: 1px solid var(--fin-border); border-radius: 8px;
+  justify-content: center; align-items: center; gap: 18px; margin: 3px 0; padding: 8px 4px;
+  min-height: 44px; border: 1px solid var(--fin-border); border-width: 0; border-radius: 8px;
   background: var(--fin-soft); scrollbar-width: thin;
 }
 html .financeiro-profissional .financeiro-tab {
   min-height: 36px; padding: 8px 12px; border: 1px solid transparent;
-  border-radius: 5px; font-size: 12px; font-weight: 500; line-height: 1.4;
+  border-radius: 9px; overflow: hidden; font-size: 12px; font-weight: 500; line-height: 1.4;
   color: var(--fin-muted); background: transparent; white-space: nowrap;
 }
 html .financeiro-profissional .financeiro-tab:hover { background: var(--fin-hover); color: var(--fin-text); }
 html .financeiro-profissional .financeiro-tab.is-active {
-  background: var(--fin-surface); border-color: var(--fin-border); color: var(--fin-accent);
-  box-shadow: 0 1px 2px #00000008;
+  background: var(--fin-surface); border-color: rgba(43, 96, 158, 1); color: var(--fin-accent);
+  box-shadow: none;
+}
+html .financeiro-profissional .financeiro-tab[data-aba="fechamento-balanco"]:not(.is-active) {
+  border-radius: 0;
 }
 html .financeiro-profissional :is(.financeiro-panel, .financeiro-header, .financeiro-kpi) {
   border: 1px solid var(--fin-border); border-radius: 10px;

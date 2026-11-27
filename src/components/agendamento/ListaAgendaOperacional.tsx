@@ -49,10 +49,10 @@ export function LinhaAgenda({ item, aoAbrir, planos = [] }: { item: SolicitacaoV
 export function ListaAgenda({ itens, filtro, aoFiltro, aoAbrir, aoNovo, carregando }: { itens: SolicitacaoVooInterna[]; filtro: FiltroAgenda; aoFiltro: (f: FiltroAgenda) => void; aoAbrir: (v: SolicitacaoVooInterna) => void; aoNovo: () => void; carregando: boolean }) {
   const voos = filtrarAgenda(itens, filtro, hojeBrasilia());
   const { data: planos = [] } = useQuery({ queryKey:["agenda-shell-planos"],queryFn:buscarPlanosVoo,staleTime:30000 });
-  const filtros = [{ id:"todos", label:"Todos" }, { id:"dia", label:"No Dia" }, { id:"confirmados", label:"Confirmados" }, { id:"pendentes", label:"Pendentes" }] as const;
+  const filtros = [{ id:"todos", label:"Todos" }, { id:"dia", label:"Hoje" }, { id:"confirmados", label:"Confirmados" }, { id:"pendentes", label:"Pendentes" }] as const;
   return <section className="mx-auto max-w-5xl space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex flex-wrap gap-1.5" aria-label="Filtrar agendamentos">{filtros.map(f => <button key={f.id} type="button" aria-pressed={filtro === f.id} className={pillAgenda(filtro === f.id)} onClick={() => aoFiltro(f.id)}>{f.label}</button>)}</div>
+      <div className="flex flex-wrap gap-1.5" aria-label="Filtrar agendamentos">{filtros.map(f => <button key={f.id} type="button" aria-pressed={filtro === f.id} className={"rounded-full bg-[#1366D9] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#0F54B5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 " + (filtro === f.id ? "shadow-md ring-2 ring-sky-300" : "")} onClick={() => aoFiltro(f.id)}>{f.label}</button>)}</div>
       <button type="button" className={botaoAgenda} onClick={aoNovo}><Plus size={15}/> Novo agendamento</button>
     </div>
     <div className="space-y-2">{voos.map(item => <LinhaAgenda key={item.id} item={item} aoAbrir={aoAbrir} planos={planos} />)}</div>

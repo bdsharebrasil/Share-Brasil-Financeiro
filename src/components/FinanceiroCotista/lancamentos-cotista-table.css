@@ -278,7 +278,7 @@
 .cotista-columns-popover {
   position: absolute;
   top: calc(100% + 4px);
-  right: 0;
+  left: 0;
   z-index: 40;
   width: 245px;
   max-height: 380px;

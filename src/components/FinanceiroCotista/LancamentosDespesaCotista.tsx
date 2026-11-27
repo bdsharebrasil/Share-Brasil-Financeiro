@@ -22,7 +22,6 @@ import {
   CircleCheck,
   Clock3,
   Coins,
-  Download,
   ExternalLink,
   Eye,
   EyeOff,
@@ -1013,57 +1012,6 @@ export function LancamentosDespesaCotista({
     setFiltroDoc("todos");
   };
 
-  // Exportação para Excel (CSV UTF-8 com BOM incluindo colunas de cada cotista)
-  const exportarExcel = () => {
-    const cabecalhos = [
-      "Data",
-      "Documento",
-      "Descrição",
-      "Favorecido",
-      "Categoria",
-      "Status",
-      "Tipo Rateio",
-      "Valor Total",
-      "Valor Pago",
-      "Pago Por",
-      ...cotistasAeronave.flatMap((c) => [`${c.nome} (%)`, `${c.nome} (R$)`]),
-    ];
-
-    const escapar = (valor: string | number) =>
-      `"${String(valor ?? "").replace(/"/g, '""')}"`;
-
-    const linhas = filtradas.map((item) => [
-      formatarData(item.dataEmissao || item.data),
-      numerosDocumentosDoLancamento(item),
-      item.descricao,
-      nomeFornecedorLancamento(item, fornecedoresEdicao),
-      item.categoria || "Sem categoria",
-      statusLancamento(item.status).label,
-      tipoRateioLancamento(item),
-      formatarCentavos(item.valorCentavos),
-      formatarCentavos(valorPagoLancamento(item)),
-      nomePagadoresDoLancamento(item, cotistasAeronave),
-      ...cotistasAeronave.flatMap((c) => {
-        const r = rateioDoCotista(item, c, cotistasAeronave);
-        return r ? [`${r.percentual}%`, formatarCentavos(r.valorCentavos)] : ["0%", "R$ 0,00"];
-      }),
-    ]);
-
-    const csv =
-      "\uFEFF" +
-      [cabecalhos.map(escapar).join(";"), ...linhas.map((l) => l.map(escapar).join(";"))].join(
-        "\r\n",
-      );
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `lancamentos-cotista-${mesesSelecionados.join("_")}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
   // Edição / Exclusão handlers (idênticos ao fluxo existente)
   const atualizarEdicao = (campo: keyof Omit<EdicaoLancamento, "rateios">, valor: string) =>
     setEdicaoLancamento((atual) => (atual ? { ...atual, [campo]: valor } : atual));
@@ -1402,37 +1350,6 @@ export function LancamentosDespesaCotista({
             {filtrosAtivos > 0 && <span className="cotista-badge-count">{filtrosAtivos}</span>}
           </button>
 
-          <div className="cotista-period-group">
-            <SeletorMesesCotista
-              mesesSelecionados={mesesSelecionados}
-              aoAlternar={alternarMes}
-              aoSelecionarMesAtual={() => aoSelecionarMes(mesAtualLocal())}
-            />
-            <button
-              type="button"
-              className="cotista-btn cotista-btn-icon"
-              aria-label="Mês anterior"
-              onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, -1))}
-            >
-              <ChevronLeft size={15} />
-            </button>
-            <span className="cotista-period-label" aria-live="polite">
-              {mesesSelecionados.length === 1
-                ? rotuloMesCotista(mesReferencia)
-                : `${mesesSelecionados.length} meses`}
-            </span>
-            <button
-              type="button"
-              className="cotista-btn cotista-btn-icon"
-              aria-label="Próximo mês"
-              onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, 1))}
-            >
-              <ChevronRight size={15} />
-            </button>
-          </div>
-        </div>
-
-        <div className="cotista-toolbar-right">
           {/* Show / Hide columns com ícones de olho igual à referência */}
           <div ref={colunasAnchorRef} className="cotista-columns-anchor">
             <button
@@ -1488,16 +1405,37 @@ export function LancamentosDespesaCotista({
             )}
           </div>
 
-          <button
-            type="button"
-            className="cotista-btn"
-            disabled={carregando || !filtradas.length}
-            onClick={exportarExcel}
-          >
-            <Download size={14} aria-hidden="true" />
-            Exportar Excel
-          </button>
+          <div className="cotista-period-group">
+            <SeletorMesesCotista
+              mesesSelecionados={mesesSelecionados}
+              aoAlternar={alternarMes}
+              aoSelecionarMesAtual={() => aoSelecionarMes(mesAtualLocal())}
+            />
+            <button
+              type="button"
+              className="cotista-btn cotista-btn-icon"
+              aria-label="Mês anterior"
+              onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, -1))}
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <span className="cotista-period-label" aria-live="polite">
+              {mesesSelecionados.length === 1
+                ? rotuloMesCotista(mesReferencia)
+                : `${mesesSelecionados.length} meses`}
+            </span>
+            <button
+              type="button"
+              className="cotista-btn cotista-btn-icon"
+              aria-label="Próximo mês"
+              onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, 1))}
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        </div>
 
+        <div className="cotista-toolbar-right">
           {/* Paginação compacta no topo direito */}
           <div className="cotista-top-pagination">
             <span>

@@ -2,6 +2,7 @@
 // (backend-share). Ajuste aqui se o schema mudar; os componentes e ganchos
 // (hooks) deste módulo importam tudo daqui, então este arquivo é a fonte
 // única de verdade dos tipos.
+import type { Periodicidade } from "@/types/financeiro";
 
 export type FluxoLancamento = 'ENTRADA' | 'SAIDA';
 export type CaixaLancamento = 'SHARE' | 'CLIENTE' | 'HOLDING';
@@ -38,6 +39,7 @@ export interface Lancamento {
   grupoCategoria: string;
   tipo: string | null;
   prazo: string | null;
+  periodicidade?: Periodicidade | null;
   fluxo: FluxoLancamento;
   fluxoOriginal?: string;
   valorCentavos: number;
@@ -68,6 +70,7 @@ export interface ContaAPagar {
   id: string;
   dataEmissao: string | null;
   dataVencimento: string;
+  periodicidade?: Periodicidade | null;
   valor: number;
   categoriaId: string | null;
   categoriaClienteId?: string | null;
@@ -117,6 +120,7 @@ export interface ContaAReceber {
   id: string;
   dataEmissao: string | null;
   dataVencimento: string;
+  periodicidade?: Periodicidade | null;
   valor: number;
   categoriaId: string | null;
   categoriaClienteId?: string | null;

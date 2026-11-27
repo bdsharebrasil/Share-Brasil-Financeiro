@@ -27,6 +27,7 @@ export type LinhaConta = {
   aeronave: string | null;
   dataLancamento: string;
   dataVencimento: string | null;
+  periodicidade: string | null;
   situacao: SituacaoLinha;
   statusOriginal: string;
   valor: number;
@@ -77,6 +78,7 @@ export function linhasDeContasAPagar(contas: ContaAPagar[]): LinhaConta[] {
     aeronave: c.aeronaveMatricula || null,
     dataLancamento: c.dataEmissao || c.criadoEm || "",
     dataVencimento: c.dataVencimento || null,
+    periodicidade: c.periodicidade ?? null,
     situacao: situacaoDaConta(statusOriginal(c), c.dataVencimento),
     statusOriginal: statusOriginal(c),
     valor: Number(c.valor || 0),
@@ -113,6 +115,7 @@ export function linhasDeLancamentosHolding(lancamentos: Lancamento[], movimentos
       aeronave: null,
       dataLancamento: l.data || l.criadoEm || "",
       dataVencimento: l.prazo || null,
+      periodicidade: l.periodicidade ?? null,
       situacao: situacaoDaConta(status, l.prazo || null),
       statusOriginal: status,
       valor: l.valorCentavos / 100,
@@ -163,6 +166,7 @@ export function linhasDeMovimentosHolding(movimentos: MovimentoHoldingPendente[]
       aeronave: movimento.aeronave || null,
       dataLancamento: movimento.data_emissao || movimento.criado_em || "",
       dataVencimento: movimento.data_vencimento || null,
+      periodicidade: movimento.periodicidade ?? null,
       situacao: situacaoDaConta(status, movimento.data_vencimento || null),
       statusOriginal: status,
       valor: Number(movimento.valor_centavos || 0) / 100,
@@ -188,6 +192,7 @@ export function linhasDeContasAReceber(contas: ContaAReceber[]): LinhaConta[] {
     aeronave: c.aeronaveMatricula || null,
     dataLancamento: c.dataEmissao || c.criadoEm || "",
     dataVencimento: c.dataVencimento || null,
+    periodicidade: c.periodicidade ?? null,
     situacao: situacaoDaConta(statusOriginal(c), c.dataVencimento),
     statusOriginal: statusOriginal(c),
     valor: Number(c.valor || 0),

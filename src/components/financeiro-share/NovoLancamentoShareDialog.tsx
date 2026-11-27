@@ -37,6 +37,8 @@ import {
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { API_BASE } from "@/lib/api";
 import type { Lancamento } from "@/components/financeiro-share/tipos";
+import { opcoesPeriodicidade } from "@/data/opcoes";
+import type { Periodicidade } from "@/types/financeiro";
 
 export type LancamentoEdicao = {
   id: string;
@@ -51,6 +53,7 @@ export type LancamentoEdicao = {
   data_emissao?: string | null;
   prazo?: string | null;
   dataVencimento?: string | null;
+  periodicidade?: Periodicidade | null;
   data_vencimento?: string | null;
   fornecedorId?: string | null;
   fornecedor?: string | null;
@@ -124,6 +127,7 @@ export function NovoLancamentoShareDialog({
   const [valor, setValor] = useState("");
   const [dataEmissao, setDataEmissao] = useState(() => new Date().toISOString().slice(0, 10));
   const [dataVencimento, setDataVencimento] = useState("");
+  const [periodicidade, setPeriodicidade] = useState<Periodicidade>("ÚNICO");
   const [fornecedor, setFornecedor] = useState("");
   const [fornecedorId, setFornecedorId] = useState("");
   const [numeroDoc, setNumeroDoc] = useState("");
@@ -148,6 +152,7 @@ export function NovoLancamentoShareDialog({
     setValor("");
     setDataEmissao(new Date().toISOString().slice(0, 10));
     setDataVencimento("");
+    setPeriodicidade("ÚNICO");
     setFornecedor("");
     setFornecedorId("");
     setNumeroDoc("");
@@ -214,6 +219,7 @@ export function NovoLancamentoShareDialog({
           lancamentoInicial.prazo,
       ),
     );
+    setPeriodicidade(lancamentoInicial.periodicidade ?? "ÚNICO");
     setFornecedorId(lancamentoInicial.fornecedorId ?? "");
     setFornecedor(lancamentoInicial.fornecedor ?? "");
     setNumeroDoc(lancamentoInicial.numeroDoc ?? "");
@@ -281,6 +287,7 @@ export function NovoLancamentoShareDialog({
         fornecedor: (fornecedorSelecionado?.nome ?? fornecedor).trim() || null,
         fornecedor_nome: (fornecedorSelecionado?.nome ?? fornecedor).trim() || null,
         numero_doc: numeroDoc.trim() || null,
+        periodicidade,
         observacoes: observacoes.trim() || null,
         categoria_cliente_id: categoriaClienteId || null,
       };
@@ -455,7 +462,7 @@ export function NovoLancamentoShareDialog({
               <Calendar size={14} className="text-primary" />
               <span>Datas do lançamento</span>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-1.5">
                 <Label htmlFor="nl-data-emissao">Data de emissão</Label>
                 <Input
@@ -476,6 +483,16 @@ export function NovoLancamentoShareDialog({
                   value={dataVencimento}
                   onChange={(evento) => setDataVencimento(evento.target.value)}
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Periodicidade</Label>
+                <Select value={periodicidade} onValueChange={(valor) => setPeriodicidade(valor as Periodicidade)}>
+                  <SelectTrigger className="h-10 bg-background"><SelectValue placeholder="Selecione a periodicidade" /></SelectTrigger>
+                  <SelectContent>
+                    {opcoesPeriodicidade.map((opcao) => <SelectItem key={opcao.id} value={opcao.id}>{opcao.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </section>

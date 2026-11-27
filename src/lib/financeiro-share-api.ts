@@ -280,6 +280,8 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
 
     dataVencimento: row.dataVencimento ?? row.data_vencimento ?? "",
 
+    periodicidade: row.periodicidade ?? row.lancamento_periodicidade ?? null,
+
     valor: Number(row.valor ?? Number(row.valor_centavos ?? 0) / 100),
 
     categoriaId: row.categoriaId ?? row.categoria_share_id ?? row.categoria_id ?? null,
@@ -431,6 +433,7 @@ function normalizarLancamentoCaixa(row: any): Lancamento {
     tipo: row.tipo ?? row.tipo_despesa ?? null,
 
     prazo: prazoBruto ? String(prazoBruto).slice(0, 10) : null,
+    periodicidade: row.periodicidade ?? null,
     fluxoOriginal: String(row.fluxo ?? ""),
     fluxo: ["ENTRADA", "RECEITA"].includes(String(row.fluxo ?? "").trim().toUpperCase())
       ? "ENTRADA"
@@ -1428,6 +1431,8 @@ export type MovimentoHoldingPendente = {
   data_emissao: string | null;
 
   data_vencimento: string | null;
+
+  periodicidade?: Periodicidade | null;
 
   descricao: string;
 

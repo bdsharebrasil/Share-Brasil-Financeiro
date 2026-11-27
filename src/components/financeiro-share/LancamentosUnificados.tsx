@@ -71,6 +71,7 @@ import { ModalContaAReceber } from "./ModalContaAReceber";
 import { NovoLancamentoShareDialog, type LancamentoEdicao } from "./NovoLancamentoShareDialog";
 import { AbaSolicitacoesPagamento } from "./AbaSolicitacoesPagamento";
 import { ControleZoomTabela, useZoomTabela } from "./ControleZoomTabela";
+import { opcoesPeriodicidade } from "@/data/opcoes";
 
 /** Campos opcionais: conecte aos nomes reais do seu backend via obterDetalhes. */
 export type DetalhesLancamento = {
@@ -88,7 +89,7 @@ type Props = {
 };
 
 type ChaveColuna =
-  | "documento" | "aeronave" | "descricao" | "fluxo" | "favorecido"
+  | "documento" | "aeronave" | "descricao" | "fluxo" | "periodicidade" | "favorecido"
   | "fornecedor" | "contaBancaria" | "data" | "situacao" | "valor";
 type Coluna = { chave: ChaveColuna; rotulo: string; largura?: number };
 type FiltroSituacao = "TODAS" | "EM_ABERTO" | "PAGO" | "EM_ATRASO" | "RECEBIDO" | "AGUARDANDO_REEMBOLSO" | "REEMBOLSADO" | "CANCELADO";
@@ -360,6 +361,10 @@ function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
     }
     case "fluxo":
       return <td key={chave}><span className={`erp-status erp-status-${linha.fluxo === "ENTRADA" ? "sucesso" : "atrasado"}`}>{linha.fluxo === "ENTRADA" ? "ENTRADA" : "SAÍDA"}</span></td>;
+    case "periodicidade": {
+      const rotulo = opcoesPeriodicidade.find((opcao) => opcao.id === linha.periodicidade)?.label ?? linha.periodicidade ?? "—";
+      return <td key={chave}>{rotulo}</td>;
+    }
     case "favorecido":
       return <td key={chave} title={linha.favorecido || undefined}>{linha.favorecido || "—"}</td>;
     case "fornecedor":
@@ -618,6 +623,7 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
 
   const colunas = useMemo<Coluna[]>(() => [
     { chave: "data", rotulo: "Data", largura: 96 },
+    { chave: "periodicidade", rotulo: "Periodicidade", largura: 120 },
     { chave: "documento", rotulo: "DOC", largura: 106 },
     { chave: "aeronave", rotulo: "Aeronave", largura: 94 },
     { chave: "descricao", rotulo: "Descrição", largura: 220 },
@@ -836,7 +842,7 @@ export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalh
       id, descricao: linha.descricao, fluxo: linha.fluxo,
       categoriaId: String(raw.categoriaId ?? raw.categoria_share_id ?? raw.categoria_id ?? "") || null,
       categoria: linha.categoria, grupoCategoria: String(raw.grupoCategoria ?? raw.grupo_categoria ?? "") || null,
-      valorCentavos: Math.round(linha.valor * 100), data: linha.dataLancamento, prazo: linha.dataVencimento,
+      valorCentavos: Math.round(linha.valor * 100), data: linha.dataLancamento, prazo: linha.dataVencimento, periodicidade: linha.periodicidade as LancamentoEdicao["periodicidade"],
       fornecedorId: String(raw.fornecedorId ?? raw.fornecedor_id ?? raw.fornecedores_favoritos_id ?? "") || null,
       fornecedor: linha.fornecedor ?? linha.favorecido, numeroDoc: String(raw.numeroDoc ?? raw.numero_doc ?? raw.numero_nf ?? linha.documento ?? "") || null,
       observacoes: String(raw.observacoes ?? "") || null,

@@ -348,7 +348,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias, aoAlterarQuantidade 
     const id = String(texto("lancamento_id", "lancamentoId", "id") ?? "");
     if (!id) return toast.error("Este registro não possui lançamento editável.");
     const valorCentavos = raw.valor_centavos != null ? Number(raw.valor_centavos) : Math.round(Number(raw.valor ?? 0) * 100);
-    setLancamentoEditando({ id, descricao: texto("descricao"), fluxo: "SAIDA", categoriaId: texto("categoria_id"), categoria: texto("categoria_nome", "lancamento_categoria_nome"), grupoCategoria: texto("grupo_categoria"), valorCentavos, data: texto("data_emissao", "dataEmissao", "data_despesa"), prazo: texto("data_vencimento", "dataVencimento", "vencimento"), fornecedorId: texto("fornecedor_id", "fornecedorId"), fornecedor: texto("lancamento_fornecedor_nome", "fornecedor_nome", "fornecedor"), numeroDoc: texto("numero_doc", "documento"), observacoes: texto("observacoes") });
+    setLancamentoEditando({ id, descricao: texto("descricao"), fluxo: "SAIDA", categoriaId: texto("categoria_id"), categoria: texto("categoria_nome", "lancamento_categoria_nome"), grupoCategoria: texto("grupo_categoria"), valorCentavos, data: texto("data_emissao", "dataEmissao", "data_despesa"), prazo: texto("data_vencimento", "dataVencimento", "vencimento"), periodicidade: texto("periodicidade") as LancamentoEdicao["periodicidade"], fornecedorId: texto("fornecedor_id", "fornecedorId"), fornecedor: texto("lancamento_fornecedor_nome", "fornecedor_nome", "fornecedor"), numeroDoc: texto("numero_doc", "documento"), observacoes: texto("observacoes") });
   }
 
   useEffect(() => {

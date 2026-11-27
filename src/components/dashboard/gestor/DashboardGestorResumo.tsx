@@ -39,7 +39,7 @@ import {
   type FluxoLinha,
 } from "@/components/financeiro-share/linhas-contas";
 import { AbaSolicitacoesBaixaPortal } from "@/components/financeiro-share/AbaSolicitacoesBaixaPortal";
-import { AbaMovimentosHolding } from "@/components/financeiro-share/AbaMovimentosHolding";
+import { AbaHolding } from "@/components/financeiro-share/AbaHolding";
 import { AbaSalarios } from "@/components/financeiro-share/AbaSalarios";
 import NFSaidaTab from "@/components/financeiro-share/NFSaidaTab";
 
@@ -497,7 +497,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
                 }}
               />
             )}
-            {modulo === "holding" && <AbaMovimentosHolding />}
+            {modulo === "holding" && <AbaHolding />}
             {modulo === "folha" && <AbaSalarios />}
             {modulo === "nf-saida" && <NFSaidaTab aoVoltar={voltar} />}
           </div>

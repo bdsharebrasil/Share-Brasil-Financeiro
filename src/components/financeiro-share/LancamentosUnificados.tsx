@@ -38,6 +38,7 @@ import { IconeAnexo } from "./IconeAnexo";
 import { ContaBancariaCell } from "./ContaBancariaCell";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
+  buscarCaixaEmpresa,
   buscarOpcoesFinanceiroShare,
   carregarDocumentoFinanceiro,
   darBaixaContaAPagar,
@@ -51,10 +52,11 @@ import {
 } from "@/lib/financeiro-share-api";
 import { useContasAPagar } from "@/hooks/useContasAPagar";
 import { useContasAReceber } from "@/hooks/useContasAReceber";
-import type { ContaAPagar, ContaAReceber, TipoDocumento } from "./tipos";
+import type { ContaAPagar, ContaAReceber, Lancamento, TipoDocumento } from "./tipos";
 import {
   linhasDeContasAPagar,
   linhasDeContasAReceber,
+  linhasDeLancamentosHolding,
   type FluxoLinha,
   type LinhaConta,
   type SituacaoLinha,
@@ -75,6 +77,7 @@ type AnexoLancamento = { nome: string; href: string; numero?: string | null };
 
 type Props = {
   fluxo: FluxoLinha;
+  caixa?: "HOLDING";
   filtroInicial?: { situacao?: SituacaoLinha; inicio?: string; fim?: string };
   obterDetalhes?: (linha: LinhaConta) => DetalhesLancamento;
 };
@@ -157,7 +160,7 @@ function rotuloMes(mes: string) {
   return `${nome.charAt(0).toUpperCase()}${nome.slice(1)} ${mes.slice(0, 4)}`;
 }
 function podeBaixar(linha: LinhaConta) {
-  return linha.situacao !== "PAGO" && linha.situacao !== "CANCELADO";
+  return linha.caixa !== "HOLDING" && linha.situacao !== "PAGO" && linha.situacao !== "CANCELADO";
 }
 function ehLancamentoDireto(conta: ContaAPagar) {
   return conta.fonteLancamento === true && (conta.lancamentoId ?? conta.id) === conta.id;
@@ -358,15 +361,31 @@ function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
   }
 }
 
-export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: Props) {
+export function LancamentosUnificados({ fluxo, caixa, filtroInicial, obterDetalhes }: Props) {
   const pagar = useContasAPagar({ incluirLancamentos: fluxo === "SAIDA", incluirReembolsos: fluxo === "SAIDA" });
   const receber = useContasAReceber();
   const ehEntrada = fluxo === "ENTRADA";
+  const ehHolding = caixa === "HOLDING";
   const fluxosFiltro: FluxoLinha[] = ehEntrada ? ["ENTRADA", "ENTRADA REEMBOLSO"] : ["SAIDA", "SAIDA REEMBOLSO"];
-  const titulo = ehEntrada ? "Registrar Entrada" : "Registrar Saída";
-  const carregando = ehEntrada ? receber.carregando : pagar.carregando;
-  const erro = ehEntrada ? receber.erro : pagar.erro;
-  const recarregar = ehEntrada ? receber.recarregar : pagar.recarregar;
+  const titulo = `${ehEntrada ? "Registrar Entrada" : "Registrar Saída"}${ehHolding ? " · Holding" : ""}`;
+  const [lancamentosHolding, setLancamentosHolding] = useState<Lancamento[]>([]);
+  const [carregandoHolding, setCarregandoHolding] = useState(ehHolding);
+  const [erroHolding, setErroHolding] = useState<string | null>(null);
+  const recarregarHolding = useCallback(async () => {
+    setCarregandoHolding(true);
+    setErroHolding(null);
+    try {
+      setLancamentosHolding(await buscarCaixaEmpresa({ caixa: "HOLDING", fluxo: ehEntrada ? "ENTRADA" : "SAIDA" }));
+    } catch (causa) {
+      setErroHolding(causa instanceof Error ? causa.message : "Não foi possível carregar os lançamentos da holding.");
+    } finally {
+      setCarregandoHolding(false);
+    }
+  }, [ehEntrada]);
+  useEffect(() => { if (ehHolding) void recarregarHolding(); }, [ehHolding, recarregarHolding]);
+  const carregando = ehHolding ? carregandoHolding : ehEntrada ? receber.carregando : pagar.carregando;
+  const erro = ehHolding ? erroHolding : ehEntrada ? receber.erro : pagar.erro;
+  const recarregar = ehHolding ? recarregarHolding : ehEntrada ? receber.recarregar : pagar.recarregar;
   const id = useId().replace(/:/g, "");
   const periodoRef = useRef<HTMLDivElement>(null);
   const botaoPeriodoRef = useRef<HTMLButtonElement>(null);
@@ -381,12 +400,13 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
 
   const [matriculasAeronaves, setMatriculasAeronaves] = useState<Record<string, string>>({});
   const lancamentos = useMemo(() => {
-    const linhas = ehEntrada ? linhasDeContasAReceber(receber.contas) : linhasDeContasAPagar(pagar.contas);
+    const linhas = ehHolding ? linhasDeLancamentosHolding(lancamentosHolding)
+      : ehEntrada ? linhasDeContasAReceber(receber.contas) : linhasDeContasAPagar(pagar.contas);
     return linhas.map((linha) => ({
       ...linha,
       aeronave: linha.aeronave || (linha.aeronaveId ? matriculasAeronaves[linha.aeronaveId] : null) || null,
     }));
-  }, [ehEntrada, receber.contas, pagar.contas, matriculasAeronaves]);
+  }, [ehHolding, ehEntrada, lancamentosHolding, receber.contas, pagar.contas, matriculasAeronaves]);
 
   const [busca, setBusca] = useState("");
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -644,7 +664,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const expansao = useMemo(() => new Set(expandidos), [expandidos]);
   const selecionadosVisiveis = filtrados.filter((linha) => selecao.has(linha.id));
   const baixaveisSelecionados = selecionadosVisiveis.filter(podeBaixar);
-  const excluiveisSelecionados = selecionadosVisiveis.flatMap((linha) => linha.raw.lancamentoId ? [{ linha, lancamentoId: linha.raw.lancamentoId }] : []);
+  const excluiveisSelecionados = selecionadosVisiveis.flatMap((linha) => linha.raw.lancamentoId && linha.caixa !== "HOLDING" ? [{ linha, lancamentoId: linha.raw.lancamentoId }] : []);
   const progressoBaixa = loteBaixa && loteBaixa.total > 1 ? `Lançamento ${loteBaixa.total - loteBaixa.fila.length} de ${loteBaixa.total}` : undefined;
   const totalListado = filtrados.reduce((soma, linha) => soma + linha.valor, 0);
   const paginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
@@ -850,11 +870,11 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   return (
     <section className={`erp-financeiro ${ehEntrada ? "erp-entrada" : "erp-saida"}`} aria-labelledby={`${id}-titulo`}>
       <style>{ESTILOS_FINANCEIRO}</style>
-      {!ehEntrada && <nav className="erp-abas" aria-label="Registro de saída">
+      {!ehEntrada && !ehHolding && <nav className="erp-abas" aria-label="Registro de saída">
         <button type="button" className={abaSaida === "lancamentos" ? "ativo" : ""} onClick={() => setAbaSaida("lancamentos")}>Lançamentos</button>
         {solicitacoesPendentes > 0 && <button type="button" className={abaSaida === "solicitacoes" ? "ativo" : ""} onClick={() => setAbaSaida("solicitacoes")}>Solicitações de pagamento <span>{solicitacoesPendentes}</span></button>}
       </nav>}
-      {!ehEntrada && <div style={{ display: abaSaida === "solicitacoes" ? "block" : "none" }}>
+      {!ehEntrada && !ehHolding && <div style={{ display: abaSaida === "solicitacoes" ? "block" : "none" }}>
         <AbaSolicitacoesPagamento contasBancarias={contasBancarias} aoAlterarQuantidade={atualizarSolicitacoesPendentes} />
       </div>}
       {(ehEntrada || abaSaida === "lancamentos") && <div className="erp-tela">
@@ -868,7 +888,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
 
         <div className="erp-toolbar" role="group" aria-label="Ações dos lançamentos">
           <div className="erp-acoes">
-            <button type="button" className="erp-btn erp-btn-primario" onClick={() => setNovo(true)}><Plus size={17} aria-hidden="true" />Novo</button>
+            {!ehHolding && <button type="button" className="erp-btn erp-btn-primario" onClick={() => setNovo(true)}><Plus size={17} aria-hidden="true" />Novo</button>}
             <button type="button" className={`erp-btn ${mostrarFiltros ? "erp-btn-ativo" : ""}`} aria-expanded={mostrarFiltros}
               aria-controls={`${id}-filtros`} onClick={() => setMostrarFiltros((atual) => !atual)}>
               <Filter size={17} aria-hidden="true" />Filtrar{filtrosAtivos > 0 && <span className="erp-contador">{filtrosAtivos}</span>}
@@ -941,7 +961,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
             <input type="search" placeholder="Buscar lançamento..." value={busca} onChange={(e) => setBusca(e.target.value)} />
           </label>
           <label><span className="erp-sr-only">Caixa</span><select value={caixaFiltro} onChange={(e) => setCaixaFiltro(e.target.value)}>
-            <option value="TODOS">Todos os caixas</option><option value="SHARE">Share</option><option value="CLIENTE">Cliente</option>
+            <option value="TODOS">Todos os caixas</option><option value="SHARE">Share</option><option value="CLIENTE">Cliente</option>{ehHolding && <option value="HOLDING">Holding</option>}
           </select></label>
           <label><span className="erp-sr-only">Fluxo</span><select value={fluxoFiltro} onChange={(e) => setFluxoFiltro(e.target.value as "TODOS" | FluxoLinha)}>
             <option value="TODOS">Todos os fluxos</option>{fluxosFiltro.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -1063,9 +1083,9 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                         <DropdownMenu open={menuLinhaId === linha.id} onOpenChange={(aberto) => setMenuLinhaId(aberto ? linha.id : null)} modal={false}>
                           <DropdownMenuTrigger asChild><button type="button" className="erp-botao-menu" aria-label={`Ações de ${linha.descricao}`}><MoreVertical size={16} aria-hidden="true" /></button></DropdownMenuTrigger>
                           <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem onSelect={() => editarLinha(linha)}><Pencil size={14} /> Editar</DropdownMenuItem>
+                            <DropdownMenuItem disabled={ehHolding} onSelect={() => editarLinha(linha)}><Pencil size={14} /> Editar</DropdownMenuItem>
                             <DropdownMenuItem disabled={!podeBaixar(linha)} onSelect={() => setContaBaixa(linha)}>Dar baixa</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" disabled={!linha.raw.lancamentoId} onSelect={() => void excluirLinha(linha)}>Excluir</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" disabled={ehHolding || !linha.raw.lancamentoId} onSelect={() => void excluirLinha(linha)}>Excluir</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div></td>

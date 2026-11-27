@@ -23,13 +23,13 @@ export function AgendamentoShell({ area, title, detalhe, aoSelecionar, aoVoltar,
   return (
     <div className="min-w-0 rounded-[28px] bg-[#0B1E3B] p-2 text-[#0F294A] dark:bg-[#050B16] dark:text-slate-100 sm:p-3">
       <header className="flex flex-wrap items-center justify-between gap-2 pb-2">
-        <div className="flex min-w-0 items-center gap-3 rounded-br-[32px] rounded-tl-[20px] bg-white px-4 py-2.5 dark:bg-[#111C30]">
+        <div className="-mb-[2px] mt-[2px] flex min-w-0 items-end justify-start gap-3 rounded-br-[32px] rounded-tl-[20px] bg-white px-4 py-3 leading-[21px] dark:bg-[#111C30]">
           <button type="button" aria-label={detalhe ? "Voltar para a lista" : "Fechar agendamento"} onClick={detalhe ? aoVoltar : aoFechar} className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-slate-200 text-[#0F294A] hover:bg-slate-100 dark:border-slate-700/80 dark:text-slate-100 dark:hover:bg-slate-800">
             {detalhe ? <ArrowLeft size={16} /> : <X size={16} />}
           </button>
           <h1 className="pr-4 text-lg font-bold tracking-tight text-[#0F294A] dark:text-slate-100">{rotulo}</h1>
         </div>
-        <nav className="flex min-w-0 flex-wrap items-center gap-1.5 px-1" aria-label="Seções de agendamento">
+        <nav className="mx-[14px] flex min-w-0 flex-wrap items-center gap-[19px] px-[42px]" aria-label="Seções de agendamento">
           {areas.map(({ id, label, icon: Icon }) => (
             <button key={id} type="button" aria-current={area === id ? "page" : undefined} onClick={() => aoSelecionar(id)}
               className={"inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition " + (area === id
@@ -40,7 +40,7 @@ export function AgendamentoShell({ area, title, detalhe, aoSelecionar, aoVoltar,
           ))}
         </nav>
       </header>
-      <main className="min-h-[420px] min-w-0 rounded-[28px] bg-[#F1F5F9] p-3 dark:border dark:border-slate-800/80 dark:bg-[#0B1322] sm:p-5">
+      <main className="-mb-[5px] -mt-[5px] min-h-[420px] min-w-0 rounded-[28px] bg-[#F1F5F9] p-3 dark:border dark:border-slate-800/80 dark:bg-[#0B1322] sm:p-5 sm:py-[22px]">
         {children}
       </main>
     </div>

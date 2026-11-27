@@ -1,17 +1,21 @@
 /* Grade de atalhos do Portal do Colaborador.
    O número de colunas depende da LARGURA REAL disponível para a grade (container query),
-   e não da largura da janela. Assim, com o menu lateral aberto, os cartões nunca ficam
-   estreitos demais e o texto não quebra no meio da palavra ("AGEND/A").
-   Para ajustar: mude os min-width abaixo (largura mínima do espaço da grade). */
+   e não da largura da janela. Os cartões nunca passam de --atalho-max, então Share Brasil
+   e Minha Central de Trabalho têm o mesmo tamanho.
+   Para ajustar: mude --atalho-max ou os min-width abaixo. */
 .atalhos-wrap{container-type:inline-size;min-width:0}
-.atalhos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.atalhos-grid{
+  --atalho-max:168px;
+  justify-content:center;
+  grid-template-columns:repeat(2,minmax(0,min(var(--atalho-max),calc((100% - var(--gap)) / 2))));
+}
 
 /* 6 atalhos: 2 colunas -> 3 colunas -> 6 colunas */
-@container (min-width:380px){.atalhos-grid--6{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container (min-width:860px){.atalhos-grid--6{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@container (min-width:380px){.atalhos-grid--6{grid-template-columns:repeat(3,minmax(0,min(var(--atalho-max),calc((100% - 2 * var(--gap)) / 3))))}}
+@container (min-width:860px){.atalhos-grid--6{grid-template-columns:repeat(6,minmax(0,min(var(--atalho-max),calc((100% - 5 * var(--gap)) / 6))))}}
 
 /* 4 atalhos: 2 colunas -> 4 colunas */
-@container (min-width:580px){.atalhos-grid--4{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container (min-width:580px){.atalhos-grid--4{grid-template-columns:repeat(4,minmax(0,min(var(--atalho-max),calc((100% - 3 * var(--gap)) / 4))))}}
 
 /* Nunca quebrar palavra no meio: só quebra nos espaços (ex.: "CENTRO DE / TREINAMENTO") */
 .atalhos-grid .menu-dashboard span{overflow-wrap:normal;word-break:normal;hyphens:none}

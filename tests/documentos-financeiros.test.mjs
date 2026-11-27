@@ -25,3 +25,17 @@ test('identifica PDF servido como binário e rejeita HTML mesmo com extensão ou
     await assert.rejects(tipificarBlobDocumento(new Blob(['<!DOCTYPE html><html>Dashboard</html>'], { type: tipo }), 'https://site.test/relatorio.pdf'), /não retornou um PDF/);
   }
 });
+
+test('identifica imagens aceitas pelo formulário, incluindo APNG, BMP, ICO e SVG', async () => {
+  const casos = [
+    [new Uint8Array([0xff, 0xd8, 0xff]), 'image/jpeg', 'image/jpeg'],
+    [new Uint8Array([0x89, 0x50, 0x4e, 0x47]), 'image/apng', 'image/apng'],
+    [new Uint8Array([0x42, 0x4d, 0, 0]), 'image/bmp', 'image/bmp'],
+    [new Uint8Array([0, 0, 1, 0]), 'image/x-icon', 'image/x-icon'],
+    [new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"></svg>'), 'image/svg+xml', 'image/svg+xml'],
+  ];
+  for (const [conteudo, declarado, esperado] of casos) {
+    const blob = await tipificarBlobDocumento(new Blob([conteudo], { type: declarado }));
+    assert.equal(blob.type, esperado);
+  }
+});

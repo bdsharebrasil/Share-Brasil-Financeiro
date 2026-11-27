@@ -870,30 +870,33 @@ export function NovoLancamentoCotistaDialog({
                     <Label htmlFor="lancamento-categoria">
                       Categoria <span className="text-primary">*</span>
                     </Label>
-                    <Select value={categoriaId} onValueChange={setCategoriaId}>
-                      <SelectTrigger
-                        id="lancamento-categoria"
-                        className="h-12 min-w-0 rounded-xl"
-                      >
-                        <SelectValue placeholder="Selecione a categoria" />
-                      </SelectTrigger>
-                      <SelectContent className="despesas-theme despesa-dialog max-h-72">
-                        {modo === "HOLDING"
-                          ? categoriasHolding.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)
-                          : opcoes?.categorias?.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <SearchableCombobox
+                      id="lancamento-categoria"
+                      items={modo === "HOLDING"
+                        ? categoriasHolding.map((categoria) => ({ id: categoria.id, label: categoria.label }))
+                        : (opcoes?.categorias ?? []).map((categoria) => ({ id: categoria.id, label: categoria.nome }))}
+                      value={categoriaId}
+                      onChange={setCategoriaId}
+                      placeholder="Selecione a categoria"
+                      searchPlaceholder="Buscar categoria..."
+                      className="h-12 rounded-xl"
+                      popoverClassName="despesas-theme despesa-dialog"
+                    />
                   </div>
                   {modo === "HOLDING" && (
                     <div className="min-w-0 space-y-2">
                       <Label htmlFor="lancamento-fornecedor">Fornecedor</Label>
-                      <Select value={fornecedorId || "nenhum"} onValueChange={(value) => setFornecedorId(value === "nenhum" ? "" : value)}>
-                        <SelectTrigger id="lancamento-fornecedor" className="h-12 min-w-0 rounded-xl"><SelectValue placeholder="Selecione um fornecedor (opcional)" /></SelectTrigger>
-                        <SelectContent className="despesas-theme despesa-dialog max-h-72">
-                          <SelectItem value="nenhum">Sem fornecedor</SelectItem>
-                          {fornecedoresHolding.map((fornecedor) => <SelectItem key={fornecedor.id} value={fornecedor.id}>{fornecedor.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <SearchableCombobox
+                        id="lancamento-fornecedor"
+                        items={fornecedoresHolding}
+                        value={fornecedorId}
+                        onChange={setFornecedorId}
+                        placeholder="Selecione um fornecedor (opcional)"
+                        searchPlaceholder="Buscar fornecedor..."
+                        clearable
+                        className="h-12 rounded-xl"
+                        popoverClassName="despesas-theme despesa-dialog"
+                      />
                     </div>
                   )}
                   <div className="min-w-0 space-y-2">
@@ -956,43 +959,33 @@ export function NovoLancamentoCotistaDialog({
                     <Label htmlFor="lancamento-pagador">
                       Pagador / responsável
                     </Label>
-                    <Select
+                    <SearchableCombobox
+                      id="lancamento-pagador"
+                      items={cotistasCliente.map((cotista) => ({ id: cotista.id, label: cotista.nome }))}
                       value={pagoPorCotista}
-                      onValueChange={setPagoPorCotista}
-                    >
-                      <SelectTrigger
-                        id="lancamento-pagador"
-                        className="h-12 rounded-xl"
-                      >
-                        <SelectValue placeholder="Selecione o cotista" />
-                      </SelectTrigger>
-                      <SelectContent className="despesas-theme despesa-dialog">
-                        {cotistasCliente.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={setPagoPorCotista}
+                      placeholder="Selecione o cotista"
+                      searchPlaceholder="Buscar cotista..."
+                      className="h-12 rounded-xl"
+                      popoverClassName="despesas-theme despesa-dialog"
+                    />
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <Label htmlFor="lancamento-holding">Holding</Label>
-                    <Select value={holdingId} onValueChange={(value) => { setHoldingId(value); setRateios(dividirPorSociedade(cotistasHolding.filter((cotista) => cotista.holding_id === value).map((cotista) => cotista.id), cotistasAeronave)); }}>
-                      <SelectTrigger
-                        id="lancamento-holding"
-                        className="h-12 rounded-xl"
-                      >
-                        <SelectValue placeholder="Selecione a Holding" />
-                      </SelectTrigger>
-                      <SelectContent className="despesas-theme despesa-dialog">
-                        {holdingsAeronave.map((h) => (
-                          <SelectItem key={h.id} value={h.id}>
-                            {h.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableCombobox
+                      id="lancamento-holding"
+                      items={holdingsAeronave.map((holding) => ({ id: holding.id, label: holding.nome }))}
+                      value={holdingId}
+                      onChange={(value) => {
+                        setHoldingId(value);
+                        setRateios(dividirPorSociedade(cotistasHolding.filter((cotista) => cotista.holding_id === value).map((cotista) => cotista.id), cotistasAeronave));
+                      }}
+                      placeholder="Selecione a Holding"
+                      searchPlaceholder="Buscar Holding..."
+                      className="h-12 rounded-xl"
+                      popoverClassName="despesas-theme despesa-dialog"
+                    />
                   </div>
                 )}
                 {modo === "CLIENTE" && (
@@ -1065,41 +1058,24 @@ export function NovoLancamentoCotistaDialog({
                             {modo === "CLIENTE" ? "Cotista" : "Sócio"}{" "}
                             {index + 1}
                           </Label>
-                          <Select
+                          <SearchableCombobox
+                            id={`rateio-cotista-${index}`}
+                            items={(modo === "CLIENTE" ? cotistasCliente : sociosDaHolding)
+                              .filter((cotista) => !rateios.some((linha, li) => li !== index && linha.cotista === cotista.id))
+                              .map((cotista) => ({ id: cotista.id, label: cotista.nome }))}
                             value={rateio.cotista}
-                            onValueChange={(v) =>
+                            onChange={(value) =>
                               setRateios((atual) =>
                                 atual.map((linha, li) =>
-                                  li === index
-                                    ? { ...linha, cotista: v }
-                                    : linha,
+                                  li === index ? { ...linha, cotista: value } : linha,
                                 ),
                               )
                             }
-                          >
-                            <SelectTrigger
-                              id={`rateio-cotista-${index}`}
-                              className="h-11 min-w-0 rounded-lg bg-background"
-                            >
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent className="despesas-theme despesa-dialog">
-                              {(modo === "CLIENTE"
-                                ? cotistasCliente
-                                : sociosDaHolding
-                              ).map((c) => (
-                                <SelectItem
-                                  key={c.id}
-                                  value={c.id}
-                                  disabled={rateios.some(
-                                    (r, i) => i !== index && r.cotista === c.id,
-                                  )}
-                                >
-                                  {c.nome}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            placeholder="Selecione"
+                            searchPlaceholder={`Buscar ${modo === "CLIENTE" ? "cotista" : "sócio"}...`}
+                            className="h-11 rounded-lg bg-background"
+                            popoverClassName="despesas-theme despesa-dialog"
+                          />
                         </div>
                         <div className="min-w-0 space-y-2">
                           <Label

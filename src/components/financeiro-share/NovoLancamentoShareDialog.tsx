@@ -47,6 +47,7 @@ import {
 } from "@/lib/nfSaidaApi";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { API_BASE } from "@/lib/api";
+import { tipoAnexoLancamentoPermitido } from "@/lib/documentos-financeiros";
 import type { Lancamento } from "@/components/financeiro-share/tipos";
 import { opcoesPeriodicidade } from "@/data/opcoes";
 import type { Periodicidade } from "@/types/financeiro";
@@ -97,10 +98,6 @@ type Props = {
 
 const FORMAS_BAIXA = ["PIX", "TRANSFERÊNCIA", "BOLETO", "DINHEIRO", "CARTÃO"];
 const LIMITE_ANEXO_LANCAMENTO = 20 * 1024 * 1024;
-
-function tipoAnexoLancamentoPermitido(arquivo: File) {
-  return arquivo.type === "application/pdf" || arquivo.type.startsWith("image/");
-}
 
 /** Remove underscores e padroniza textos exibidos na UI em MAIÚSCULAS */
 function formatarTextoUi(valor?: string | null): string {
@@ -901,7 +898,7 @@ export function NovoLancamentoShareDialog({
                 <input
                   key={inputAnexoKey}
                   type="file"
-                  accept="application/pdf,image/*,.pdf"
+                  accept="application/pdf,image/jpeg,image/png,image/apng,image/gif,image/webp,image/avif,image/bmp,image/svg+xml,image/x-icon,.pdf,.jpg,.jpeg,.png,.apng,.gif,.webp,.avif,.bmp,.svg,.ico"
                   multiple
                   className="sr-only"
                   id="anexos-lancamento"
@@ -911,7 +908,7 @@ export function NovoLancamentoShareDialog({
                       (arquivo) =>
                         !tipoAnexoLancamentoPermitido(arquivo) || arquivo.size > LIMITE_ANEXO_LANCAMENTO,
                     );
-                    if (invalidos.length) toast.error("SELECIONE PDF OU IMAGENS DE ATÉ 20 MB CADA.");
+                    if (invalidos.length) toast.error("SELECIONE PDF OU IMAGENS JPG, PNG, GIF, WEBP, AVIF, BMP, SVG OU ICO DE ATÉ 20 MB CADA.");
                     setAnexosSelecionados((atuais) => [
                       ...atuais,
                       ...novos.filter(
@@ -933,7 +930,7 @@ export function NovoLancamentoShareDialog({
                   {anexosSelecionados.length ? "ADICIONAR MAIS ARQUIVOS" : "ANEXAR ARQUIVO"}
                 </Button>
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  PDF OU IMAGENS · ATÉ 20 MB POR ARQUIVO
+                  PDF OU IMAGENS JPG, PNG, GIF, WEBP, AVIF, BMP, SVG OU ICO · ATÉ 20 MB POR ARQUIVO
                 </span>
               </div>
             </div>

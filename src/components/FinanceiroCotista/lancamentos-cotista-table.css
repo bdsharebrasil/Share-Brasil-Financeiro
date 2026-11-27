@@ -92,7 +92,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 8px 12px;
   padding: 9px 12px;
   background: var(--grid-bg);
@@ -109,10 +109,20 @@
   min-width: 0;
 }
 
+.cotista-toolbar-right {
+  margin-left: auto;
+}
+
 .cotista-search-box {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
   width: 240px;
   max-width: 100%;
+  margin: 0 5px;
+  padding: 0 2px;
 }
 
 .cotista-search-box svg {
@@ -207,7 +217,7 @@
 .cotista-period-group {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 13px;
   padding-left: 6px;
   border-left: 1px solid var(--grid-border);
 }
@@ -224,8 +234,11 @@
 /* Paginação inline no topo (estilo "Showing 1 to 25 of 172 |< < > >| 25") */
 .cotista-top-pagination {
   display: inline-flex;
+  flex-direction: row;
+  justify-content: flex-end;
   align-items: center;
   gap: 6px;
+  overflow: auto;
   font-size: 12px;
   color: var(--grid-muted);
 }

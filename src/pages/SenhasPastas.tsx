@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Copy, Eye, EyeOff, Folder, KeyRound, LockKeyhole, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Copy, Eye, EyeOff, Folder, KeyRound, LockKeyhole, Plus, Trash2 } from "lucide-react";
+import { AeronavePasta } from "@/components/ui/aeronavepasta";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { buscarSenhas, criarSenha, excluirSenha, revelarSenha, type SenhaEmpresa } from "@/lib/colaborador-api";
@@ -129,19 +130,11 @@ export default function SenhasPastas() {
             <div><h2 className="text-sm font-extrabold">Pastas</h2><p className="mt-1 text-[10px] text-muted-foreground">Escolha uma pasta para abrir suas credenciais.</p></div>
             <span className="rounded-full border border-border bg-card px-3 py-1 text-[10px] font-bold text-muted-foreground">{folders.length} {folders.length === 1 ? "pasta" : "pastas"}</span>
           </div>
-          {folders.length ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{folders.map((folder) => <FolderTile key={folder} name={folder} count={items.filter((item) => (item.setor?.trim() || pastaPadrao) === folder).length} onOpen={() => setSelectedFolder(folder)} />)}</div> : <Empty title="Seu cofre está vazio" detail="Adicione uma senha para criar sua primeira pasta." />}
+          {folders.length ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{folders.map((folder) => <AeronavePasta key={folder} label={folder} count={items.filter((item) => (item.setor?.trim() || pastaPadrao) === folder).length} isOpen={false} onClick={() => setSelectedFolder(folder)} unidade={{ singular: "senha", plural: "senhas" }} />)}</div> : <Empty title="Seu cofre está vazio" detail="Adicione uma senha para criar sua primeira pasta." />}
         </section>
       )}
     </div>
   );
-}
-
-function FolderTile({ name, count, onOpen }: { name: string; count: number; onOpen: () => void }) {
-  return <button type="button" onClick={onOpen} className="group relative min-h-[170px] overflow-hidden rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-1 hover:border-primary/45 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-    <span className="absolute -right-10 -top-12 h-32 w-32 rounded-full bg-primary/[.08] blur-2xl transition-transform group-hover:scale-125" />
-    <span className="relative flex items-start justify-between"><span className="relative flex h-[58px] w-[72px] items-end"><span className="absolute bottom-0 left-0 h-[45px] w-[70px] rounded-[10px] rounded-tl-[4px] bg-gradient-to-br from-sky-300 via-sky-500 to-blue-700 shadow-[inset_0_2px_0_rgba(255,255,255,.35),0_10px_18px_rgba(37,99,235,.25)]" /><span className="absolute left-0 top-0 h-[21px] w-[34px] rounded-t-[8px] rounded-br-[4px] bg-gradient-to-br from-sky-300 to-blue-600" /></span><span className="rounded-lg border border-border bg-secondary/60 p-2 text-muted-foreground transition-colors group-hover:text-primary"><ChevronRight size={15} /></span></span>
-    <span className="relative mt-6 block"><span className="block truncate text-sm font-extrabold tracking-[-.02em]">{name}</span><span className="mt-1 block text-[10px] text-muted-foreground">Credenciais organizadas nesta pasta</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/60 px-2 py-1 text-[10px] font-bold text-muted-foreground"><KeyRound size={11} className="text-primary" />{count} {count === 1 ? "senha" : "senhas"}</span></span>
-  </button>;
 }
 
 function FolderContent({ folder, items, visible, onBack, onAdd, onReveal, onCopy, onRemove }: { folder: string; items: SenhaEmpresa[]; visible: Record<string, string>; onBack: () => void; onAdd: () => void; onReveal: (id: string) => void; onCopy: (value: string) => void; onRemove: (id: string) => void }) {

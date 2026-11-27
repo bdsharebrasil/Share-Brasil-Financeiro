@@ -6,9 +6,12 @@ interface AeronavePastaProps {
   count: number;
   isOpen: boolean;
   onClick: () => void;
+  unidade?: { singular: string; plural: string };
 }
 
-export function AeronavePasta({ label, count, isOpen, onClick }: AeronavePastaProps) {
+const unidadePadrao = { singular: 'relatório', plural: 'relatórios' };
+
+export function AeronavePasta({ label, count, isOpen, onClick, unidade = unidadePadrao }: AeronavePastaProps) {
   return (
     <button
       type="button"
@@ -59,7 +62,7 @@ export function AeronavePasta({ label, count, isOpen, onClick }: AeronavePastaPr
 
       <div className="text-block">
         <span className="text-name font-mono">{label}</span>
-        <span className="text-meta">{count} {count === 1 ? 'relatório' : 'relatórios'}</span>
+        <span className="text-meta">{count} {count === 1 ? unidade.singular : unidade.plural}</span>
       </div>
 
       <div className="ml-auto">

@@ -1455,6 +1455,10 @@ export type MovimentoHoldingPendente = {
 
   periodicidade?: Periodicidade | null;
 
+  numero_doc?: string | null;
+
+  url_doc?: string | null;
+
   descricao: string;
 
   categoria_nome: string | null;

@@ -77,13 +77,16 @@ export function SearchableCombobox({
   )
 
   return (
-    <Popover open={open} onOpenChange={(nextOpen) => {
-      if (!nextOpen && allowFreeText && searchValue.trim() && !selectedItem) {
-        onChange(searchValue.trim(), searchValue.trim())
-        setSearchValue("")
-      }
-      setOpen(nextOpen)
-    }}>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && allowFreeText && searchValue.trim() && !selectedItem) {
+          onChange(searchValue.trim(), searchValue.trim())
+          setSearchValue("")
+        }
+        setOpen(nextOpen)
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           id={id}
@@ -95,21 +98,37 @@ export function SearchableCombobox({
             "w-full justify-between h-11 px-3 bg-card text-foreground hover:bg-secondary dark:hover:bg-[#172231] transition-colors touch-manipulation",
             "border-border shadow-sm rounded-lg lg:h-10",
             className,
-            // Tipografia mais elegante dependendo do estado
             !value ? "text-muted-foreground font-normal" : "text-foreground font-medium"
           )}
         >
-          <div className={cn("flex min-w-0 flex-1 items-center gap-2", wrapSelectedLabel && "items-start") }>
+          <div className={cn("flex min-w-0 flex-1 items-center gap-2", wrapSelectedLabel && "items-start")}>
             {icon && <span className="flex-shrink-0 text-muted-foreground/70">{icon}</span>}
-            <span className={cn("min-w-0 truncate text-base tracking-tight lg:text-sm", wrapSelectedLabel && "overflow-visible whitespace-normal break-words text-left text-clip") }>
+            <span
+              className={cn(
+                "min-w-0 truncate text-base tracking-tight lg:text-sm",
+                wrapSelectedLabel && "overflow-visible whitespace-normal break-words text-left text-clip"
+              )}
+            >
               {selectedItem ? (selectedLabel || selectedItem.label) : (value ? selectedLabel || value : placeholder)}
             </span>
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className={cn("z-[10000] max-h-[calc(100dvh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border-border bg-card p-0 text-foreground shadow-lg", popoverClassName)} align="start" side="bottom">
-        <Command className="max-h-[calc(100dvh-1rem)] overflow-hidden rounded-xl bg-card text-foreground" shouldFilter={false}>
+      <PopoverContent
+        align="start"
+        side="bottom"
+        onWheel={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        className={cn(
+          "z-[10000] max-h-[calc(100dvh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border-border bg-card p-0 text-foreground shadow-lg",
+          popoverClassName
+        )}
+      >
+        <Command
+          className="max-h-[calc(100dvh-1rem)] overflow-hidden rounded-xl bg-card text-foreground"
+          shouldFilter={false}
+        >
           <div className="border-b border-border">
             <CommandInput
               placeholder={searchPlaceholder}
@@ -118,7 +137,7 @@ export function SearchableCombobox({
               className="flex h-12 w-full rounded-md bg-transparent py-3 text-base text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-0 focus:ring-0 lg:h-11 lg:text-sm"
             />
           </div>
-          <CommandList className="mx-[-5px] max-h-[min(50dvh,320px)] overflow-y-auto px-0 py-[3px] [&>[cmdk-list-sizer]]:flex [&>[cmdk-list-sizer]]:flex-col [&>[cmdk-list-sizer]]:gap-0 [&>[cmdk-list-sizer]]:mx-[-24px] [&>[cmdk-list-sizer]]:p-0 scrollbar-thin scrollbar-thumb-muted-foreground/20 lg:max-h-[min(220px,calc(100dvh-9rem))]">
+          <CommandList className="mx-[-5px] max-h-[min(50dvh,320px)] overflow-y-auto overscroll-contain px-0 py-[3px] [&>[cmdk-list-sizer]]:flex [&>[cmdk-list-sizer]]:flex-col [&>[cmdk-list-sizer]]:gap-0 [&>[cmdk-list-sizer]]:mx-[-24px] [&>[cmdk-list-sizer]]:p-0 scrollbar-thin scrollbar-thumb-muted-foreground/20 lg:max-h-[min(220px,calc(100dvh-9rem))]">
             {filteredItems.length === 0 && !allowFreeText && (
               <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
                 {emptyMessage}
@@ -155,15 +174,21 @@ export function SearchableCombobox({
                   <Check
                     className={cn(
                       "mr-1 h-4 w-4 shrink-0 transition-all",
-                      (selectedValues ? selectedValues.includes(item.id) : value === item.id) ? "opacity-100 text-primary scale-100" : "opacity-0 scale-75"
+                      (selectedValues ? selectedValues.includes(item.id) : value === item.id)
+                        ? "opacity-100 text-primary scale-100"
+                        : "opacity-0 scale-75"
                     )}
                   />
-                  <span className={cn(
-                    "min-w-0",
-                    !wrapItemLabels && "truncate",
-                    wrapItemLabels && "whitespace-normal break-words text-left",
-                    (selectedValues ? selectedValues.includes(item.id) : value === item.id) ? "font-semibold" : "font-medium text-foreground"
-                  )}>
+                  <span
+                    className={cn(
+                      "min-w-0",
+                      !wrapItemLabels && "truncate",
+                      wrapItemLabels && "whitespace-normal break-words text-left",
+                      (selectedValues ? selectedValues.includes(item.id) : value === item.id)
+                        ? "font-semibold"
+                        : "font-medium text-foreground"
+                    )}
+                  >
                     {item.label}
                   </span>
                 </CommandItem>

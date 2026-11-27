@@ -308,6 +308,10 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
 
     fornecedor: row.fornecedor ?? row.fornecedor_nome ?? null,
 
+    colaboradorId: row.colaboradorId ?? row.colaborador_id ?? null,
+
+    colaboradorNome: row.colaboradorNome ?? row.colaborador_nome ?? null,
+
     fornecedorId: row.fornecedorId ?? row.fornecedor_id ?? row.fornecedores_favoritos_id ?? null,
 
     cotistaId: row.cotistaId ?? row.cotista_id ?? null,
@@ -410,6 +414,8 @@ function normalizarLancamentoCaixa(row: any): Lancamento {
     cotistaId: row.cotistaId ?? row.cotista_aeronave_id ?? row.cotista_id ?? null,
     cotistaNome: row.cotistaNome ?? row.cotista_nome ?? null,
     cotista: row.cotista ?? row.cotista_nome ?? null,
+    colaboradorId: row.colaboradorId ?? row.colaborador_id ?? null,
+    colaboradorNome: row.colaboradorNome ?? row.colaborador_nome ?? null,
 
     data: String(dataBruta).slice(0, 10),
     dataPagamento: row.dataPagamento ?? row.data_pagamento ?? null,

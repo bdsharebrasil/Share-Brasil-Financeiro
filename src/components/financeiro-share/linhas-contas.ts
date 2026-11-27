@@ -70,7 +70,9 @@ export function linhasDeContasAPagar(contas: ContaAPagar[]): LinhaConta[] {
     caixa: "SHARE",
     descricao: c.descricao || "—",
     categoria: c.categoriaNome || "—",
-    favorecido: c.fornecedor || "—",
+    favorecido: c.colaboradorId
+      ? c.colaboradorNome || "Colaborador"
+      : c.colaboradorNome || c.fornecedor || "—",
     favorecidoPessoa: c.cotistaNome || c.cotista || null,
     fornecedor: c.fornecedorId ? c.fornecedor : null,
     contaBancaria: c.bancoPagamento || c.contaBancariaId || "—",

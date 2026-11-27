@@ -18,6 +18,8 @@ export interface Lancamento {
   cotistaId: string | null;
   cotistaNome?: string | null;
   cotista?: string | null;
+  colaboradorId?: string | null;
+  colaboradorNome?: string | null;
   data: string; // ISO date
   dataPagamento?: string | null;
   comprovanteUrl?: string | null;
@@ -84,6 +86,8 @@ export interface ContaAPagar {
   aeronaveMatricula?: string | null;
   fornecedor: string | null;
   fornecedorId: string | null;
+  colaboradorId?: string | null;
+  colaboradorNome?: string | null;
   cotistaId: string | null;
   cotistaNome?: string | null;
   cotista?: string | null;

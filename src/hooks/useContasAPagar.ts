@@ -38,6 +38,8 @@ function comoContaAPagar(lancamento: Lancamento): ContaAPagar {
     aeronaveId: lancamento.aeronaveId,
     fornecedor: lancamento.fornecedor,
     fornecedorId: lancamento.fornecedorId,
+    colaboradorId: lancamento.colaboradorId ?? null,
+    colaboradorNome: lancamento.colaboradorNome ?? null,
     cotistaId: lancamento.cotistaId,
     cotistaNome: lancamento.cotistaNome ?? null,
     cotista: lancamento.cotista ?? lancamento.cotistaNome ?? null,
@@ -97,6 +99,8 @@ export function useContasAPagar(filtros: FiltrosContasAPagar = {}): RetornoUseCo
           : conta;
         return {
           ...contaComBanco,
+          colaboradorId: conta.colaboradorId ?? lancamento?.colaboradorId ?? null,
+          colaboradorNome: conta.colaboradorNome ?? lancamento?.colaboradorNome ?? null,
           categoriaClienteId: conta.categoriaClienteId ?? lancamento?.categoriaClienteId ?? null,
           anexos: conta.anexos?.length ? conta.anexos : lancamento?.anexos ?? [],
           url_demonstrativo: conta.url_demonstrativo ?? lancamento?.url_demonstrativo ?? null,
